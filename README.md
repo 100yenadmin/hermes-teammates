@@ -2,7 +2,7 @@
 
 ![Hermes Teammates](docs/media/banner.png)
 
-**Named, retained subagent teammates for [Hermes Agent](https://github.com/NousResearch/hermes-agent).**
+**Named subagent teammates for [Hermes Agent](https://github.com/NousResearch/hermes-agent).**
 You define a small roster of teammates (a reviewer, a scout, a test-writer), each with its own instructions,
 toolsets and model. Your agent hands them work, checks on them, steers them mid-run, follows up with the context
 of earlier assignments, and can work a Kanban lane with a review handoff.
@@ -112,8 +112,8 @@ Ask in plain language:
 | Teammate setting / feature | Needs in Hermes | When missing |
 |---|---|---|
 | `model` | any supported version | Must be served by the parent's provider |
-| `route` (another provider) | a lifecycle route field (proposed upstream) | Reported as `unsupported_by_host`; the run uses the parent's provider |
-| `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Reported as `unsupported_by_host` |
+| `route` (another provider) | a lifecycle route field (proposed upstream) | Listed in the run's `unsupported` field; the run uses the parent's provider |
+| `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer`; today it goes through `delegate_task` steer with the live parent (in-process) | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 

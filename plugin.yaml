@@ -1,6 +1,6 @@
 name: hermes-teammates
 version: 0.1.0
-description: "Named, retained subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
+description: "Named subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
 author: Electric Sheep
 kind: standalone
 manifest_version: 2
