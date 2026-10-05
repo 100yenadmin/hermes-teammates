@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # Hermes build the plugin is tested against. Bump deliberately (see README "Compatibility").
+  HERMES_UPSTREAM_REPO: NousResearch/hermes-agent
+  HERMES_UPSTREAM_SHA: 1078a4e5f363472c43a50c6738e47e54eab2940c
+
+jobs:
+  hermes:
+    name: Against Hermes (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [pinned, main]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: plugin
+      - name: Resolve Hermes ref
+        id: pin
+        run: |
+          if [ "${{ matrix.target }}" = pinned ]; then echo "ref=$HERMES_UPSTREAM_SHA" >> "$GITHUB_OUTPUT"; else echo "ref=main" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HERMES_UPSTREAM_REPO }}
+          ref: ${{ steps.pin.outputs.ref }}
+          path: hermes
+      - uses: astral-sh/setup-uv@v6
+      - name: Install Hermes from its own lockfile
+        run: |
+          cd hermes
+          uv sync --frozen --no-dev
+          uv pip install --python .venv/bin/python pytest pytest-timeout
+      - name: hermes plugins validate (catalog admission checks)
+        env:
+          HERMES_HOME: ${{ runner.temp }}/hermes-home
+        run: hermes/.venv/bin/hermes plugins validate --install-deps plugin
+      - name: Tests inside a real Hermes install
+        env:
+          HERMES_HOME: ${{ runner.temp }}/hermes-home
+        run: cd plugin && ../hermes/.venv/bin/python -m pytest -q -p no:cacheprovider
+      - name: No self-updater, no runtime code fetch
+        run: |
+          bad=$(grep -rlE "releases/latest|raw\.githubusercontent\.com|pip install|urlopen\(" --include='*.py' plugin --exclude-dir=tests || true)
+          if [ -n "$bad" ]; then echo "self-updater / runtime fetch pattern in: $bad"; exit 1; fi
