@@ -50,3 +50,8 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
   refuses with `unsupported_isolation`.
 - After a Hermes restart, unfinished runs are marked `interrupted` and are never re-run. A lane card claimed by
   such a run is released by Kanban's claim TTL.
+- Toolsets narrow what a teammate can use, at toolset granularity only. Hermes's `file` toolset includes
+  `write_file` and `patch`, so a teammate meant to only read can still edit files. Its instructions are not an
+  enforcement boundary.
+- The plugin reads Hermes's Kanban database through `hermes_cli.kanban_db` and checks lane names against profiles
+  with a Hermes helper. It does not patch or wrap any Hermes function.
