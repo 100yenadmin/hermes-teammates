@@ -117,7 +117,7 @@ Ask in plain language:
 | steering | a lifecycle `steer`; today it goes through `delegate_task` steer with the live parent (in-process) | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
-The upstream proposal is tracked in <ISSUE LINK>.
+The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
 
 ## Limits (honest list)
 

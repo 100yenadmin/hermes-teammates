@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-10-05
 
 First release.
 
@@ -13,5 +13,7 @@ First release.
   success or blocks it on failure.
 - Under `plugins.isolation: host`, tools other than the roster refuse with `unsupported_isolation`. Current
   Hermes cannot carry a subagent launch across the plugin host.
-- **Feature detection** for a lifecycle route, `reasoning_effort`, `steer` and `follow_up`. A feature the host
-  lacks is reported as unsupported, never substituted.
+- **Feature detection** for a lifecycle route, `reasoning_effort`, `steer` and `follow_up`. A field the host
+  lacks is listed in the run's `unsupported` field, and the run uses the parent's provider. The core changes
+  this needs are proposed upstream in NousResearch/hermes-agent#133212.
+- `teammate_stop` puts its reason on the blocked Kanban card.
