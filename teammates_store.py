@@ -67,6 +67,15 @@ class Store:
             self.conn.execute(f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=?",
                               (*values.values(), run_id))
 
+    def update_if(self, run_id, status, **values):
+        """Update only while the run still has ``status``; returns True when a row changed."""
+        self._validate(values)
+        with self.conn:
+            cursor = self.conn.execute(
+                f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=? AND status=?",
+                (*values.values(), run_id, status))
+        return cursor.rowcount == 1
+
     def finish(self, run_id, status, **values):
         if status not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}:
             raise ValueError('not a terminal status')

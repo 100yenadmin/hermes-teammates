@@ -61,11 +61,18 @@ def public_row(row, summary_budget=8000):
     return result
 
 
+ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process on this Hermes build: the plugin host '
+                     'does not yet carry subagent launch requests or handles across its process boundary.')
+
+
 class TeammatesService:
     def __init__(self, host, store_factory, config_reader, *, monitor_interval=None, clock=time.time):
         self.host, self.store_factory, self.config_reader = host, store_factory, config_reader
         self.monitor_interval, self.clock = monitor_interval, clock
         self.monitors, self._owners = {}, {}
+        # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
+        # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
+        self._monitor_parents = {}
 
     def _get(self, session_id, run_id):
         with self.store_factory() as store:
@@ -74,6 +81,8 @@ class TeammatesService:
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
                kanban_task=None, parent_agent=None):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
             return error('no_session')
         config = parse(self.config_reader())
@@ -171,13 +180,15 @@ class TeammatesService:
 
     @safe
     def check(self, session_id, run_id, wait_seconds=0):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
         row = self._get(session_id, run_id)
         if row is None:
             return error('unknown_run')
         if row['status'] != 'running':
             return public_row(row)
         self._owners[run_id] = session_id
-        if row['instance_id'] != INSTANCE_ID:
+        if row['instance_id'] != INSTANCE_ID and row['pid'] != os.getpid():
             if pid_alive(row['pid']):
                 return dict(public_row(row), note='owned_by_other_process')
             with self.store_factory() as store:
@@ -225,10 +236,11 @@ class TeammatesService:
                             expected_run_id=claim['kanban_run_id'], with_reason=True)
                         outcome = 'review' if accepted else f'review_refused:{reason}'
                     else:
-                        self.host.block_task(conn, row['kanban_task'],
-                                             reason=f'hermes-teammates run {run_id} {status}: {clip(failure, 500) or ""}',
-                                             expected_run_id=claim['kanban_run_id'])
-                        outcome = 'blocked'
+                        blocked = self.host.block_task(
+                            conn, row['kanban_task'],
+                            reason=f'hermes-teammates run {run_id} {status}: {clip(failure, 500) or ""}',
+                            expected_run_id=claim['kanban_run_id'])
+                        outcome = 'blocked' if blocked else 'block_refused'
             except Exception as exc:
                 outcome = f'error:{type(exc).__name__}'
             with self.store_factory() as store:
@@ -238,6 +250,7 @@ class TeammatesService:
     @safe
     def start_monitor(self, row, handle, ttl):
         context = contextvars.copy_context()
+        self._monitor_parents[row['run_id']] = self.host.active_parent()
         interval = self.monitor_interval if self.monitor_interval is not None else max(30, ttl // 3)
         def loop():
             heartbeat = True
@@ -263,10 +276,12 @@ class TeammatesService:
                                 claimer=json.loads(row['kanban_claim'])['claimer'])
                         if not heartbeat:
                             with self.store_factory() as store:
-                                store.update(row['run_id'], kanban_outcome='claim_lost')
+                                store.update_if(row['run_id'], 'running', kanban_outcome='claim_lost')
             except Exception as exc:
                 with self.store_factory() as store:
-                    store.update(row['run_id'], kanban_outcome=f'error:{type(exc).__name__}')
+                    store.update_if(row['run_id'], 'running', kanban_outcome=f'error:{type(exc).__name__}')
+            finally:
+                self._monitor_parents.pop(row['run_id'], None)
         thread = threading.Thread(target=context.run, args=(loop,), daemon=True,
                                   name=f"hermes-teammates-{row['run_id']}")
         self.monitors[row['run_id']] = thread
@@ -275,6 +290,8 @@ class TeammatesService:
 
     @safe
     def message(self, session_id, run_id, text, parent_agent=None):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
         row = self._get(session_id, run_id)
         if row is None:
             return error('unknown_run')
@@ -292,6 +309,8 @@ class TeammatesService:
 
     @safe
     def stop(self, session_id, run_id, reason=''):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
         row = self._get(session_id, run_id)
         if row is None:
             return error('unknown_run')

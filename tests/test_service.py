@@ -48,7 +48,7 @@ def test_unknown_and_other_process(rig, monkeypatch):
         rig.lifecycle.state = 'RUNNING'
         run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
         with rig.store() as store:
-            store.update(run_id, instance_id='other-process', pid=os.getpid())
+            store.update(run_id, instance_id='other-process', pid=os.getpid() + 7919)  # a different process; liveness is monkeypatched
         monkeypatch.setattr(teammates_service, 'pid_alive', lambda pid: alive)
         row = rig.service.check('s', run_id)
         assert row['status'] == ('running' if alive else 'interrupted')

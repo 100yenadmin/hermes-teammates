@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from dataclasses import fields
 import json
+import os
 
 
 def lifecycle(ctx):
@@ -15,6 +16,7 @@ def current_session_id(kwargs):
 class HermesHost:
     def __init__(self, ctx):
         self.ctx = ctx
+        self.isolated = os.environ.get('HERMES_PLUGIN_HOST_PROCESS', '').strip().lower() not in ('', '0', 'false')
         try:
             from hermes_cli import kanban_db
             from hermes_cli.kanban_db_connect import connect
