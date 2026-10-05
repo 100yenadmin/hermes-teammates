@@ -1,0 +1,19 @@
+name: hermes-teammates
+version: 0.1.0
+description: "Named, retained subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
+author: Electric Sheep
+kind: standalone
+manifest_version: 2
+api_version: 1
+requires_hermes: ">=0.21.4"
+license: MIT
+homepage: https://github.com/100yenadmin/hermes-teammates
+tags: [delegation, subagents, orchestration, kanban]
+config_schema:
+  teammates: {type: dict, default: {}, description: "Named teammates: name -> {description, instructions, toolsets, model, route, reasoning_effort}."}
+  lane: {type: str, default: "teammates", description: "Kanban assignee used for the teammates lane. Must not be a Hermes profile name."}
+  claim_ttl_seconds: {type: int, default: 900, description: "Kanban claim TTL while a teammate works a lane task."}
+  max_live_runs: {type: int, default: 4, description: "Most teammate runs one session may have in flight."}
+  followup_context_chars: {type: int, default: 8000, description: "Budget for prior results carried into a follow-up."}
+provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_message, teammate_stop]
+provides_hooks: []
