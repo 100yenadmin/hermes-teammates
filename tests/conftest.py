@@ -1,5 +1,6 @@
 """Package loading and isolated pinned-Hermes fixtures."""
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,9 +8,10 @@ from types import SimpleNamespace
 import pytest
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-PIN = Path('/Users/m1/repos/worktrees/hermes-teammates-upstream-pin')
 sys.dont_write_bytecode = True
-sys.path.insert(0, str(PIN))
+# Run with the Python of a Hermes checkout (its venv), or point HERMES_SOURCE at the checkout to import it from there.
+if os.environ.get('HERMES_SOURCE'):
+    sys.path.insert(0, os.environ['HERMES_SOURCE'])
 
 
 @pytest.fixture(autouse=True)
