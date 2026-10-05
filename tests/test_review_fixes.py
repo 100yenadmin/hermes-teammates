@@ -113,3 +113,33 @@ def test_slash_command_renders_text(rig):
     assert '  worker - (no description) [toolsets: inherits parent]' in text
     assert 'This Hermes build: steer=no' in text
     assert render_roster({'ok': False, 'error': 'boom'}) == 'hermes-teammates: boom'
+
+
+def test_monitor_start_failure_releases_parent_and_registration(rig, monkeypatch):
+    # Cross-model review (Codex): an unstarted thread never runs its finally, so start() failure cleans up itself.
+    import threading
+    from hermes_teammates.teammates_service import TeammatesService
+    task_id = create(rig)
+    rig.service.start_monitor = TeammatesService.start_monitor.__get__(rig.service)
+    rig.host.active_parent = lambda: object()
+    def refuse(self):
+        raise RuntimeError("can't start new thread")
+    monkeypatch.setattr(threading.Thread, 'start', refuse)
+    run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
+    assert rig.service._monitor_parents == {} and run_id not in rig.service.monitors
+
+
+def test_stop_reason_reaches_the_kanban_card(rig):
+    # Cross-model review (Codex): the stop reason must appear on the blocked card, as the tool description says.
+    task_id = create(rig)
+    run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
+    reasons, real_block = [], rig.host.block_task
+    def block(conn, task, **kwargs):
+        reasons.append(kwargs['reason'])
+        return real_block(conn, task, **kwargs)
+    rig.host.block_task = block
+    assert rig.service.stop('s', run_id, 'wrong file, stop')['ok']
+    rig.lifecycle.state = 'CANCELLED'
+    assert rig.service.check('s', run_id)['kanban_outcome'] == 'blocked'
+    assert reasons and reasons[0].endswith('cancelled: wrong file, stop')
+    assert read(rig, task_id).status == 'blocked'

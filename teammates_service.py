@@ -73,6 +73,7 @@ class TeammatesService:
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
+        self._stop_reasons = {}
 
     def _get(self, session_id, run_id):
         with self.store_factory() as store:
@@ -238,7 +239,8 @@ class TeammatesService:
                     else:
                         blocked = self.host.block_task(
                             conn, row['kanban_task'],
-                            reason=f'hermes-teammates run {run_id} {status}: {clip(failure, 500) or ""}',
+                            reason=f'hermes-teammates run {run_id} {status}: '
+                                   f'{clip(failure or self._stop_reasons.get(run_id), 500) or ""}',
                             expected_run_id=claim['kanban_run_id'])
                         outcome = 'blocked' if blocked else 'block_refused'
             except Exception as exc:
@@ -285,7 +287,13 @@ class TeammatesService:
         thread = threading.Thread(target=context.run, args=(loop,), daemon=True,
                                   name=f"hermes-teammates-{row['run_id']}")
         self.monitors[row['run_id']] = thread
-        thread.start()
+        try:
+            thread.start()
+        except BaseException:
+            # An unstarted thread never reaches its cleanup, so drop the parent and the registration here.
+            self._monitor_parents.pop(row['run_id'], None)
+            self.monitors.pop(row['run_id'], None)
+            raise
         return {'ok': True, 'run_id': row['run_id']}
 
     @safe
@@ -317,6 +325,8 @@ class TeammatesService:
         if row['status'] != 'running':
             return error('already_terminal')
         handle = self.host.handle_from_dict(json.loads(row['handle_json']))
+        if reason:
+            self._stop_reasons[run_id] = clip(reason, 500)
         result = self.host.service.cancel(handle, reason=reason)
         value = asdict(result) if is_dataclass(result) else vars(result)
         return dict(value, ok=bool(value.get('accepted')))
