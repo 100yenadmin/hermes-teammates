@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `route` now reaches Hermes builds whose lifecycle API has `SubagentLaunchRequest.provider` (upstream draft PR
+  #133762): a teammate with `route: openrouter` runs on that configured provider. Older builds still list `route`
+  under `unsupported`.
+
 ## 0.1.1 — 2026-10-06
 
 - **Desktop settings.** Every setting has a label for Hermes Desktop's plugin settings form, and each numeric

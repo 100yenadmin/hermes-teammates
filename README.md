@@ -147,7 +147,7 @@ Ask in plain language:
 | Teammate setting / feature | Needs in Hermes | When missing |
 |---|---|---|
 | `model` | any supported version | Must be served by the parent's provider |
-| `route` (another provider) | a lifecycle route field (proposed upstream) | Listed in the run's `unsupported` field; the run uses the parent's provider |
+| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider` (upstream draft PR #133762) | Listed in the run's `unsupported` field; the run uses the parent's provider |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer`; today it goes through `delegate_task` steer with the live parent (in-process) | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
