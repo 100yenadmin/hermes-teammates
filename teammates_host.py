@@ -39,7 +39,7 @@ class HermesHost:
         names = {field.name for field in fields(self.request_class())}
         service = self.service
         return {'reasoning_effort': 'reasoning_effort' in names,
-                'route': next((name for name in ('model_profile', 'route', 'profile') if name in names), None),
+                'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
                 'steer': callable(getattr(service, 'steer', None)),
                 'follow_up': callable(getattr(service, 'follow_up', None))}
 
