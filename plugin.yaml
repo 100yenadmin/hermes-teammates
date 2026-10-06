@@ -1,5 +1,5 @@
 name: hermes-teammates
-version: 0.1.0
+version: 0.1.1
 description: "Named subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
 author: Electric Sheep
 kind: standalone
@@ -10,10 +10,10 @@ license: MIT
 homepage: https://github.com/100yenadmin/hermes-teammates
 tags: [delegation, subagents, orchestration, kanban]
 config_schema:
-  teammates: {type: dict, default: {}, description: "Named teammates: name -> {description, instructions, toolsets, model, route, reasoning_effort}."}
-  lane: {type: str, default: "teammates", description: "Kanban assignee used for the teammates lane. Must not be a Hermes profile name."}
-  claim_ttl_seconds: {type: int, default: 900, description: "Kanban claim TTL while a teammate works a lane task."}
-  max_live_runs: {type: int, default: 4, description: "Most teammate runs one session may have in flight."}
-  followup_context_chars: {type: int, default: 8000, description: "Budget for prior results carried into a follow-up."}
+  teammates: {type: dict, default: {}, label: "Teammates", description: "JSON object of teammates: {\"reviewer\": {\"description\": \"...\", \"instructions\": \"...\", \"toolsets\": [\"file\"]}}. Optional per teammate: model, route, reasoning_effort. Names: lowercase letters, digits, - or _, up to 32 characters. Problems are listed by /teammates."}
+  lane: {type: str, default: "teammates", label: "Kanban lane", description: "Kanban assignee for teammate cards. Must not be a Hermes profile name, or lane work is refused. Empty falls back to teammates."}
+  claim_ttl_seconds: {type: int, default: 900, label: "Kanban claim TTL (seconds)", description: "How long a teammate's claim on a Kanban card lasts between heartbeats. 60-86400; anything else falls back to 900."}
+  max_live_runs: {type: int, default: 4, label: "Max live runs per conversation", description: "Most teammate runs one conversation may have in flight. 1-16; anything else falls back to 4."}
+  followup_context_chars: {type: int, default: 8000, label: "Follow-up context budget (characters)", description: "How much of a teammate's earlier results a follow-up carries. 0-24000; anything else falls back to 8000."}
 provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_message, teammate_stop]
 provides_hooks: []

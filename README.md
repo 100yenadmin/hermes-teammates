@@ -58,7 +58,40 @@ Then restart the gateway (or the CLI session) so the tools register.
 
 ## Configure
 
-`config.yaml`:
+**In Hermes Desktop** (0.21.5 or newer), open the plugin's settings. On current builds they are under
+**Settings ▸ Plugins**; on 0.21.5 they open inline from the plugin's row under **Capabilities ▸ Plugins**.
+
+| Setting | What it does | Valid values (anything else falls back to the default) |
+|---|---|---|
+| **Teammates** | Your roster, as a JSON object (example below) | Names: lowercase letters, digits, `-` or `_`, up to 32 characters |
+| **Kanban lane** | Kanban assignee for teammate cards | Any name that is not a Hermes profile; default `teammates` |
+| **Kanban claim TTL (seconds)** | How long a claim on a lane card lasts between heartbeats | 60–86400; default 900 |
+| **Max live runs per conversation** | Teammate runs one conversation may have in flight | 1–16; default 4 |
+| **Follow-up context budget (characters)** | How much of earlier results a follow-up carries | 0–24000; default 8000 |
+
+The **Teammates** field takes JSON like this:
+
+```json
+{
+  "reviewer": {
+    "description": "Careful code reviewer; finds regressions and cites file:line.",
+    "instructions": "Review the change you are given. Report findings with file:line and a fix.",
+    "toolsets": ["file", "terminal"]
+  },
+  "scout": {
+    "description": "Fast read-only researcher.",
+    "instructions": "Find the facts asked for. Quote sources. Do not edit files.",
+    "toolsets": ["web", "file"]
+  }
+}
+```
+
+Each teammate takes `description`, `instructions` and `toolsets`, plus optional `model`, `route` and
+`reasoning_effort` (see [Compatibility](#compatibility)). The form checks types, not ranges. A value it accepts but
+the plugin can't use (an unknown key, a bad name, an out-of-range number) falls back to the default and is
+listed under **Config problems** in `/teammates`.
+
+**With the CLI, headless, or on Hermes 0.21.4,** put the same settings in `config.yaml`:
 
 ```yaml
 plugins:
@@ -81,7 +114,9 @@ plugins:
         claim_ttl_seconds: 900
 ```
 
-Settings are read on every call, so edits apply without a restart.
+Settings are read on every call, so edits apply without a restart. The one exception is the list of teammate
+names in the `teammate_assign` tool description, which is fixed at startup. A teammate you add later works by
+name right away, and `teammates_roster` always shows the current list; restart to refresh the description.
 
 ## Use
 
@@ -144,7 +179,7 @@ cd hermes-teammates && python -m pytest -q   # inside a Hermes venv
 ```
 
 Manual walkthrough (5 minutes):
-1. Add the `reviewer` teammate above and restart.
+1. Add the `reviewer` teammate above, in the plugin settings or `config.yaml`.
 2. Ask: "Show me my teammates." You should see the roster with `reviewer` and a features table.
 3. Ask: "Have the reviewer summarize README.md in three bullets." You get a `run_id`, then the result via
    `teammate_check`.

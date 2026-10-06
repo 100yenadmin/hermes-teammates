@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1 — 2026-10-06
+
+- **Desktop settings.** Every setting has a label for Hermes Desktop's plugin settings form, and each numeric
+  setting states its valid range and fallback. The README's Configure section leads with the form and gives a JSON
+  example for the roster; `config.yaml` stays the route for the CLI and Hermes 0.21.4.
+- Whole-number floats (`900.0`) are accepted for the numeric settings.
+- `teammate_assign` no longer implies its startup list of names is complete: teammates added later work by name,
+  and `teammates_roster` shows the current list.
+
 ## 0.1.0 — 2026-10-05
 
 First release.

@@ -18,6 +18,8 @@ def parse(raw):
     for key, low, high in [('claim_ttl_seconds', 60, 86400), ('max_live_runs', 1, 16),
                            ('followup_context_chars', 0, 24000)]:
         value = raw.get(key, DEFAULTS[key])
+        if type(value) is float and value.is_integer():
+            value = int(value)  # JSON/YAML editors may hand back 900.0 for 900
         if type(value) is int and low <= value <= high:
             result[key] = value
         else:

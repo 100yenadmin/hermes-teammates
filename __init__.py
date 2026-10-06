@@ -1,4 +1,4 @@
-"""hermes-teammates v0.1.0 registration; state opens only on first use."""
+"""hermes-teammates v0.1.1 registration; state opens only on first use."""
 import threading
 
 from . import teammates_config, teammates_tools

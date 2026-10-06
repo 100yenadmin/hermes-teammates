@@ -64,3 +64,10 @@ def test_roster_current_config_and_bounded_output(rig):
     assert len(json.dumps(result)) <= 16000
     assert result['runs'] == []
     assert result['teammates'][0]['unsupported'] == ['route','reasoning_effort']
+
+
+def test_assign_description_points_to_the_live_roster(plugin):
+    from hermes_teammates.teammates_tools import schema
+    assert 'Teammates at startup: reviewer, scout.' in schema('teammate_assign', ['reviewer', 'scout'])['description']
+    empty = schema('teammate_assign', [])['description']
+    assert 'at startup' not in empty and 'teammates_roster' in empty

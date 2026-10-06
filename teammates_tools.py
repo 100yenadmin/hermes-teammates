@@ -48,7 +48,8 @@ SPECS = {
 def schema(name, names=()):
     description, properties, required = SPECS[name]
     if name == 'teammate_assign':
-        description += ' Configured names: ' + ', '.join(names) + '.'
+        description += (' Teammates at startup: ' + ', '.join(names) + '.' if names else '') + \
+            ' Call teammates_roster for the current list; teammates added later work by name.'
     return {'name': name, 'description': description,
             'parameters': {'type': 'object', 'properties': properties, 'required': required}}
 
@@ -82,7 +83,8 @@ def render_roster(value):
         return f"hermes-teammates: {value.get('message') or value.get('error')}"
     lines, teammates = [], value.get('teammates') or []
     lines.append(f'Teammates ({len(teammates)}):' if teammates else
-                 'No teammates configured. Add them under plugins.entries.hermes-teammates.settings.teammates.')
+                 'No teammates configured. Add them in the plugin settings in Hermes Desktop, or under '
+                 'plugins.entries.hermes-teammates.settings.teammates in config.yaml.')
     for teammate in teammates:
         toolsets = ', '.join(teammate.get('toolsets') or []) or 'inherits parent'
         lines.append(f"  {teammate['name']} - {teammate.get('description') or '(no description)'} [toolsets: {toolsets}]")
