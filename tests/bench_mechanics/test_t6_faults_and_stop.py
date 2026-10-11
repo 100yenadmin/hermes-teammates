@@ -23,8 +23,8 @@ def test_stop_loop(mount, tmp_path, metrics):
     assert assigned['ok'], assigned
     rig.fake.wait_requests('a', count=2)
     assert rig.check(assigned['run_id'])['status'] == 'running'
+    stopped = time.monotonic()  # before the call, so a slow stop counts against the bound
     assert rig.stop(assigned['run_id'], 'mechanics stop')['ok']
-    stopped = time.monotonic()
     row = rig.wait_terminal(assigned['run_id'])
     elapsed = time.monotonic() - stopped
     assert row['status'] == 'cancelled', row
