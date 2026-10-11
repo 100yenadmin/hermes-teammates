@@ -2,6 +2,7 @@
 import json
 import os
 import sqlite3
+import threading
 import time
 from types import SimpleNamespace
 
@@ -134,9 +135,16 @@ def test_monitor_worker_heartbeat_prevents_stale_reclaim(rig, monkeypatch):
 
 @pytest.mark.parametrize('failures', [1, 10])
 def test_monitor_retries_with_bounded_backoff(rig, monkeypatch, failures):
+    before = set(threading.enumerate())
     from hermes_teammates import teammates_service as module
     sleeps, calls = [], []
-    monkeypatch.setattr(module.time, 'sleep', sleeps.append)
+    real_sleep = module.time.sleep
+    def monitor_sleep(seconds):
+        if threading.current_thread() not in before:
+            sleeps.append(seconds)
+        else:
+            real_sleep(seconds)
+    monkeypatch.setattr(module.time, 'sleep', monitor_sleep)
     def wait(*a, **k):
         calls.append(1)
         if len(calls) <= failures:
