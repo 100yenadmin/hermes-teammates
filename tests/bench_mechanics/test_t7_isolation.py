@@ -1,6 +1,7 @@
 """M2: concurrent canaries, same-teammate follow-up and tool-output containment."""
 import json
 import threading
+import time
 from uuid import uuid4
 
 
@@ -40,15 +41,14 @@ def test_tool_output_containment(mount, tmp_path, metrics):
     path.write_text(secret + '\n', encoding='utf-8')
     assigned = rig.assign('a', 'tool_secret', path=str(path))
     assert assigned['ok'], assigned
-    seen = []
+    deadline = time.monotonic() + 20
     # Inspect every public check returned while polling, including running state.
     while True:
         row = rig.check(assigned['run_id'], wait_seconds=1)
-        seen.append(row)
         assert row['ok'] and secret not in json.dumps(row), row
         if row['status'] != 'running':
             break
-        assert len(seen) < 20, 'tool_secret did not terminate within 20 polls'
+        assert time.monotonic() < deadline, 'tool_secret did not terminate within 20 s'
     assert row['status'] == 'succeeded' and row['summary'] == 'read ok', row
     requests = rig.fake.labelled('a')
     assert len(requests) == 2 and requests[1]['n_tool'] == 1

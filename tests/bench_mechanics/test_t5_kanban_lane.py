@@ -33,7 +33,7 @@ def test_six_card_lane(mount, tmp_path, metrics):
         if active:
             time.sleep(0.02)
     elapsed = time.monotonic() - started
-    statuses = []
+    statuses, expired = [], 0
     for run_id, ((index, task_id, path, content), row) in completed.items():
         card = rig.read_card(task_id)
         statuses.append(card.status)
@@ -52,7 +52,8 @@ def test_six_card_lane(mount, tmp_path, metrics):
             if claimed_expiry[task_id] is not None:
                 assert run.ended_at <= claimed_expiry[task_id]
             events = conn.execute('SELECT kind FROM task_events WHERE task_id=?', (task_id,)).fetchall()
-            assert not any('expir' in event[0] or 'reclaim' in event[0] for event in events)
+            expired += sum('expir' in event[0] or 'reclaim' in event[0] for event in events)
+            assert events, 'no Kanban events recorded for the card'
             if index < 5:
                 assert run.metadata['hermes_teammates']['run_id'] == run_id
         if index < 5:
@@ -60,8 +61,9 @@ def test_six_card_lane(mount, tmp_path, metrics):
             assert path.read_text(encoding='utf-8') == content
         else:
             assert row['status'] == 'failed' and card.status == 'blocked' and run.summary
-    assert statuses.count('review') == 5 and statuses.count('blocked') == 1
     metrics('M3', 'time_to_all_terminal', round(elapsed, 4), 'seconds')
-    metrics('M3', 'review_cards', 5, 'cards')
-    metrics('M3', 'blocked_cards', 1, 'cards')
-    metrics('M3', 'expired_claims', 0, 'claims')
+    metrics('M3', 'review_cards', statuses.count('review'), 'cards')
+    metrics('M3', 'blocked_cards', statuses.count('blocked'), 'cards')
+    metrics('M3', 'expired_claims', expired, 'claims')
+    assert statuses.count('review') == 5 and statuses.count('blocked') == 1
+    assert expired == 0

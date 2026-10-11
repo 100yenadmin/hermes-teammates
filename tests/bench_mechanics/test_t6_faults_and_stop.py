@@ -28,10 +28,10 @@ def test_stop_loop(mount, tmp_path, metrics):
     row = rig.wait_terminal(assigned['run_id'])
     elapsed = time.monotonic() - stopped
     assert row['status'] == 'cancelled', row
-    assert elapsed < 20
+    assert elapsed < 5  # observed ~0.1 s locally; generous for CI runners
     time.sleep(max(0, stopped + 2.4 - time.monotonic()))
     late = sum(request['t'] > stopped + 2 for request in rig.fake.labelled('a'))
-    assert late <= 1
+    assert late == 0
     metrics('M1b', 'stop_to_cancelled', round(elapsed, 4), 'seconds')
     metrics('M1b', 'requests_more_than_2s_after_stop', late, 'requests')
 
