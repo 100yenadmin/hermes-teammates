@@ -18,8 +18,8 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
   - Hermes rejects any set that would widen the parent's tools, and it keeps its own unsafe-tool block for every
     subagent.
   - Absent or null `toolsets` inherit. Unknown keys, wrong field types or invalid/empty `toolsets` refuse launch.
-- **Credentials.** Teammates run on the parent's provider credentials through Hermes. The plugin never reads,
-  stores or logs API keys or tokens.
+- **Credentials.** Hermes supplies the parent's credentials, or the operator-configured provider's when route is
+  supported. The model cannot choose credentials. The plugin never reads, stores or logs API keys or tokens.
 - **Admission.** The plugin refuses nested teammates. It also refuses new runs while Hermes's
   delegation spawn pause is on, when it can read that flag, and above a per-conversation cap on live runs.
 - **Ownership.**
@@ -47,7 +47,8 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
 - Steering goes through Hermes's `delegate_task` steer with the parent agent bound to the current turn, so it is
   available only when the plugin runs in-process. Under `plugins.isolation: host`, every tool except the roster
   refuses with `unsupported_isolation`.
-- After a Hermes restart, first plugin use marks unfinished runs from dead processes `interrupted`; they are never re-run. A lane card claimed by
+- Plugin reloads in the same process preserve live runs. After a Hermes restart, first plugin use marks unfinished
+  runs from dead processes `interrupted`; they are never re-run. A lane card claimed by
   such a run is released by Kanban's claim TTL.
 - Toolsets narrow what a teammate can use, at toolset granularity only. Hermes's `file` toolset includes
   `write_file` and `patch`, so a teammate meant to only read can still edit files. Its instructions are not an

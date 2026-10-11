@@ -42,7 +42,8 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
    picks up where it left off.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
-   `teammate_stop` records the stop; late completions stay cancelled and block their Kanban card.
+   `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
+   Refused cancellations leave completed work intact.
 6. **Kanban teammates lane.** Assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
@@ -61,7 +62,7 @@ Then restart the gateway (or the CLI session) so the tools register.
 **In Hermes Desktop** (0.21.5 or newer), open the plugin's settings. On current builds they are under
 **Settings ▸ Plugins**; on 0.21.5 they open inline from the plugin's row under **Capabilities ▸ Plugins**.
 
-| Setting | What it does | Valid values (anything else falls back to the default) |
+| Setting | What it does | Valid values (invalid teammates are refused; other settings fall back to defaults) |
 |---|---|---|
 | **Teammates** | Your roster, as a JSON object (example below) | Names: lowercase letters, digits, `-` or `_`, up to 32 characters |
 | **Kanban lane** | Kanban assignee for teammate cards | Any name that is not a Hermes profile; default `teammates` |
@@ -90,6 +91,7 @@ Each teammate takes `description`, `instructions` and `toolsets`, plus optional 
 `reasoning_effort` (see [Compatibility](#compatibility)). The form checks types, not ranges. A value it accepts but
 the plugin can't use is listed under **Config problems** in `/teammates`. Invalid teammates refuse launch:
 unknown keys, wrong field types, and empty or invalid `toolsets` fail closed. Absent or null `toolsets` inherit.
+Long descriptions and instructions are clipped with warnings and remain launchable; toolset names are trimmed.
 
 Launch context reserves operator instructions, then card text (up to 6,000 characters), the follow-up digest,
 and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
@@ -163,7 +165,7 @@ The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://g
   results until Hermes exposes transcript-level follow-up to plugins.
 - **Runs do not survive a restart.** Hermes keeps subagents in-process. After a restart the ledger marks
   unfinished runs from dead processes `interrupted` on first plugin use across conversations; results are not
-  recovered or re-run. A lane card's claim expires through Kanban's normal TTL.
+  recovered or re-run. Plugin reloads within the same process preserve live runs. A lane card's claim expires through Kanban's normal TTL.
 - **Runs belong to the conversation that started them.** Another chat on the same profile cannot see, steer or
   stop them.
 - **A context compression starts a new conversation segment.** Hermes gives the conversation a new session id when
@@ -195,7 +197,8 @@ Manual walkthrough (5 minutes):
 
 See [SECURITY.md](SECURITY.md). In short:
 
-- Teammates run with the parent's credentials and can only narrow toolsets.
+- Credentials come from Hermes: the parent's, or the operator-configured provider's when route is supported.
+  The model cannot choose credentials; teammates can only narrow toolsets.
 - The model picks names, never providers or models.
 - The ledger stays local and per profile.
 - The plugin makes no network calls of its own.

@@ -39,6 +39,7 @@ def parse(raw):
         configured = {}
     for name, values in configured.items():
         if not isinstance(name, str) or not NAME.fullmatch(name):
+            name = str(name)[:300]
             errors.append(f'invalid teammate name: {name}')
             invalid[name] = errors[-1:]
             continue
@@ -47,6 +48,7 @@ def parse(raw):
             invalid[name] = errors[-1:]
             continue
         start = len(errors)
+        warnings = []
         teammate = {'description': '', 'instructions': '', 'toolsets': None,
                     'model': None, 'route': None, 'reasoning_effort': None}
         for key in values.keys() - FIELDS:
@@ -56,7 +58,7 @@ def parse(raw):
             if isinstance(value, str):
                 teammate[key] = value[:limit]
                 if len(value) > limit:
-                    errors.append(f'{name}.{key}: clipped to {limit}')
+                    warnings.append(f'{name}.{key}: clipped to {limit}')
             else:
                 errors.append(f'{name}.{key}: expected string')
         for key in ('model', 'route', 'reasoning_effort'):
@@ -68,12 +70,13 @@ def parse(raw):
         toolsets = values.get('toolsets')
         if toolsets is None or (isinstance(toolsets, list) and toolsets and
                                all(isinstance(t, str) and t.strip() for t in toolsets)):
-            teammate['toolsets'] = toolsets
+            teammate['toolsets'] = [t.strip() for t in toolsets] if toolsets is not None else None
         else:
             errors.append(f'{name}.toolsets: expected non-empty list of non-empty strings')
         teammates[name] = teammate
         if len(errors) > start:
             invalid[name] = errors[start:]
+        errors.extend(warnings)
     with _log_lock:
         for message in errors:
             if message not in _logged_errors:

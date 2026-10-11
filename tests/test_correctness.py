@@ -70,6 +70,7 @@ def test_followup_retains_result_tail(rig):
 
 
 def test_stop_intent_survives_late_completion(rig):
+    rig.service.clock = lambda: 2  # The fake lifecycle completes at 3, after the stop.
     task_id = create(rig)
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
     assert rig.service.stop('s', run_id, 'wrong file')['ok']

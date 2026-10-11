@@ -1,9 +1,10 @@
 """Connection-owned SQLite persistence with a single terminal CAS."""
 import sqlite3
+import sys
 import threading
 from uuid import uuid4
 
-INSTANCE_ID = uuid4().hex
+INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().hex)
 _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT'}
 SCHEMA = '''
@@ -25,10 +26,12 @@ class Store:
         conn.row_factory = sqlite3.Row
         self.path = next(r['file'] for r in conn.execute('PRAGMA database_list') if r['name'] == 'main')
         with _schema_lock:
-            if not self.path or self.path not in _schema_paths:
+            exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='runs'").fetchone()
+            if not self.path or self.path not in _schema_paths or not exists:
                 conn.executescript(SCHEMA)
-                columns = {r['name'] for r in conn.execute('PRAGMA table_info(runs)')}
                 with conn:
+                    conn.execute('BEGIN IMMEDIATE')
+                    columns = {r['name'] for r in conn.execute('PRAGMA table_info(runs)')}
                     for name, kind in MIGRATIONS.items():
                         if name not in columns:
                             conn.execute(f'ALTER TABLE runs ADD COLUMN {name} {kind}')
@@ -85,12 +88,13 @@ class Store:
             self.conn.execute(f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=?",
                               (*values.values(), run_id))
 
-    def update_if(self, run_id, status, **values):
+    def update_if(self, run_id, status, *, stop_unset=False, **values):
         """Update only while the run still has ``status``; returns True when a row changed."""
         self._validate(values)
         with self.conn:
             cursor = self.conn.execute(
-                f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=? AND status=?",
+                f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=? AND status=?"
+                + (' AND stop_requested_at IS NULL' if stop_unset else ''),
                 (*values.values(), run_id, status))
         return cursor.rowcount == 1
 

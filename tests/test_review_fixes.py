@@ -49,15 +49,15 @@ def test_claim_lost_never_overwrites_a_finished_outcome(rig):
     assert changed is False and row['kanban_outcome'] is None
 
 
-def test_same_pid_new_instance_is_interrupted(rig):
-    # A13: a different instance in this PID belongs to a restarted process.
+def test_same_pid_new_instance_still_resolves_the_handle(rig):
+    # F1: a foreign instance in this PID may still own a live lifecycle handle.
     run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
     with rig.store() as store:
         store.update(run_id, instance_id='previous-load')
     rig.lifecycle.state = 'SUCCEEDED'
     result = rig.service.check('s', run_id)
-    assert result['status'] == 'interrupted' and 'note' not in result
-    assert result['error'] == 'Hermes restarted before this run finished; the result was not recovered'
+    assert result['status'] == 'succeeded' and 'note' not in result
+    assert result['summary'] == 'done'
 
 
 def test_other_live_process_is_reported_without_mutation(rig):
@@ -133,6 +133,7 @@ def test_monitor_start_failure_releases_parent_and_registration(rig, monkeypatch
 
 
 def test_stop_reason_reaches_the_kanban_card(rig):
+    rig.service.clock = lambda: 2  # The fake lifecycle completes at 3, after the stop.
     # Cross-model review (Codex): the stop reason must appear on the blocked card, as the tool description says.
     task_id = create(rig)
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']

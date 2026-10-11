@@ -15,7 +15,8 @@ def register(ctx):
                 host = HermesHost(ctx)
                 service = TeammatesService(host, host.store_factory, lambda: teammates_config.read(ctx))
             return service
-    names = teammates_config.parse(teammates_config.read(ctx))['teammates']
+    config = teammates_config.parse(teammates_config.read(ctx))
+    names = [name for name in config['teammates'] if name not in config['invalid_teammates']]
     for name in teammates_tools.SPECS:
         schema = teammates_tools.schema(name, names)
         ctx.register_tool(name=name, toolset='teammates', schema=schema,
