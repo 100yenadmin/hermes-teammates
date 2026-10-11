@@ -50,13 +50,14 @@ def test_claim_lost_never_overwrites_a_finished_outcome(rig):
 
 
 def test_same_pid_new_instance_still_resolves_the_handle(rig):
-    # D3: a plugin reload re-mints INSTANCE_ID in the same process; its runs must not be stranded.
+    # F1: a foreign instance in this PID may still own a live lifecycle handle.
     run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
     with rig.store() as store:
         store.update(run_id, instance_id='previous-load')
     rig.lifecycle.state = 'SUCCEEDED'
     result = rig.service.check('s', run_id)
     assert result['status'] == 'succeeded' and 'note' not in result
+    assert result['summary'] == 'done'
 
 
 def test_other_live_process_is_reported_without_mutation(rig):
@@ -125,11 +126,14 @@ def test_monitor_start_failure_releases_parent_and_registration(rig, monkeypatch
     def refuse(self):
         raise RuntimeError("can't start new thread")
     monkeypatch.setattr(threading.Thread, 'start', refuse)
-    run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
-    assert rig.service._monitor_parents == {} and run_id not in rig.service.monitors
+    result = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)
+    assert result['error'] == 'launch_failed' and 'RuntimeError' in result['message']
+    assert rig.service._monitor_parents == {} and rig.service.monitors == {}
+    assert rig.lifecycle.cancels and read(rig, task_id).status == 'blocked'
 
 
 def test_stop_reason_reaches_the_kanban_card(rig):
+    rig.service.clock = lambda: 2  # The fake lifecycle completes at 3, after the stop.
     # Cross-model review (Codex): the stop reason must appear on the blocked card, as the tool description says.
     task_id = create(rig)
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']

@@ -36,12 +36,16 @@ class HermesHost:
         return SubagentLaunchRequest
 
     def features(self):
-        names = {field.name for field in fields(self.request_class())}
-        service = self.service
+        def probe(call, default=False):
+            try:
+                return call()
+            except Exception:
+                return default
+        names = probe(lambda: {field.name for field in fields(self.request_class())}, set())
         return {'reasoning_effort': 'reasoning_effort' in names,
-                'route': next((name for name in ('model_profile', 'route', 'profile') if name in names), None),
-                'steer': callable(getattr(service, 'steer', None)),
-                'follow_up': callable(getattr(service, 'follow_up', None))}
+                'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
+                'steer': probe(lambda: callable(getattr(self.service, 'steer', None))),
+                'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None)))}
 
     def launch_request(self, **kwargs):
         return self.request_class()(**kwargs)
@@ -76,8 +80,8 @@ class HermesHost:
         value = json.loads(self.ctx.dispatch_tool('delegate_task',
                            {'action': 'steer', 'subagent_id': subagent_id, 'message': text},
                            parent_agent=parent_agent))
-        value['ok'] = value.get('ok', not bool(value.get('error')) and value.get('status') == 'queued')
-        return value
+        return {'ok': value.get('ok', not bool(value.get('error')) and value.get('status') == 'queued'),
+                'status': value.get('status'), 'note': 'Get the teammate result with teammate_check.'}
 
     @staticmethod
     def lane_is_profile(lane):
@@ -104,6 +108,14 @@ class HermesHost:
 
     def heartbeat_claim(self, conn, task_id, **kwargs):
         return self.kanban.heartbeat_claim(conn, task_id, **kwargs)
+
+    def heartbeat_worker(self, conn, task_id, **kwargs):
+        try:
+            from hermes_cli import kanban_db_dispatch
+        except ImportError:
+            return None
+        beat = getattr(kanban_db_dispatch, 'heartbeat_worker', None)
+        return beat(conn, task_id, **kwargs) if callable(beat) else None
 
     def request_review(self, conn, task_id, **kwargs):
         return self.kanban.request_review(conn, task_id, **kwargs)

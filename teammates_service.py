@@ -1,9 +1,11 @@
 """Named assignments and retained results; lifecycle work is injected."""
 import contextvars
+from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
 import json
 import os
+import sys
 import threading
 import time
 from uuid import uuid4
@@ -13,6 +15,14 @@ from .teammates_store import INSTANCE_ID
 
 TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
             'INTERRUPTED': 'interrupted', 'CANCELLED': 'cancelled'}
+RESTART_ERROR = 'Hermes restarted before this run finished; the result was not recovered'
+UNKNOWN_ERROR = "parent session changed or the result expired; the teammate's result is unavailable"
+_swept_paths = sys.__dict__.setdefault('_hermes_teammates_swept_paths', set())
+# Shared across plugin reloads in one process, so an old monitor and a new service never hand off the same card twice.
+_handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', threading.Lock())
+# Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
+_stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
+_sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
 
 
 def error(code, message=None):
@@ -31,6 +41,22 @@ def safe(method):
 
 def clip(value, budget):
     return str(value)[:budget] if value is not None else None
+
+
+def budget_clip(value, budget, *, tail=False):
+    value, budget = str(value), max(0, budget)
+    if len(value) <= budget:
+        return value
+    keep = budget
+    while True:
+        marker = f'[… {len(value) - keep} characters omitted]'
+        available = max(0, budget - len(marker))
+        if available == keep:
+            break
+        keep = available
+    if len(marker) > budget:
+        return ''
+    return (value[-keep:] if tail and keep else value[:keep]) + marker
 
 
 def state_name(state):
@@ -70,12 +96,40 @@ class TeammatesService:
         self.host, self.store_factory, self.config_reader = host, store_factory, config_reader
         self.monitor_interval, self.clock = monitor_interval, clock
         self.monitors, self._owners = {}, {}
+        self._handoff_lock = _handoff_lock
+        self._stop_lock = _stop_lock
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
-        self._stop_reasons = {}
+
+    def _sweep(self):
+        with _sweep_lock, self.store_factory() as store:
+            if store.path and store.path in _swept_paths:
+                return
+            # Only other processes' rows: lifecycle status is session-scoped, so a live same-process run reads
+            # UNKNOWN from another session. check() resolves those rows in their own session.
+            foreign_live = False
+            for row in store.running():
+                if row['instance_id'] == INSTANCE_ID or row['pid'] == os.getpid():
+                    continue
+                if pid_alive(row['pid']):
+                    foreign_live = True
+                else:
+                    store.finish(row['run_id'], 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
+            # Rows another live process owns are revisited until that process has gone.
+            if store.path and not foreign_live:
+                _swept_paths.add(store.path)
+
+    def _dead_owner(self, row):
+        if row['pid'] != os.getpid():
+            return not pid_alive(row['pid'])
+        if not row['handle_json']:
+            return True
+        handle = self.host.handle_from_dict(json.loads(row['handle_json']))
+        return state_name(self.host.service.status(handle).state) == 'UNKNOWN'
 
     def _get(self, session_id, run_id):
+        self._sweep()
         with self.store_factory() as store:
             return store.get(run_id, session_id)
 
@@ -87,12 +141,17 @@ class TeammatesService:
         if not session_id:
             return error('no_session')
         config = parse(self.config_reader())
+        if teammate in config['invalid_teammates']:
+            return error('config_error', '; '.join(config['invalid_teammates'][teammate]))
         if teammate not in config['teammates']:
             return error('unknown_teammate')
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 12000:
             return error('invalid_goal')
         if self.host.spawn_paused():
             return error('spawn_paused')
+        if getattr(self.host.active_parent(), '_delegate_depth', 0) > 0:
+            return error('nested_teammate')
+        self._sweep()
         with self.store_factory() as store:
             live = store.list(session_id, status='running')
         for row in live:
@@ -116,34 +175,46 @@ class TeammatesService:
                 if task.status != 'ready':
                     return error('kanban_task_not_ready')
                 claimer = f'hermes-teammates:{run_id}'
-                if self.host.claim_task(conn, kanban_task, ttl_seconds=config['claim_ttl_seconds'],
-                                        claimer=claimer) is None:
+                claimed = self.host.claim_task(conn, kanban_task, ttl_seconds=config['claim_ttl_seconds'],
+                                               claimer=claimer)
+                if claimed is None:
                     return error('kanban_claim_failed')
-                latest = self.host.latest_run(conn, kanban_task)
-                claim = {'claimer': claimer, 'kanban_run_id': latest.id}
+                claim = {'claimer': claimer, 'kanban_run_id': claimed.current_run_id}
+                try:
+                    if self.host.latest_run(conn, kanban_task) is None:
+                        raise RuntimeError('claimed card has no latest run')
+                except Exception as exc:
+                    return self._launch_failed(run_id, None, claim, kanban_task, exc)
         teammate_config = config['teammates'][teammate]
         try:
             parts = [teammate_config['instructions']]
+            if task:
+                parts.append(budget_clip(f'{task.title}\n{task.body or ""}', 6000))
+            remaining = 30000 - len('\n\n'.join(part for part in parts if part)) - 2
+            if context:
+                # Even an entirely omitted caller context needs its marker and separator.
+                remaining -= len(f'[… {len(str(context))} characters omitted]') + 2
             if follow_up and config['followup_context_chars']:
                 with self.store_factory() as store:
                     previous = store.list(session_id, teammate=teammate, terminal=True)
-                entries, remaining = [], config['followup_context_chars']
+                header = 'Previous assignments for this teammate in this conversation\n'
+                entries, remaining = [], min(config['followup_context_chars'], remaining) - len(header)
                 for row in previous:  # newest first; retain that suffix in chronological order
-                    entry = f"Goal: {row['goal']}\nResult: {row['summary'] or row['error'] or row['status']}"
+                    result = row['summary'] or row['error'] or row['status']
                     if remaining <= 0:
                         break
-                    if entries and len(entry) > remaining:
+                    if entries and len(row['goal']) + len(result) + 15 > remaining:
                         break
-                    entries.append(entry[:remaining])
+                    goal_part = budget_clip(row['goal'], remaining // 4)
+                    result_part = budget_clip(result, remaining - len(goal_part) - 15, tail=True)
+                    entries.append(f'Goal: {goal_part}\nResult: {result_part}')
                     remaining -= len(entries[-1]) + 2
                 if entries:
-                    parts.append('Previous assignments for this teammate in this conversation\n' +
-                                 '\n\n'.join(reversed(entries)))
-            if task:
-                parts.append(clip(f'{task.title}\n{task.body or ""}', 6000))
+                    parts.append(header + '\n\n'.join(reversed(entries)))
             if context:
-                parts.append(str(context))
-            combined = '\n\n'.join(part for part in parts if part)[-30000:]
+                remaining = 30000 - len('\n\n'.join(part for part in parts if part)) - 2
+                parts.append(budget_clip(context, remaining))
+            combined = '\n\n'.join(part for part in parts if part)
             kwargs = dict(goal=goal, context=combined or None, role='leaf',
                           allowed_toolsets=tuple(teammate_config['toolsets'] or ()) or None,
                           model=teammate_config['model'], correlation_id=run_id,
@@ -159,25 +230,38 @@ class TeammatesService:
                         unsupported.append(key)
             handle = self.host.service.launch(self.host.launch_request(**kwargs))
         except Exception as exc:
-            if claim:
-                with self.host.connection() as conn:
-                    self.host.block_task(conn, kanban_task,
-                                         reason='hermes-teammates launch failed: ' + clip(exc, 500))
-            return error('launch_failed', clip(exc, 2000))
-        row = dict(run_id=run_id, teammate=teammate, owner_session_id=session_id,
-                   goal=goal, status='running', subagent_id=handle.subagent_id,
-                   handle_json=json.dumps(handle.to_dict()), provider=handle.provider, model=handle.model,
-                   requested_route=teammate_config['route'], requested_effort=teammate_config['reasoning_effort'],
-                   unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
-                   kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
-                   created_at=self.clock())
-        with self.store_factory() as store:
-            store.insert(row)
-        self._owners[run_id] = session_id
-        if kanban_task:
-            self.start_monitor(row, handle, config['claim_ttl_seconds'])
+            return self._launch_failed(run_id, None, claim, kanban_task, exc)
+        try:
+            row = dict(run_id=run_id, teammate=teammate, owner_session_id=session_id,
+                       goal=goal, status='running', subagent_id=handle.subagent_id,
+                       handle_json=json.dumps(handle.to_dict()), provider=handle.provider, model=handle.model,
+                       requested_route=teammate_config['route'], requested_effort=teammate_config['reasoning_effort'],
+                       unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
+                       kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
+                       created_at=self.clock())
+            with self.store_factory() as store:
+                store.insert(row)
+            self._owners[run_id] = session_id
+            if kanban_task:
+                self.start_monitor(row, handle, config['claim_ttl_seconds'])
+        except Exception as exc:
+            return self._launch_failed(run_id, handle, claim, kanban_task, exc)
         return {key: value for key, value in public_row(row).items()
                 if key in {'ok', 'run_id', 'teammate', 'status', 'provider', 'model', 'unsupported', 'kanban_task'}}
+
+    def _launch_failed(self, run_id, handle, claim, task_id, exc):
+        message = f'{type(exc).__name__}: {clip(exc, 1500)}'
+        if 'Unknown toolsets' in str(exc):
+            message += '; check the spelling; plugin toolsets cannot be granted to teammates on current Hermes'
+        if handle is not None:
+            with suppress(Exception):
+                self.host.service.cancel(handle, reason=clip(message, 500))
+        if claim:
+            with suppress(Exception), self.host.connection() as conn:
+                self.host.block_task(conn, task_id, reason=clip(message, 500), expected_run_id=claim['kanban_run_id'])
+        with suppress(Exception), self.store_factory() as store:
+            store.finish(run_id, 'cancelled', completed_at=self.clock(), error=message)
+        return error('launch_failed', message)
 
     @safe
     def check(self, session_id, run_id, wait_seconds=0):
@@ -187,15 +271,17 @@ class TeammatesService:
         if row is None:
             return error('unknown_run')
         if row['status'] != 'running':
-            return public_row(row)
+            self._handoff(row)
+            return public_row(self._get(session_id, run_id))
         self._owners[run_id] = session_id
-        if row['instance_id'] != INSTANCE_ID and row['pid'] != os.getpid():
-            if pid_alive(row['pid']):
+        if row['instance_id'] != INSTANCE_ID:
+            if row['pid'] != os.getpid() and pid_alive(row['pid']):
                 return dict(public_row(row), note='owned_by_other_process')
-            with self.store_factory() as store:
-                store.finish(run_id, 'interrupted', completed_at=self.clock(),
-                             error='process exited before the run finished; not replayed')
-        else:
+            if self._dead_owner(row):
+                with self.store_factory() as store:
+                    store.finish(run_id, 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
+                return public_row(self._get(session_id, run_id))
+        if row['status'] == 'running':
             handle = self.host.handle_from_dict(json.loads(row['handle_json']))
             wait_seconds = max(0, min(60, float(wait_seconds)))
             service = self.host.service
@@ -206,65 +292,92 @@ class TeammatesService:
             if state in TERMINAL or result.ready:
                 self.finalize(run_id, result)
             elif state == 'UNKNOWN':
-                with self.store_factory() as store:
-                    store.finish(run_id, 'unknown', completed_at=self.clock(),
-                                 error='handle no longer resolvable in this process')
+                self._unknown(row)
         return public_row(self._get(session_id, run_id))
 
-    @safe
+    def _unknown(self, row):
+        with self.store_factory() as store:
+            store.finish(row['run_id'], 'unknown', completed_at=self.clock(), error=UNKNOWN_ERROR,
+                         kanban_outcome=None)
+        self._handoff(row)
+
     def finalize(self, run_id, result):
         owner = self._owners.get(run_id)
-        row = self._get(owner, run_id)
-        if row is None:
-            return error('unknown_run')
         status = TERMINAL.get(state_name(result.terminal_state))
         if status is None:
             return error('not_terminal')
-        summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
-        with self.store_factory() as store:
-            won = store.finish(run_id, status, summary=summary, error=failure,
-                               result_hash=result.result_hash, provider=result.handle.provider,
-                               model=result.handle.model, completed_at=result.completed_at or self.clock())
-        if won and row['kanban_task']:
-            try:
-                claim = json.loads(row['kanban_claim'])
-                with self.host.connection() as conn:
-                    if status == 'succeeded':
-                        accepted, reason = self.host.request_review(
-                            conn, row['kanban_task'], summary=clip(summary, 4000),
-                            metadata={'hermes_teammates': {'run_id': run_id, 'teammate': row['teammate'],
-                                                          'result_hash': result.result_hash}},
-                            expected_run_id=claim['kanban_run_id'], with_reason=True)
-                        outcome = 'review' if accepted else f'review_refused:{reason}'
-                    else:
-                        blocked = self.host.block_task(
-                            conn, row['kanban_task'],
-                            reason=f'hermes-teammates run {run_id} {status}: '
-                                   f'{clip(failure or self._stop_reasons.get(run_id), 500) or ""}',
-                            expected_run_id=claim['kanban_run_id'])
-                        outcome = 'blocked' if blocked else 'block_refused'
-            except Exception as exc:
-                outcome = f'error:{type(exc).__name__}'
+        with self._stop_lock:
+            row = self._get(owner, run_id)
+            if row is None:
+                return error('unknown_run')
+            summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
+            stopped = row.get('stop_requested_at')
+            if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
+                if status == 'succeeded':
+                    summary = (clip(summary, 7950) or '') + '\ncompleted after stop was requested'
+                status, failure = 'cancelled', row['stop_reason'] or failure
             with self.store_factory() as store:
-                store.update(run_id, kanban_outcome=outcome)
+                won = store.finish(run_id, status, summary=summary, error=failure,
+                                   result_hash=result.result_hash, provider=result.handle.provider,
+                                   model=result.handle.model, completed_at=result.completed_at or self.clock())
+        self._handoff(row)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
 
-    @safe
+    def _handoff(self, row):
+        if not row['kanban_task']:
+            return
+        # Serialize terminal handoffs; losing finalizers re-read the winner's outcome.
+        with self._handoff_lock:
+            row = self._get(row['owner_session_id'], row['run_id'])
+            outcome = row['kanban_outcome']
+            if row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
+                    outcome is not None and not outcome.startswith('error:')):
+                return
+            for attempt in range(3):
+                try:
+                    outcome = self._handoff_once(row)
+                except Exception as exc:
+                    outcome = f'error:{type(exc).__name__}'
+                with self.store_factory() as store:
+                    store.update(row['run_id'], kanban_outcome=outcome)
+                if not outcome.startswith('error:'):
+                    return
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+
+    def _handoff_once(self, row):
+        claim = json.loads(row['kanban_claim'])
+        status, run_id = row['status'], row['run_id']
+        with self.host.connection() as conn:
+            task = self.host.get_task(conn, row['kanban_task'])
+            if task is None or task.current_run_id != claim['kanban_run_id']:
+                return 'review_refused:ownership lost' if status == 'succeeded' else 'block_refused'
+            if status == 'succeeded':
+                accepted, reason = self.host.request_review(
+                    conn, row['kanban_task'], summary=clip(row['summary'], 4000),
+                    metadata={'hermes_teammates': {'run_id': run_id, 'teammate': row['teammate'],
+                                                  'result_hash': row['result_hash']}},
+                    expected_run_id=claim['kanban_run_id'], with_reason=True)
+                return 'review' if accepted else f'review_refused:{reason}'
+            reason = UNKNOWN_ERROR if status == 'unknown' else (
+                f'hermes-teammates run {run_id} {status}: {clip(row["error"], 500) or ""}')
+            blocked = self.host.block_task(conn, row['kanban_task'], reason=reason,
+                                          expected_run_id=claim['kanban_run_id'])
+            return 'blocked' if blocked else 'block_refused'
+
     def start_monitor(self, row, handle, ttl):
         context = contextvars.copy_context()
         self._monitor_parents[row['run_id']] = self.host.active_parent()
-        interval = self.monitor_interval if self.monitor_interval is not None else max(30, ttl // 3)
+        interval = self.monitor_interval if self.monitor_interval is not None else min(max(30, ttl // 3), 1200)
         def loop():
-            heartbeat = True
-            try:
-                while True:
+            heartbeat, failures = True, 0
+            while True:
+                try:
                     service = self.host.service
                     terminal = service.wait(handle, timeout_seconds=interval)
                     state = state_name(terminal.state)
                     if state == 'UNKNOWN':
-                        with self.store_factory() as store:
-                            store.finish(row['run_id'], 'unknown', completed_at=self.clock(),
-                                         error='handle no longer resolvable in this process')
+                        self._unknown(row)
                         return
                     if state in TERMINAL or not terminal.timed_out:
                         result = service.result(handle)
@@ -273,18 +386,28 @@ class TeammatesService:
                             return
                     if terminal.timed_out and heartbeat:
                         with self.host.connection() as conn:
+                            claim = json.loads(row['kanban_claim'])
                             heartbeat = self.host.heartbeat_claim(
                                 conn, row['kanban_task'], ttl_seconds=ttl,
-                                claimer=json.loads(row['kanban_claim'])['claimer'])
+                                claimer=claim['claimer'])
+                            self.host.heartbeat_worker(conn, row['kanban_task'], expected_run_id=claim['kanban_run_id'])
                         if not heartbeat:
                             with self.store_factory() as store:
                                 store.update_if(row['run_id'], 'running', kanban_outcome='claim_lost')
-            except Exception as exc:
-                with self.store_factory() as store:
-                    store.update_if(row['run_id'], 'running', kanban_outcome=f'error:{type(exc).__name__}')
+                    failures = 0
+                except Exception as exc:
+                    failures += 1
+                    if failures == 10:
+                        with self.store_factory() as store:
+                            store.update_if(row['run_id'], 'running', kanban_outcome=f'error:{type(exc).__name__}')
+                        return
+                    time.sleep(min(60, 2 ** (failures - 1)))
+        def run():
+            try:
+                loop()
             finally:
                 self._monitor_parents.pop(row['run_id'], None)
-        thread = threading.Thread(target=context.run, args=(loop,), daemon=True,
+        thread = threading.Thread(target=context.run, args=(run,), daemon=True,
                                   name=f"hermes-teammates-{row['run_id']}")
         self.monitors[row['run_id']] = thread
         try:
@@ -325,17 +448,31 @@ class TeammatesService:
         if row['status'] != 'running':
             return error('already_terminal')
         handle = self.host.handle_from_dict(json.loads(row['handle_json']))
-        if reason:
-            self._stop_reasons[run_id] = clip(reason, 500)
-        result = self.host.service.cancel(handle, reason=reason)
-        value = asdict(result) if is_dataclass(result) else vars(result)
+        reason = str(reason or '')[:500]
+        with self._stop_lock:
+            with self.store_factory() as store:
+                recorded = store.update_if(run_id, 'running', stop_unset=True, stop_requested_at=self.clock(),
+                                           stop_reason=reason)
+            accepted = False
+            try:
+                result = self.host.service.cancel(handle, reason=reason)
+                value = asdict(result) if is_dataclass(result) else vars(result)
+                accepted = bool(value.get('accepted'))
+            finally:
+                # A refused repeat leaves the intent an earlier accepted stop recorded.
+                if recorded and not accepted:
+                    with self.store_factory() as store:
+                        store.update_if(run_id, 'running', stop_requested_at=None, stop_reason=None)
         return dict(value, ok=bool(value.get('accepted')))
 
     @safe
     def roster(self, session_id, include_runs=True):
+        self._sweep()
         config, features = parse(self.config_reader()), self.host.features()
         teammates = []
         for name, teammate in config['teammates'].items():
+            if name in config['invalid_teammates']:
+                continue
             teammates.append(dict(name=name, **{k: v for k, v in teammate.items() if k != 'instructions'},
                                   unsupported=[key for key in ('route', 'reasoning_effort')
                                                if teammate[key] is not None and not features[key]]))
@@ -346,11 +483,12 @@ class TeammatesService:
         if lane['available']:
             with self.host.connection() as conn:
                 lane['open_tasks'] = self.host.open_tasks(conn, config['lane'])
-        value = dict(ok=True, teammates=teammates, features=features,
+        invalid = [dict(name=clip(name, 300), errors=errors) for name, errors in config['invalid_teammates'].items()]
+        value = dict(ok=True, teammates=teammates, invalid_teammates=invalid, features=features,
                      config_errors=config['config_errors'], runs=runs, lane=lane)
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         while len(json.dumps(value)) > 16000:
-            for entries in (runs, lane['open_tasks'], value['config_errors'], teammates):
+            for entries in (runs, lane['open_tasks'], value['config_errors'], teammates, invalid):
                 if entries:
                     entries.pop()
                     break

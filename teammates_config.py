@@ -1,14 +1,18 @@
 """Pure, non-fatal validation of operator settings."""
+import logging
 import re
+import threading
 
 DEFAULTS = {'teammates': {}, 'lane': 'teammates', 'claim_ttl_seconds': 900,
             'max_live_runs': 4, 'followup_context_chars': 8000}
 FIELDS = {'description', 'instructions', 'toolsets', 'model', 'route', 'reasoning_effort'}
 NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
+logger = logging.getLogger(__name__)
+_logged_errors, _log_lock = set(), threading.Lock()
 
 
 def parse(raw):
-    errors, teammates = [], {}
+    errors, teammates, invalid = [], {}, {}
     if not isinstance(raw, dict):
         raw = {}
         errors.append('settings must be a dict')
@@ -35,11 +39,16 @@ def parse(raw):
         configured = {}
     for name, values in configured.items():
         if not isinstance(name, str) or not NAME.fullmatch(name):
+            name = str(name)[:300]
             errors.append(f'invalid teammate name: {name}')
+            invalid[name] = errors[-1:]
             continue
         if not isinstance(values, dict):
             errors.append(f'{name}: expected dict')
+            invalid[name] = errors[-1:]
             continue
+        start = len(errors)
+        warnings = []
         teammate = {'description': '', 'instructions': '', 'toolsets': None,
                     'model': None, 'route': None, 'reasoning_effort': None}
         for key in values.keys() - FIELDS:
@@ -49,22 +58,31 @@ def parse(raw):
             if isinstance(value, str):
                 teammate[key] = value[:limit]
                 if len(value) > limit:
-                    errors.append(f'{name}.{key}: clipped to {limit}')
+                    warnings.append(f'{name}.{key}: clipped to {limit}')
             else:
                 errors.append(f'{name}.{key}: expected string')
         for key in ('model', 'route', 'reasoning_effort'):
             value = values.get(key)
             if value is None or isinstance(value, str):
-                teammate[key] = value
+                teammate[key] = value if value is None or value.strip() else None
             else:
                 errors.append(f'{name}.{key}: expected string or None')
         toolsets = values.get('toolsets')
-        if toolsets is None or (isinstance(toolsets, list) and all(isinstance(t, str) for t in toolsets)):
-            teammate['toolsets'] = toolsets
+        if toolsets is None or (isinstance(toolsets, list) and toolsets and
+                               all(isinstance(t, str) and t.strip() for t in toolsets)):
+            teammate['toolsets'] = [t.strip() for t in toolsets] if toolsets is not None else None
         else:
-            errors.append(f'{name}.toolsets: expected list of strings')
+            errors.append(f'{name}.toolsets: expected non-empty list of non-empty strings')
         teammates[name] = teammate
-    result.update(teammates=teammates, config_errors=errors)
+        if len(errors) > start:
+            invalid[name] = errors[start:]
+        errors.extend(warnings)
+    with _log_lock:
+        for message in errors:
+            if message not in _logged_errors:
+                _logged_errors.add(message)
+                logger.warning('%s', message)
+    result.update(teammates=teammates, invalid_teammates=invalid, config_errors=errors)
     return result
 
 
