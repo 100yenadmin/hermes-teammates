@@ -95,29 +95,35 @@ def test_message_priority_and_stop(rig):
     assert service.stop('s', run_id)['error'] == 'already_terminal'
 
 
+@pytest.mark.parametrize('base_provider', [False, True])
 @pytest.mark.parametrize('route_field', [None, 'provider', 'model_profile'])
-def test_feature_detection_preserves_requested_route_and_effort(rig, route_field):
-    from dataclasses import make_dataclass
+def test_feature_detection_preserves_requested_route_and_effort(rig, route_field, base_provider):
+    from dataclasses import fields, make_dataclass
     from agent.subagent_lifecycle import SubagentLaunchRequest
+    if base_provider and 'provider' not in {f.name for f in fields(SubagentLaunchRequest)}:
+        SubagentLaunchRequest = make_dataclass('ProviderRequest', [('provider', str, None)],
+                                              bases=(SubagentLaunchRequest,), frozen=True)
     # Real detector against fake request dataclasses, rather than a feature stub.
     rig.host.features = type(rig.host).features.__get__(rig.host)
-    supported = route_field is not None
-    known = {field.name for field in __import__('dataclasses').fields(SubagentLaunchRequest)}
+    known = {field.name for field in fields(SubagentLaunchRequest)}
     extra = [(name, str, None) for name in ('reasoning_effort', route_field) if name and name not in known]
     request_class = (make_dataclass('FutureRequest', extra, bases=(SubagentLaunchRequest,), frozen=True)
-                     if supported else SubagentLaunchRequest)
+                     if route_field is not None else SubagentLaunchRequest)
     rig.host.request_class = lambda: request_class
     rig.raw['teammates']['worker'].update(route='exact-route', reasoning_effort='high',
                                         model='exact-model', toolsets=['file'])
     result = rig.service.assign('s','worker','goal')
     request = rig.lifecycle.requests[-1]
     assert request.model == 'exact-model' and request.allowed_toolsets == ('file',)
-    if supported:
-        assert result['unsupported'] == []
-        assert getattr(request, route_field) == 'exact-route' and request.reasoning_effort == 'high'
-    else:
-        assert result['unsupported'] == ['reasoning_effort','route']
-        assert not hasattr(request, 'model_profile') and not hasattr(request, 'provider')
+    names = {f.name for f in fields(request_class)}
+    selected = next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None)
+    assert result['unsupported'] == ([key for key, present in
+                                     [('reasoning_effort', 'reasoning_effort' in names), ('route', selected)]
+                                     if not present])
+    if selected:
+        assert getattr(request, selected) == 'exact-route'
+    if 'reasoning_effort' in names:
+        assert request.reasoning_effort == 'high'
 
 
 def test_reconcile_stale_before_live_limit(rig):
@@ -134,7 +140,8 @@ def test_context_order_and_tail_cap(rig):
     result = rig.service.assign('s','worker','goal',context='z' * 30001 + 'tail')
     assert result['ok']
     context = rig.lifecycle.requests[-1].context
-    assert len(context) == 30000 and context.endswith('tail')
+    assert len(context) == 30000 and context.startswith('instructions\n\n')
+    assert context.endswith('[… 44 characters omitted]')
 
 
 def test_result_output_bounds(rig):

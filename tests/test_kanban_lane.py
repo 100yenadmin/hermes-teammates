@@ -148,6 +148,6 @@ def test_monitor_claim_lost_or_unknown(rig, unknown):
     assert len(calls) == (0 if unknown else 1)
     if unknown:
         assert rig.service.check('s',run_id)['status'] == 'unknown'
-        assert read(rig,task_id).status == 'running'
+        assert read(rig,task_id).status == 'blocked'
     else:
         assert rig.service.check('s',run_id)['status'] == 'succeeded'

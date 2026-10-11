@@ -42,7 +42,7 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
    picks up where it left off.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
-   `teammate_stop` cancels it.
+   `teammate_stop` records the stop; late completions stay cancelled and block their Kanban card.
 6. **Kanban teammates lane.** Assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
@@ -88,8 +88,11 @@ The **Teammates** field takes JSON like this:
 
 Each teammate takes `description`, `instructions` and `toolsets`, plus optional `model`, `route` and
 `reasoning_effort` (see [Compatibility](#compatibility)). The form checks types, not ranges. A value it accepts but
-the plugin can't use (an unknown key, a bad name, an out-of-range number) falls back to the default and is
-listed under **Config problems** in `/teammates`.
+the plugin can't use is listed under **Config problems** in `/teammates`. Invalid teammates refuse launch:
+unknown keys, wrong field types, and empty or invalid `toolsets` fail closed. Absent or null `toolsets` inherit.
+
+Launch context reserves operator instructions, then card text (up to 6,000 characters), the follow-up digest,
+and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
 
 **With the CLI, headless, or on Hermes 0.21.4,** put the same settings in `config.yaml`:
 
@@ -146,8 +149,8 @@ Ask in plain language:
 
 | Teammate setting / feature | Needs in Hermes | When missing |
 |---|---|---|
-| `model` | any supported version | Must be served by the parent's provider |
-| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider` (upstream draft PR #133762) | Listed in the run's `unsupported` field; the run uses the parent's provider |
+| `model` | any supported version | Must be served by the child's selected provider (normally inherited from the parent) |
+| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider` (upstream draft PR #133762) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, route without model asks the new provider for the parent's model id; set `model` with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer`; today it goes through `delegate_task` steer with the live parent (in-process) | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
@@ -159,17 +162,18 @@ The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://g
 - **Follow-ups carry context, not the transcript.** A follow-up starts a fresh subagent with a digest of earlier
   results until Hermes exposes transcript-level follow-up to plugins.
 - **Runs do not survive a restart.** Hermes keeps subagents in-process. After a restart the ledger marks
-  unfinished runs `interrupted` and never re-runs them. A lane card's claim then expires through Kanban's normal
-  TTL.
+  unfinished runs from dead processes `interrupted` on first plugin use across conversations; results are not
+  recovered or re-run. A lane card's claim expires through Kanban's normal TTL.
 - **Runs belong to the conversation that started them.** Another chat on the same profile cannot see, steer or
   stop them.
 - **A context compression starts a new conversation segment.** Hermes gives the conversation a new session id when
   it compresses, and runs belong to the segment that started them. Earlier runs then answer `unknown_run`. A lane
-  card a run had claimed is released by the claim TTL.
+  card is blocked when its monitor detects the lost handle (also after `/new`); the child may continue without a recoverable result.
 - **Toolsets narrow, but they are Hermes toolsets.** `file` includes write tools, so a teammate with `file` can
   edit files even if its instructions say not to. Pick toolsets for what the teammate may do, not what it should
   do.
-- Admission (spawn pause, depth limit) is Hermes's call. The plugin adds only a per-conversation cap on live runs.
+- The plugin refuses nested teammates, checks Hermes's spawn-pause flag, and caps live runs per conversation.
+- Current Hermes cannot grant plugin toolsets (for example Spotify) to teammates; launch returns `launch_failed`.
 
 ## How to test
 

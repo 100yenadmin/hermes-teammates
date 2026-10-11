@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (unreleased)
+
+- Delegated children cannot launch nested teammates.
+- Invalid teammate fields and toolsets refuse launch and appear separately in the roster.
+- Blank model, route and reasoning settings count as unset; each config error is warned once.
+- Launch context keeps operator instructions first, then the card, earlier results and caller context, within 30,000 characters.
+- Follow-up digests keep the result tail even when an earlier goal is long.
+- Stops are saved in the ledger; a late completion stays cancelled and blocks its card.
+- Existing ledgers upgrade in place and use an index for live-run lookups.
+- Kanban monitors send worker heartbeats so long runs are not reclaimed as stale.
+- Monitors retry transient errors with bounded backoff, stopping after ten consecutive failures.
+- Unavailable results block their Kanban cards instead of leaving them running.
+- Failed assignments cancel launched children and block claimed cards.
+- Feature checks tolerate missing host-isolated methods, keeping the roster available.
+- First use reconciles unfinished runs from dead processes across conversations; results are not recovered.
+- Steering reports plugin guidance to check results, instead of promising completion messages.
+- Launch errors explain why current Hermes cannot grant plugin toolsets to teammates.
 
 - `route` now reaches Hermes builds whose lifecycle API has `SubagentLaunchRequest.provider` (upstream draft PR
   #133762): a teammate with `route: openrouter` runs on that configured provider. Older builds still list `route`
