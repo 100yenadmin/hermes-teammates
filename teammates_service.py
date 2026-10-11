@@ -20,6 +20,8 @@ UNKNOWN_ERROR = "parent session changed or the result expired; the teammate's re
 _swept_paths = sys.__dict__.setdefault('_hermes_teammates_swept_paths', set())
 # Shared across plugin reloads in one process, so an old monitor and a new service never hand off the same card twice.
 _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', threading.Lock())
+# Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
+_stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
 
 
@@ -95,8 +97,7 @@ class TeammatesService:
         self.monitor_interval, self.clock = monitor_interval, clock
         self.monitors, self._owners = {}, {}
         self._handoff_lock = _handoff_lock
-        # Serialises record-intent, cancel and rollback, so a refused stop cannot clear an overlapping accepted one.
-        self._stop_lock = threading.Lock()
+        self._stop_lock = _stop_lock
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
@@ -107,10 +108,16 @@ class TeammatesService:
                 return
             # Only other processes' rows: lifecycle status is session-scoped, so a live same-process run reads
             # UNKNOWN from another session. check() resolves those rows in their own session.
+            foreign_live = False
             for row in store.running():
-                if row['instance_id'] != INSTANCE_ID and row['pid'] != os.getpid() and not pid_alive(row['pid']):
+                if row['instance_id'] == INSTANCE_ID or row['pid'] == os.getpid():
+                    continue
+                if pid_alive(row['pid']):
+                    foreign_live = True
+                else:
                     store.finish(row['run_id'], 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
-            if store.path:
+            # Rows another live process owns are revisited until that process has gone.
+            if store.path and not foreign_live:
                 _swept_paths.add(store.path)
 
     def _dead_owner(self, row):
@@ -296,22 +303,23 @@ class TeammatesService:
 
     def finalize(self, run_id, result):
         owner = self._owners.get(run_id)
-        row = self._get(owner, run_id)
-        if row is None:
-            return error('unknown_run')
         status = TERMINAL.get(state_name(result.terminal_state))
         if status is None:
             return error('not_terminal')
-        summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
-        stopped = row.get('stop_requested_at')
-        if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
-            if status == 'succeeded':
-                summary = (clip(summary, 7950) or '') + '\ncompleted after stop was requested'
-            status, failure = 'cancelled', row['stop_reason'] or failure
-        with self.store_factory() as store:
-            won = store.finish(run_id, status, summary=summary, error=failure,
-                               result_hash=result.result_hash, provider=result.handle.provider,
-                               model=result.handle.model, completed_at=result.completed_at or self.clock())
+        with self._stop_lock:
+            row = self._get(owner, run_id)
+            if row is None:
+                return error('unknown_run')
+            summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
+            stopped = row.get('stop_requested_at')
+            if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
+                if status == 'succeeded':
+                    summary = (clip(summary, 7950) or '') + '\ncompleted after stop was requested'
+                status, failure = 'cancelled', row['stop_reason'] or failure
+            with self.store_factory() as store:
+                won = store.finish(run_id, status, summary=summary, error=failure,
+                                   result_hash=result.result_hash, provider=result.handle.provider,
+                                   model=result.handle.model, completed_at=result.completed_at or self.clock())
         self._handoff(row)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
 

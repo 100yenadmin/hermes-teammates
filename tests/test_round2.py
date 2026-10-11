@@ -300,3 +300,39 @@ def test_reloaded_service_does_not_overwrite_a_handoff(rig):
     with rig.store() as store:
         assert store.get(run_id, 's')['kanban_outcome'] == 'review'
     assert read(rig, task_id).status == 'review'
+
+
+def test_refused_stop_racing_finalize_keeps_success(rig):
+    import threading
+    rig.service.clock = lambda: 10
+    run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
+    result = rig.lifecycle.result(None)
+    with rig.store() as store:
+        result.handle = rig.host.handle_from_dict(json.loads(store.get(run_id, 's')['handle_json']))
+    result.terminal_state, result.completed_at = 'SUCCEEDED', 11
+    def cancel(*a, **k):
+        cancel.monitor = threading.Thread(target=rig.service.finalize, args=(run_id, result))
+        cancel.monitor.start()
+        cancel.monitor.join(0.3)
+        return SimpleNamespace(accepted=False, already_terminal=True)
+    rig.lifecycle.cancel = cancel
+    assert not rig.service.stop('s', run_id, 'stop')['ok']
+    cancel.monitor.join(5)
+    with rig.store() as store:
+        assert store.get(run_id, 's')['status'] == 'succeeded'
+
+
+def test_sweep_revisits_foreign_live_rows(rig, monkeypatch):
+    import os
+    from hermes_teammates import teammates_service
+    alive = [True]
+    monkeypatch.setattr(teammates_service, 'pid_alive', lambda pid: alive[0])
+    with rig.store() as store:
+        store.insert(dict(run_id='old', teammate='worker', owner_session_id='elsewhere', goal='g',
+                          status='running', instance_id='other', pid=os.getpid() + 1, created_at=1))
+        teammates_service._swept_paths.discard(store.path)
+    assert rig.service.roster('s')['ok']
+    alive[0] = False
+    assert rig.service.roster('s')['ok']
+    with rig.store() as store:
+        assert store.get('old', 'elsewhere')['status'] == 'interrupted'

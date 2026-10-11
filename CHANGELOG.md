@@ -7,7 +7,7 @@
 - Blank model, route and reasoning settings count as unset; each config error is warned once.
 - Launch context keeps operator instructions first, then the card, earlier results and caller context, within 30,000 characters.
 - Follow-up digests keep the result tail even when an earlier goal is long.
-- Accepted stops are saved once in the ledger; only completions at or after the stop stay cancelled and block their card. A refused cancellation clears only the intent it recorded, so an earlier accepted stop stands.
+- Accepted stops are saved once in the ledger; only completions at or after the stop stay cancelled and block their card. A refused cancellation never changes a run's outcome and clears only the intent it recorded, so an earlier accepted stop stands.
 - Existing ledgers upgrade in place and use an index for live-run lookups.
 - Kanban monitors send worker heartbeats so long runs are not reclaimed as stale.
 - Monitors retry transient errors with bounded backoff, stopping after ten consecutive failures.
