@@ -268,3 +268,35 @@ def test_overlapping_stops_keep_the_accepted_intent(rig):
     cancel.other.join(5)
     with rig.store() as store:
         assert store.get(run_id, 's')['stop_reason'] == 'second'
+
+
+def test_lifecycle_interrupted_run_blocks_its_card(rig):
+    task_id = create(rig)
+    run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'INTERRUPTED'
+    assert rig.service.check('s', run_id)['status'] == 'interrupted'
+    assert read(rig, task_id).status == 'blocked'
+
+
+def test_reloaded_service_does_not_overwrite_a_handoff(rig):
+    import threading
+    from hermes_teammates.teammates_service import TeammatesService
+    task_id = create(rig)
+    run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
+    reloaded = TeammatesService(rig.host, rig.store, lambda: rig.raw)
+    original = rig.host.request_review
+    def request_review(*args, **kwargs):
+        if not hasattr(request_review, 'other'):
+            with rig.store() as store:
+                row = store.get(run_id, 's')
+            request_review.other = threading.Thread(target=reloaded._handoff, args=(row,))
+            request_review.other.start()
+            request_review.other.join(0.3)
+        return original(*args, **kwargs)
+    rig.host.request_review = request_review
+    rig.lifecycle.state = 'SUCCEEDED'
+    rig.service.check('s', run_id)
+    request_review.other.join(5)
+    with rig.store() as store:
+        assert store.get(run_id, 's')['kanban_outcome'] == 'review'
+    assert read(rig, task_id).status == 'review'

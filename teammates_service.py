@@ -18,6 +18,8 @@ TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
 RESTART_ERROR = 'Hermes restarted before this run finished; the result was not recovered'
 UNKNOWN_ERROR = "parent session changed or the result expired; the teammate's result is unavailable"
 _swept_paths = sys.__dict__.setdefault('_hermes_teammates_swept_paths', set())
+# Shared across plugin reloads in one process, so an old monitor and a new service never hand off the same card twice.
+_handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
 
 
@@ -92,7 +94,7 @@ class TeammatesService:
         self.host, self.store_factory, self.config_reader = host, store_factory, config_reader
         self.monitor_interval, self.clock = monitor_interval, clock
         self.monitors, self._owners = {}, {}
-        self._handoff_lock = threading.Lock()
+        self._handoff_lock = _handoff_lock
         # Serialises record-intent, cancel and rollback, so a refused stop cannot clear an overlapping accepted one.
         self._stop_lock = threading.Lock()
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
@@ -320,7 +322,7 @@ class TeammatesService:
         with self._handoff_lock:
             row = self._get(row['owner_session_id'], row['run_id'])
             outcome = row['kanban_outcome']
-            if row['status'] not in {'succeeded', 'failed', 'cancelled', 'unknown'} or (
+            if row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
                     outcome is not None and not outcome.startswith('error:')):
                 return
             for attempt in range(3):
