@@ -2,11 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
+  # Weekly run against Hermes main catches upstream drift between pushes.
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   # Hermes build the plugin is tested against. Bump deliberately (see README "Compatibility").
