@@ -224,3 +224,47 @@ def test_f12_unknown_retry_does_not_refuse_own_block(rig, monkeypatch):
     final = rig.service._get('s', run_id)
     assert final['status'] == 'unknown' and final['kanban_outcome'] == 'blocked'
     assert read(rig, task_id).status == 'blocked'
+
+
+def test_sweep_leaves_same_pid_rows_to_their_own_session(rig):
+    """Lifecycle status is session-scoped: from another session a live same-pid run reads UNKNOWN."""
+    from hermes_teammates import teammates_service as module
+    run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
+    with rig.store() as store:
+        store.update(run_id, instance_id='0.1.1-load')
+        module._swept_paths.discard(store.path)
+    rig.lifecycle.state = 'UNKNOWN'
+    assert rig.service.roster('another-session')['ok']
+    rig.lifecycle.state = 'RUNNING'
+    assert rig.service.check('s', run_id)['status'] == 'running'
+
+
+def test_refused_repeat_stop_keeps_the_accepted_intent(rig):
+    rig.service.clock = lambda: 10
+    run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
+    assert rig.service.stop('s', run_id, 'first')['ok']
+    rig.lifecycle.cancel = lambda *a, **k: SimpleNamespace(accepted=False, unsupported=True)
+    assert not rig.service.stop('s', run_id, 'second')['ok']
+    with rig.store() as store:
+        row = store.get(run_id, 's')
+    assert (row['stop_requested_at'], row['stop_reason']) == (10, 'first')
+
+
+def test_overlapping_stops_keep_the_accepted_intent(rig):
+    import threading
+    run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
+    calls = []
+    def cancel(*a, **k):
+        calls.append(None)
+        if len(calls) == 1:
+            other = threading.Thread(target=rig.service.stop, args=('s', run_id, 'second'))
+            other.start()
+            other.join(0.3)
+            cancel.other = other
+            return SimpleNamespace(accepted=False, unsupported=True)
+        return SimpleNamespace(accepted=True)
+    rig.lifecycle.cancel = cancel
+    rig.service.stop('s', run_id, 'first')
+    cancel.other.join(5)
+    with rig.store() as store:
+        assert store.get(run_id, 's')['stop_reason'] == 'second'

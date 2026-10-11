@@ -183,10 +183,12 @@ def test_remote_facade_features_never_raise(rig):
 
 
 def test_first_service_use_sweeps_other_sessions(rig, monkeypatch):
+    from hermes_teammates import teammates_service
     from hermes_teammates.teammates_service import TeammatesService
+    monkeypatch.setattr(teammates_service, 'pid_alive', lambda pid: False)
     with rig.store() as store:
         store.insert(dict(run_id='old', teammate='worker', owner_session_id='abandoned', goal='g',
-                          status='running', instance_id='dead', pid=os.getpid(), created_at=1))
+                          status='running', instance_id='dead', pid=os.getpid() + 1, created_at=1))
     fresh = TeammatesService(rig.host, rig.store, lambda: rig.raw)
     assert fresh.roster('new')['ok']
     with rig.store() as store:

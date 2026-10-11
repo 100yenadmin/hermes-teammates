@@ -93,6 +93,8 @@ class TeammatesService:
         self.monitor_interval, self.clock = monitor_interval, clock
         self.monitors, self._owners = {}, {}
         self._handoff_lock = threading.Lock()
+        # Serialises record-intent, cancel and rollback, so a refused stop cannot clear an overlapping accepted one.
+        self._stop_lock = threading.Lock()
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
@@ -101,8 +103,10 @@ class TeammatesService:
         with _sweep_lock, self.store_factory() as store:
             if store.path and store.path in _swept_paths:
                 return
+            # Only other processes' rows: lifecycle status is session-scoped, so a live same-process run reads
+            # UNKNOWN from another session. check() resolves those rows in their own session.
             for row in store.running():
-                if row['instance_id'] != INSTANCE_ID and self._dead_owner(row):
+                if row['instance_id'] != INSTANCE_ID and row['pid'] != os.getpid() and not pid_alive(row['pid']):
                     store.finish(row['run_id'], 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
             if store.path:
                 _swept_paths.add(store.path)
@@ -435,17 +439,20 @@ class TeammatesService:
             return error('already_terminal')
         handle = self.host.handle_from_dict(json.loads(row['handle_json']))
         reason = str(reason or '')[:500]
-        with self.store_factory() as store:
-            store.update_if(run_id, 'running', stop_unset=True, stop_requested_at=self.clock(), stop_reason=reason)
-        accepted = False
-        try:
-            result = self.host.service.cancel(handle, reason=reason)
-            value = asdict(result) if is_dataclass(result) else vars(result)
-            accepted = bool(value.get('accepted'))
-        finally:
-            if not accepted:
-                with self.store_factory() as store:
-                    store.update_if(run_id, 'running', stop_requested_at=None, stop_reason=None)
+        with self._stop_lock:
+            with self.store_factory() as store:
+                recorded = store.update_if(run_id, 'running', stop_unset=True, stop_requested_at=self.clock(),
+                                           stop_reason=reason)
+            accepted = False
+            try:
+                result = self.host.service.cancel(handle, reason=reason)
+                value = asdict(result) if is_dataclass(result) else vars(result)
+                accepted = bool(value.get('accepted'))
+            finally:
+                # A refused repeat leaves the intent an earlier accepted stop recorded.
+                if recorded and not accepted:
+                    with self.store_factory() as store:
+                        store.update_if(run_id, 'running', stop_requested_at=None, stop_reason=None)
         return dict(value, ok=bool(value.get('accepted')))
 
     @safe
