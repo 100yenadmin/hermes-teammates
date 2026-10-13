@@ -30,6 +30,9 @@ _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.
 _admission_locks = sys.__dict__.setdefault(
     '_hermes_teammates_admission_stripes', tuple(threading.Lock() for _ in range(64)))
 logger = logging.getLogger(__name__)
+TOKEN_KEYS = {'tokens_input': 'input_tokens', 'tokens_output': 'output_tokens',
+              'tokens_cache_read': 'cache_read_tokens', 'tokens_cache_write': 'cache_write_tokens',
+              'tokens_reasoning': 'reasoning_tokens'}
 
 
 def error(code, message=None):
@@ -86,12 +89,24 @@ def public_row(row, summary_budget=8000):
     # Opaque lifecycle capabilities remain private to the adapter/store.
     keys = ('run_id', 'teammate', 'goal', 'status', 'provider', 'model', 'requested_route',
             'requested_effort', 'kanban_task', 'kanban_outcome', 'created_at', 'completed_at',
-            'summary', 'error', 'result_hash', 'api_calls', 'duration_seconds')
+            'summary', 'summary_chars', 'role_hash', 'error', 'result_hash', 'api_calls', 'duration_seconds', *TOKEN_KEYS)
     result = {key: row.get(key) for key in keys}
     result.update(ok=True, unsupported=json.loads(row.get('unsupported') or '[]'))
     result['summary'] = clip(result['summary'], summary_budget)
+    original_chars = row.get('summary_chars')
+    if original_chars is None:
+        original_chars = len(row.get('summary') or '')
+    result['summary_clipped'] = len(result['summary'] or '') < original_chars
     result['error'] = clip(result['error'], 2000)
     return result
+
+
+def role_hash(definition):
+    return hashlib.sha256(json.dumps(definition, sort_keys=True, separators=(',', ':')).encode()).hexdigest()[:12]
+
+
+def receipt_int(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 2**63 - 1 else None
 
 
 def as_dict(value):
@@ -125,7 +140,31 @@ class TeammatesService:
         self._monitor_parents = {}
         self._condition = threading.Condition()
         self._generation = 0
-        self._seen, self._notices = set(), {}
+        self._seen, self._notices = {}, {}
+        self._token_lock = threading.Lock()
+        self._child_sessions, self._token_usage = {}, {}
+
+    def subagent_start(self, *, child_session_id=None, child_subagent_id=None, **kwargs):
+        if not child_session_id or child_subagent_id is None:
+            return
+        with self._token_lock:
+            self._child_sessions[child_session_id] = child_subagent_id
+            if len(self._child_sessions) > 1024:
+                oldest = next(iter(self._child_sessions))
+                self._child_sessions.pop(oldest)
+                self._token_usage.pop(oldest, None)
+
+    def post_api_request(self, *, session_id=None, usage=None, **kwargs):
+        with self._token_lock:
+            if session_id not in self._child_sessions or not isinstance(usage, Mapping):
+                return
+            totals = self._token_usage.setdefault(session_id, {})
+            for column, key in TOKEN_KEYS.items():
+                if key not in usage:
+                    continue
+                value = receipt_int(usage.get(key))
+                previous = totals.get(column, 0)
+                totals[column] = receipt_int(previous + value) if previous is not None and value is not None else None
 
     def _sweep(self):
         with _sweep_lock, self.store_factory() as store:
@@ -216,6 +255,7 @@ class TeammatesService:
                 except Exception as exc:
                     return self._launch_failed(run_id, None, claim, kanban_task, exc)
         teammate_config = config['teammates'][teammate]
+        role_receipt = role_hash(teammate_config)
         try:
             parts = [teammate_config['instructions']]
             if task:
@@ -269,7 +309,7 @@ class TeammatesService:
                        unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
                        kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
                        parent_session_key=self.host.completion_target()[0],
-                       created_at=self.clock())
+                       created_at=self.clock(), role_hash=role_receipt)
             # In-process the lock covers launch + insert. Across processes the conditional insert
             # rejects the extra run, but its child may already have started and is cancelled at once.
             with self.store_factory() as store:
@@ -312,7 +352,7 @@ class TeammatesService:
         return value
 
     @safe
-    def check(self, session_id, run_id, wait_seconds=0):
+    def check(self, session_id, run_id, wait_seconds=0, *, _skip_handoff=False):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         row = self._get(session_id, run_id)
@@ -320,7 +360,8 @@ class TeammatesService:
             return error('unknown_run')
         if row['status'] != 'running':
             self._observe(row)
-            self._handoff(row)
+            if not _skip_handoff:
+                self._handoff(row)
             return self._observe(self._get(session_id, run_id))
         self._owners[run_id] = session_id
         if row['instance_id'] != INSTANCE_ID:
@@ -341,16 +382,21 @@ class TeammatesService:
                 state = state_name(service.status(handle).state)
             result = service.result(handle)
             if state in TERMINAL or result.ready:
-                self.finalize(run_id, result)
+                self.finalize(run_id, result, _skip_handoff=_skip_handoff)
             elif state == 'UNKNOWN':
-                self._unknown(row)
+                self._unknown(row, _skip_handoff=_skip_handoff)
         return self._observe(self._get(session_id, run_id))
 
     def _observe(self, row):
         with self._condition:
             if row['status'] != 'running':
-                self._seen.add(row['run_id'])
+                self._remember_seen(row['run_id'])
         return self._public_run(row)
+
+    def _remember_seen(self, run_id):
+        self._seen.setdefault(run_id, None)
+        if len(self._seen) > 4096:
+            self._seen.pop(next(iter(self._seen)))
 
     @safe
     def wait(self, session_id, run_ids, mode='any', wait_seconds=30):
@@ -370,7 +416,7 @@ class TeammatesService:
                 generation = self._generation
             done, pending = [], []
             for run_id in run_ids:
-                row = self.check(session_id, run_id)
+                row = self.check(session_id, run_id, _skip_handoff=True)
                 if not row['ok']:
                     return row
                 if row['status'] in ('running', 'queued'):
@@ -380,20 +426,25 @@ class TeammatesService:
             complete = bool(done) if mode == 'any' else not pending
             remaining = deadline - time.monotonic()
             if complete or remaining <= 0:
+                summary_budget = max(1000, 24000 // len(done)) if done else 8000
+                done = [self._public_run(self._get(session_id, row['run_id']), summary_budget) for row in done]
+                for row in done:
+                    row.pop('goal', None)
                 return dict(ok=True, done=done, pending=pending, timed_out=not complete)
             with self._condition:
                 if generation == self._generation:
                     self._condition.wait(timeout=min(1, remaining))
 
-    def _unknown(self, row, *, notify=False):
+    def _unknown(self, row, *, notify=False, _skip_handoff=False):
         with self.store_factory() as store:
             won = store.finish(row['run_id'], 'unknown', completed_at=self.clock(), error=UNKNOWN_ERROR,
                                kanban_outcome=None)
             current = store.get(row['run_id'], row['owner_session_id'])
         self._completion(current, won, notify)
-        self._handoff(row)
+        if not _skip_handoff:
+            self._handoff(row)
 
-    def finalize(self, run_id, result, *, notify=False):
+    def finalize(self, run_id, result, *, notify=False, _skip_handoff=False):
         owner = self._owners.get(run_id)
         status = TERMINAL.get(state_name(result.terminal_state))
         if status is None:
@@ -407,8 +458,7 @@ class TeammatesService:
             usage, tools = fields.get('usage_metadata'), fields.get('tool_execution_summary')
             api_calls = usage.get('api_calls') if isinstance(usage, dict) else None
             duration = tools.get('duration_seconds') if isinstance(tools, dict) else None
-            if not isinstance(api_calls, int) or isinstance(api_calls, bool) or not 0 <= api_calls <= 2**63 - 1:
-                api_calls = None
+            api_calls = receipt_int(api_calls)
             try:
                 duration = float(duration) if isinstance(duration, (int, float)) and not isinstance(duration, bool) else None
             except (OverflowError, ValueError, TypeError):
@@ -420,19 +470,27 @@ class TeammatesService:
                 if status == 'succeeded':
                     summary = (clip(summary, 7950) or '') + '\ncompleted after stop was requested'
                 status, failure = 'cancelled', row['stop_reason'] or failure
-            with self.store_factory() as store:
+            with self._token_lock, self.store_factory() as store:
+                child_session = next((sid for sid, subid in self._child_sessions.items()
+                                      if subid == row['subagent_id']), None)
+                tokens = self._token_usage.get(child_session, {})
                 won = store.finish(run_id, status, summary=summary, error=failure,
                                    result_hash=result.result_hash, provider=result.handle.provider,
                                    model=result.handle.model, completed_at=result.completed_at or self.clock(),
-                                   api_calls=api_calls, duration_seconds=duration)
+                                   api_calls=api_calls, duration_seconds=duration,
+                                   summary_chars=len(result.summary) if result.summary is not None else None,
+                                   **{key: receipt_int(tokens.get(key)) for key in TOKEN_KEYS})
+                self._child_sessions.pop(child_session, None)
+                self._token_usage.pop(child_session, None)
         self._completion(dict(row, status=status), won, notify)
-        self._handoff(row)
+        if not _skip_handoff:
+            self._handoff(row)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
 
     def _completion(self, row, won, notify):
         with self._condition:
             if not notify:
-                self._seen.add(row['run_id'])
+                self._remember_seen(row['run_id'])
             self._generation += 1
             self._condition.notify_all()
             if not won or not notify or row.get('stop_requested_at') is not None:
@@ -622,20 +680,31 @@ class TeammatesService:
         return dict(value, ok=bool(value.get('accepted')))
 
     @safe
-    def roster(self, session_id, include_runs=True):
+    def roster(self, session_id, include_runs=True, teammate=None):
         self._sweep()
         config, features = parse(self.config_reader()), self.host.features()
         features = dict(features, teammate_wait=True,
                         push_completion=self.host.push_feature(config['notify_on_completion']))
+        selected = teammate
+        if selected is not None:
+            if selected not in config['teammates']:
+                return error('unknown_teammate')
+            if selected in config['invalid_teammates']:
+                return error('config_error', '; '.join(config['invalid_teammates'][selected]))
         teammates = []
         for name, teammate in config['teammates'].items():
-            if name in config['invalid_teammates']:
+            if name in config['invalid_teammates'] or (selected is not None and name != selected):
                 continue
-            teammates.append(dict(name=name, **{k: v for k, v in teammate.items() if k != 'instructions'},
+            teammates.append(dict(name=name, role_hash=role_hash(teammate),
+                                  **{k: v for k, v in teammate.items() if k != 'instructions'},
                                   unsupported=[key for key in ('route', 'reasoning_effort')
                                                if teammate[key] is not None and not features[key]]))
+            if selected is not None:
+                teammates[-1].update(definition=teammate,
+                                     launch_toolsets=teammate['toolsets'] or 'inherits parent',
+                                     delegation=self.host.delegation_settings())
         with self.store_factory() as store:
-            runs = [self._public_run(row, 300) for row in store.list(session_id, limit=20)] if include_runs else []
+            runs = [self._public_run(row, 300) for row in store.list(session_id, teammate=selected, limit=20)] if include_runs else []
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
                 'is_profile': self.host.lane_is_profile(config['lane']), 'open_tasks': []}
         if lane['available']:

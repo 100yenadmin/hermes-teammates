@@ -14,8 +14,10 @@ SPECS = {
     'teammates_roster': (
         "List the operator-defined teammates you can delegate to (name, description, toolsets), this conversation's "
         "recent teammate runs, open cards on the Kanban teammates lane, and which optional features this Hermes "
-        "build supports. Call it first if you do not know the teammate names.",
-        {'include_runs': _p('boolean', "Include this conversation's recent runs (default true).")}, []),
+        "build supports. Call it first if you do not know the teammate names. Pass teammate to explain its parsed "
+        "definition, current role_hash, launch toolsets, delegation settings and ignored fields.",
+        {'include_runs': _p('boolean', "Include this conversation's recent runs (default true)."),
+         'teammate': _p('string', 'Explain only this named teammate.')}, []),
     'teammate_assign': (
         'Start a named teammate (a Hermes subagent with operator-set instructions and toolsets) on a goal. Returns a '
         'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait.',
@@ -30,11 +32,14 @@ SPECS = {
         ['teammate', 'goal']),
     'teammate_check': (
         "Get a teammate run's status and, once finished, its result. wait_seconds waits up to 60 s for it to finish "
-        "first; if it is still running, call again later. Use teammate_wait for several runs.",
+        "first; if it is still running, call again later. Includes summary_clipped, summary_chars, role_hash and "
+        "tokens_input/output/cache_read/cache_write/reasoning receipts (null when unknown). Use teammate_wait for several runs.",
         {'run_id': _RUN_ID, 'wait_seconds': _p('integer', 'Seconds to wait for completion, 0-60.', minimum=0, maximum=60)},
         ['run_id']),
     'teammate_wait': (
-        'Wait for any or all runs in this conversation. Returns finished results and pending statuses at the deadline.',
+        'Wait for any or all runs in this conversation. Returns finished results and pending statuses at the deadline. '
+        'Finished rows omit goal and share a summary budget; summary_clipped, summary_chars, role_hash and tokens_* '
+        'receipts are included. Kanban handoffs run via the monitor or teammate_check.',
         {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string', 'minLength': 1}, minItems=1, maxItems=16,
                        uniqueItems=True),
          'mode': _p('string', 'Completion rule.', enum=['any', 'all'], default='any'),
@@ -65,7 +70,7 @@ def handler(name, get_service):
         try:
             service, session_id = get_service(), current_session_id(kwargs)
             if name == 'teammates_roster':
-                value = service.roster(session_id, args.get('include_runs', True))
+                value = service.roster(session_id, args.get('include_runs', True), args.get('teammate'))
             elif name == 'teammate_assign':
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
@@ -108,9 +113,9 @@ def render_roster(value):
     else:
         lines.append('Kanban lane: unavailable in this process')
     features = value.get('features') or {}
-    lines.append(f"This Hermes build: steer={features.get('steer', 'no')}, " +
+    lines.append(f"This Hermes build: steer={features.get('steer', 'no')}, follow_up={features.get('follow_up', 'digest')}, " +
                  ', '.join(f"{key}={'yes' if features.get(key) else 'no'}"
-                           for key in ('follow_up', 'reasoning_effort', 'route')))
+                           for key in ('reasoning_effort', 'route', 'token_receipts')))
     if value.get('config_errors'):
         lines.append('Config problems:')
         lines.extend(f'  {problem}' for problem in value['config_errors'])

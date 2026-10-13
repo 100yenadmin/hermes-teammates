@@ -24,9 +24,9 @@ def test_roster_steer_capability(rig, lifecycle, dispatcher, expected):
     rig.host.kanban_available = False
     value = rig.service.roster('owner', include_runs=False)
     assert value['features']['steer'] == expected
-    assert f'This Hermes build: steer={expected}, follow_up=no' in render_roster(value)
+    assert f'This Hermes build: steer={expected}, follow_up=digest' in render_roster(value)
     assert value['features']['reasoning_effort'] is False
-    assert value['features']['follow_up'] is False
+    assert value['features']['follow_up'] == 'digest'
     assert value['features']['route'] is None
     assert calls == []  # Discovery must never dispatch a steer or need an active parent.
 

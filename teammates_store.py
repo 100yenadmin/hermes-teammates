@@ -8,7 +8,9 @@ INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().h
 _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
               'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
-              'parent_session_key': 'TEXT', 'notified_at': 'REAL'}
+              'parent_session_key': 'TEXT', 'notified_at': 'REAL', 'summary_chars': 'INTEGER',
+              'role_hash': 'TEXT', 'tokens_input': 'INTEGER', 'tokens_output': 'INTEGER',
+              'tokens_cache_read': 'INTEGER', 'tokens_cache_write': 'INTEGER', 'tokens_reasoning': 'INTEGER'}
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS runs (
  run_id TEXT PRIMARY KEY, teammate TEXT NOT NULL, owner_session_id TEXT NOT NULL,

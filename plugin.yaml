@@ -1,5 +1,5 @@
 name: hermes-teammates
-version: 0.2.0
+version: 0.2.1
 description: "Named subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
 author: Electric Sheep
 kind: standalone
@@ -17,4 +17,4 @@ config_schema:
   notify_on_completion: {type: bool, default: false, label: "Completion notices (not available on current Hermes)", description: "Reserved. No current Hermes build can confirm which conversation would receive a notice, so none is sent; use teammate_wait. See the README."}
   followup_context_chars: {type: int, default: 8000, label: "Follow-up context budget (characters)", description: "How much of a teammate's earlier results a follow-up carries. 0-24000; anything else falls back to 8000."}
 provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_wait, teammate_message, teammate_stop]
-provides_hooks: []
+provides_hooks: [subagent_start, post_api_request]
