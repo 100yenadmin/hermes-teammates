@@ -173,7 +173,7 @@ def test_f9_toolsets_are_trimmed_and_unknown_suffix_is_honest(rig):
         raise ValueError('Unknown toolsets: typo')
     rig.lifecycle.launch = launch
     result = rig.service.assign('s', 'worker', 'goal')
-    assert 'check the spelling; plugin toolsets cannot be granted' in result['message']
+    assert 'check the spelling. Hermes builds before NousResearch/hermes-agent#137167 cannot grant plugin toolsets' in result['message']
 
 
 def test_f10_invalid_roster_names_are_bounded_strings(rig):

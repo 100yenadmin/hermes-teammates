@@ -217,4 +217,4 @@ def test_unknown_plugin_toolsets_refusal_is_clear(rig):
     rig.lifecycle.launch = launch
     result = rig.service.assign('s', 'worker', 'goal')
     assert result['error'] == 'launch_failed'
-    assert 'plugin toolsets cannot be granted to teammates on current Hermes' in result['message']
+    assert 'Hermes builds before NousResearch/hermes-agent#137167 cannot grant plugin toolsets' in result['message']
