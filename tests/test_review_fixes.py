@@ -2,6 +2,7 @@
 import contextvars
 import json
 import os
+import threading
 from types import SimpleNamespace
 
 from test_kanban_lane import create, read
@@ -15,14 +16,23 @@ def test_monitor_holds_parent_strongly_until_it_exits(rig):
     rig.service.monitor_interval = 0.01
     parent = object()
     rig.host.active_parent = lambda: parent
-    seen = []
+    seen, release = [], threading.Event()
     def wait(handle, *, timeout_seconds):
+        assert release.wait(timeout=5)
         seen.append(any(value is parent for value in rig.service._monitor_parents.values()))
         rig.lifecycle.state = 'SUCCEEDED'
         return SimpleNamespace(timed_out=False, state='SUCCEEDED')
     rig.lifecycle.wait = wait
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
-    rig.service.monitors[run_id].join(timeout=5)
+    thread = rig.service.monitors[run_id]
+    try:
+        release.set()
+        thread.join(timeout=5)
+    finally:
+        release.set()
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert run_id not in rig.service.monitors
     assert seen == [True]
     assert run_id not in rig.service._monitor_parents
     assert rig.service.check('s', run_id)['kanban_outcome'] == 'review'

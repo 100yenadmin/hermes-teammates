@@ -97,15 +97,24 @@ def test_monitor_heartbeats_then_finalizes_once(rig):
         beats.append(kwargs)
         return real_heartbeat(*args, **kwargs)
     rig.host.heartbeat_claim = heartbeat
+    release = threading.Event()
     def wait(handle, *, timeout_seconds):
+        assert release.wait(timeout=5)
         assert parent_context.get() == 'bound-parent'
         if beats:
             rig.lifecycle.state = 'SUCCEEDED'
         return type('Wait', (), {'timed_out': not beats, 'state': rig.lifecycle.state})()
     rig.lifecycle.wait = wait
     run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
-    rig.service.monitors[run_id].join(timeout=5)
-    assert not rig.service.monitors[run_id].is_alive()
+    thread = rig.service.monitors[run_id]
+    try:
+        release.set()
+        thread.join(timeout=5)
+    finally:
+        release.set()
+        thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert run_id not in rig.service.monitors
     assert len(beats) == 1
     assert rig.service.check('s', run_id)['kanban_outcome'] == 'review'
     assert read(rig, task_id).assignee == 'teammates'
@@ -133,8 +142,9 @@ def test_monitor_claim_lost_or_unknown(rig, unknown):
         calls.append('heartbeat')
         return False
     rig.host.heartbeat_claim = heartbeat
-    waits = []
+    waits, release = [], threading.Event()
     def wait(handle, *, timeout_seconds):
+        assert release.wait(timeout=5)
         waits.append(1)
         state = 'UNKNOWN' if unknown else ('SUCCEEDED' if len(waits) == 4 else 'RUNNING')
         rig.lifecycle.state = state
@@ -143,8 +153,14 @@ def test_monitor_claim_lost_or_unknown(rig, unknown):
     task_id = create(rig)
     run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
     thread = rig.service.monitors[run_id]
-    thread.join(timeout=5)
+    try:
+        release.set()
+        thread.join(timeout=5)
+    finally:
+        release.set()
+        thread.join(timeout=5)
     assert not thread.is_alive()
+    assert run_id not in rig.service.monitors
     assert len(calls) == (0 if unknown else 1)
     if unknown:
         assert rig.service.check('s',run_id)['status'] == 'unknown'

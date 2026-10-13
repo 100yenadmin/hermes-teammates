@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import sqlite3
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -90,13 +91,23 @@ def test_f4_long_ttl_has_safe_heartbeat_interval(rig):
     from hermes_teammates.teammates_service import TeammatesService
     rig.raw['claim_ttl_seconds'] = 86400
     rig.service.start_monitor = TeammatesService.start_monitor.__get__(rig.service)
+    release = threading.Event()
     def wait(handle, *, timeout_seconds):
+        assert release.wait(timeout=5)
         rig.lifecycle.waits.append(timeout_seconds)
         rig.lifecycle.state = 'SUCCEEDED'
         return SimpleNamespace(state='SUCCEEDED', timed_out=False)
     rig.lifecycle.wait = wait
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=create(rig))['run_id']
-    rig.service.monitors[run_id].join(5)
+    thread = rig.service.monitors[run_id]
+    try:
+        release.set()
+        thread.join(5)
+    finally:
+        release.set()
+        thread.join(5)
+    assert not thread.is_alive()
+    assert run_id not in rig.service.monitors
     assert rig.lifecycle.waits == [1200]
 
 

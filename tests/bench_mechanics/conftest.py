@@ -342,7 +342,7 @@ class Mount:
                     self.stop(row['run_id'], reason='benchmark teardown')
                 for row in rows:
                     self.wait_terminal(row['run_id'])
-                for thread in self.service.monitors.values():
+                for thread in list(self.service.monitors.values()):
                     thread.join(timeout=5)
                     assert not thread.is_alive(), thread.name
         finally:

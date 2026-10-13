@@ -16,8 +16,9 @@ def test_plain_monitor_retains_result_without_check(rig):
     enable_monitor(rig)
     parent = object()
     rig.host.active_parent = lambda: parent
-    waits = []
+    waits, release = [], threading.Event()
     def wait(handle, *, timeout_seconds):
+        assert release.wait(timeout=5)
         waits.append(timeout_seconds)
         assert rig.service._monitor_parents[handle.correlation_id] is parent
         if len(waits) == 1:
@@ -32,11 +33,17 @@ def test_plain_monitor_retains_result_without_check(rig):
     assert assigned['ok'], assigned
     thread = rig.service.monitors.get(assigned['run_id'])
     assert thread is not None, 'plain assignments must start a monitor'
-    thread.join(timeout=5)
+    try:
+        release.set()
+        thread.join(timeout=5)
+    finally:
+        release.set()
+        thread.join(timeout=5)
     assert thread.daemon and thread.name == f"hermes-teammates-{assigned['run_id']}"
     assert not thread.is_alive()
     assert len(waits) == 2 and waits[0] >= 30
     assert assigned['run_id'] not in rig.service._monitor_parents
+    assert assigned['run_id'] not in rig.service.monitors
     with rig.store() as store:
         row = store.get(assigned['run_id'], 's')
     assert row['status'] == 'succeeded' and row['summary'] == 'done'
@@ -44,12 +51,14 @@ def test_plain_monitor_retains_result_without_check(rig):
 
 def test_plain_monitor_and_check_finalize_once(rig):
     enable_monitor(rig)
-    release, entered = threading.Event(), threading.Event()
+    release, entered, check_entered = threading.Event(), threading.Event(), threading.Event()
     barrier = threading.Barrier(2)
-    finalized, errors = [], []
+    finalized, errors, checked = [], [], []
     original = rig.service.finalize
     def finalize(*args):
         try:
+            if threading.current_thread() is checker:
+                check_entered.set()
             barrier.wait(timeout=5)
             value = original(*args)
             finalized.append(value['finalized'])
@@ -66,16 +75,25 @@ def test_plain_monitor_and_check_finalize_once(rig):
     assigned = rig.service.assign('s', 'worker', 'goal')
     thread = rig.service.monitors.get(assigned['run_id'])
     assert thread is not None, 'plain assignments must start a monitor'
+    def check():
+        try:
+            checked.append(rig.service.check('s', assigned['run_id']))
+        except Exception as exc:
+            errors.append(exc)
+    checker = threading.Thread(target=check)
     try:
         assert entered.wait(timeout=5)
         rig.lifecycle.state = 'SUCCEEDED'
+        checker.start()
+        assert check_entered.wait(timeout=5)
         release.set()
-        checked = rig.service.check('s', assigned['run_id'])
     finally:
         release.set()
         thread.join(timeout=5)
-    assert not thread.is_alive() and not errors
-    assert checked['status'] == 'succeeded'
+        if checker.ident is not None:
+            checker.join(timeout=5)
+    assert not thread.is_alive() and not checker.is_alive() and not errors
+    assert checked[0]['status'] == 'succeeded'
     assert sorted(finalized) == [False, True]
     with rig.store() as store:
         rows = store.list('s')

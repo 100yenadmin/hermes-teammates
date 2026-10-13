@@ -5,6 +5,7 @@ from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
 import json
+import math
 import os
 import sys
 import threading
@@ -283,9 +284,10 @@ class TeammatesService:
         value = public_row(row, summary_budget)
         # Queued is a lifecycle display state; capacity and reconciliation still use ledger running.
         if row['status'] == 'running' and row.get('handle_json') and row['pid'] == os.getpid() and not self.host.isolated:
-            handle = self.host.handle_from_dict(json.loads(row['handle_json']))
-            if state_name(self.host.service.status(handle).state) == 'PENDING':
-                value['status'] = 'queued'
+            with suppress(Exception):
+                handle = self.host.handle_from_dict(json.loads(row['handle_json']))
+                if state_name(self.host.service.status(handle).state) == 'PENDING':
+                    value['status'] = 'queued'
         return value
 
     @safe
@@ -312,7 +314,9 @@ class TeammatesService:
             service = self.host.service
             if wait_seconds > 0:
                 service.wait(handle, timeout_seconds=wait_seconds)
-            state = state_name(service.status(handle).state)
+            state = 'RUNNING'
+            with suppress(Exception):
+                state = state_name(service.status(handle).state)
             result = service.result(handle)
             if state in TERMINAL or result.ready:
                 self.finalize(run_id, result)
@@ -340,6 +344,11 @@ class TeammatesService:
             usage, tools = fields.get('usage_metadata'), fields.get('tool_execution_summary')
             api_calls = usage.get('api_calls') if isinstance(usage, dict) else None
             duration = tools.get('duration_seconds') if isinstance(tools, dict) else None
+            if not isinstance(api_calls, int) or isinstance(api_calls, bool):
+                api_calls = None
+            if (not isinstance(duration, (int, float)) or isinstance(duration, bool)
+                    or not math.isfinite(duration)):
+                duration = None
             stopped = row.get('stop_requested_at')
             if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
                 if status == 'succeeded':
@@ -439,6 +448,7 @@ class TeammatesService:
                 loop()
             finally:
                 self._monitor_parents.pop(row['run_id'], None)
+                self.monitors.pop(row['run_id'], None)
         thread = threading.Thread(target=context.run, args=(run,), daemon=True,
                                   name=f"hermes-teammates-{row['run_id']}")
         self.monitors[row['run_id']] = thread

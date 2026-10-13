@@ -96,11 +96,22 @@ def monitor(rig, monkeypatch, wait):
     from hermes_teammates import teammates_service as module
     rig.service.start_monitor = module.TeammatesService.start_monitor.__get__(rig.service)
     rig.service.monitor_interval = 0.01
-    monkeypatch.setattr(rig.lifecycle, 'wait', wait)
+    release = threading.Event()
+    def gated_wait(*args, **kwargs):
+        assert release.wait(timeout=5)
+        return wait(*args, **kwargs)
+    monkeypatch.setattr(rig.lifecycle, 'wait', gated_wait)
     task_id = create(rig)
     run_id = rig.service.assign('s', 'worker', 'goal', kanban_task=task_id)['run_id']
-    rig.service.monitors[run_id].join(5)
-    assert not rig.service.monitors[run_id].is_alive()
+    thread = rig.service.monitors[run_id]
+    try:
+        release.set()
+        thread.join(5)
+    finally:
+        release.set()
+        thread.join(5)
+    assert not thread.is_alive()
+    assert run_id not in rig.service.monitors
     return task_id, run_id
 
 
