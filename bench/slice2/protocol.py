@@ -120,9 +120,11 @@ def public_material(case):
     if case not in m['scored'] + m['dev']:
         raise ValueError('Unknown case')
     source = TASK / 'cases' / case
+    # Only manifest-declared, hash-verified files: never something added after staging.
+    prefix = f'bench/tasks/t1h/cases/{case}/'
+    declared = sorted(p for p in m['files'] if p.startswith(prefix + 'src/') and p.endswith('.py'))
     return dict(public_spec=(source / 'README.md').read_text(),
-                public_source={str(p.relative_to(source)): p.read_text()
-                               for p in sorted((source / 'src').glob('*.py'))})
+                public_source={p[len(prefix):]: (ROOT / p).read_text() for p in declared})
 
 
 def identity():

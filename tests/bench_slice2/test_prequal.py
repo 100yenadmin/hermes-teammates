@@ -476,3 +476,18 @@ def test_control_exact_classification_multiset(monkeypatch, damage):
     elif damage:
         result['findings'][0][damage] = {'status': 'UNSUPPORTED', 'bug_id': 'foreign', 'affirmative': 0}[damage]
     assert JudgeHarness(lambda request: result).qualify()['pass'] is (damage is None)
+
+
+def test_public_material_uses_only_manifest_declared_source():
+    # PR #26 review: an undeclared file added after staging must never reach the judge.
+    from bench.slice2.protocol import TASK, manifest, public_material
+    case = manifest()['scored'][0]
+    probe = TASK / 'cases' / case / 'src' / 'undeclared_probe.py'
+    probe.write_text('x = 1\n')
+    try:
+        material = public_material(case)
+        assert 'src/undeclared_probe.py' not in material['public_source']
+        declared = {p for p in manifest()['files'] if p.startswith(f'bench/tasks/t1h/cases/{case}/src/')}
+        assert {f'bench/tasks/t1h/cases/{case}/' + k for k in material['public_source']} == declared
+    finally:
+        probe.unlink()
