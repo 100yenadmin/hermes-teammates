@@ -198,7 +198,8 @@ def test_remote_facade_features_never_raise(rig):
     rig.host.isolated = True
     assert rig.service.roster('s')['ok']
     rig.host.request_class = lambda: (_ for _ in ()).throw(RuntimeError('request unavailable'))
-    assert rig.host.features() == dict(reasoning_effort=False, route=None, steer='no', follow_up=False)
+    assert rig.host.features() == dict(reasoning_effort=False, route=None, steer='no', follow_up=False,
+                                      token_receipts=False)
 
 
 def test_first_service_use_sweeps_other_sessions(rig, monkeypatch):

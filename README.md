@@ -133,7 +133,7 @@ Ask in plain language:
 
 | Tool | What it does |
 |---|---|
-| `teammates_roster` | Lists teammates, this conversation's recent runs, open lane cards, and what this Hermes build supports |
+| `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
@@ -143,12 +143,42 @@ Ask in plain language:
 `/teammates` prints the roster in any chat surface.
 
 `queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
-live-run cap. Finished runs report the lifecycle's `api_calls` (integer) and `duration_seconds` (seconds);
-either is `null` when Hermes does not supply it. The roster's recent runs include these receipts too.
+live-run cap.
+
+### Results and receipts
+
+Finished runs report these fields through `teammate_check`, `teammate_wait` and the roster's recent runs:
+
+| Field | Meaning |
+|---|---|
+| `summary_clipped` | True when the returned summary is shorter than the original result |
+| `summary_chars` | Original summary length before ledger/public clipping; `null` for old rows or no summary |
+| `role_hash` | First 12 SHA-256 hex characters of the canonical JSON of the parsed teammate definition used at launch; `null` for old rows |
+| `api_calls`, `duration_seconds` | Lifecycle request count and duration in seconds; `null` when unavailable |
+| `tokens_input`, `tokens_output` | Accumulated input and output token buckets from the child's API hooks |
+| `tokens_cache_read`, `tokens_cache_write`, `tokens_reasoning` | Accumulated cache and reasoning token buckets, when supplied |
+
+Summaries retain at most 8,000 characters in the ledger; the roster returns at most 300 per run. For old rows,
+`summary_clipped` only detects clipping of the stored text because the original length is unknown.
+The roster's current `role_hash` can differ from a run's hash after you edit the definition.
+
+Token receipts require both `subagent_start` and `post_api_request` hooks and in-process plugins; the roster
+reports `token_receipts` support. Only mapped child sessions contribute, never the parent's own requests or
+unmapped children. Counts are in-process only: unfinished accumulators do not survive reloads or restarts.
+Missing, invalid or overflowing buckets are `null`; completed receipts stay in the ledger. The map holds at
+most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes does not expose cost to plugins.
+
+`teammates_roster(teammate="reviewer")` returns only that teammate and its parsed `definition`, current
+`role_hash`, `launch_toolsets` (or `inherits parent`), route support in `features`, ignored fields in
+`unsupported`, and read-only global `delegation` values: `inherit_mcp_toolsets`, `worktree_isolation` and
+`child_timeout_seconds`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
-return `unknown_run` before waiting. Finished rows have the same result budget as `teammate_check`.
+return `unknown_run` before waiting. Finished rows omit `goal` and share a summary budget: per-run budget is
+`max(1000, 24000 // number_of_done_runs)`. `summary_clipped` reports any cut; `teammate_check` keeps its full
+goal and 8,000-character summary budget. Wait skips blocking Kanban handoff retries; the monitor and later
+`teammate_check` still produce the handoff outcome.
 
 ### Completion notices (not available yet)
 

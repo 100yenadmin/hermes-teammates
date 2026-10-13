@@ -209,7 +209,7 @@ class FakeModel:
 
 class Mount:
     def __init__(self, settings, tmp_path):
-        from hermes_cli.plugins import PluginManager
+        from hermes_cli.plugins import get_plugin_manager
         from tools.registry import registry
         from run_agent import AIAgent
         from hermes_state import SessionDB
@@ -223,7 +223,8 @@ class Mount:
         list_sessions = getattr(process_registry, 'list_sessions', None)
         self.before_processes = frozenset(row['session_id'] for row in list_sessions()) if callable(list_sessions) else frozenset()
         self.cleanup_apis = []
-        self.manager = PluginManager()
+        # Lifecycle hooks resolve the active home's manager. Mount tools on that same instance.
+        self.manager = get_plugin_manager()
         self.home = Path(os.environ['HERMES_HOME'])
         (self.home / 'plugins').mkdir(parents=True, exist_ok=True)
         link = self.home / 'plugins' / 'hermes-teammates'
@@ -240,7 +241,7 @@ class Mount:
         (self.home / 'config.yaml').write_text(json.dumps(config), encoding='utf-8')
         self.parent = self.db = None
         try:
-            self.manager.discover_and_load()
+            self.manager.discover_and_load(force=True)
             loaded = self.manager._plugins['hermes-teammates']
             assert not loaded.error, loaded.error
             self.handlers = {name: registry.get_entry(name, scope=self.manager.scope_key).handler

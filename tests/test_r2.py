@@ -73,9 +73,9 @@ def test_finish_between_scan_and_sleep(rig, monkeypatch):
     receipt = result(rig, run_id)
     rig.lifecycle.state = 'RUNNING'
     original, finished = rig.service.check, False
-    def check(*args):
+    def check(*args, **kwargs):
         nonlocal finished
-        row = original(*args)
+        row = original(*args, **kwargs)
         if not finished:
             finished = True
             rig.service.finalize(run_id, receipt)

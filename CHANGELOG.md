@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 (2026-10-14)
+
+- Results report `summary_clipped` and the original `summary_chars`, including ledger clipping; old rows keep unknown lengths.
+- Runs retain the parsed role's `role_hash`; the roster shows each role's current hash.
+- In-process token receipts use child-session lifecycle/API hooks when available: input, output, cache read/write and reasoning; unknown counts stay null. Cost is not exposed by Hermes.
+- `teammates_roster(teammate=...)` explains one parsed definition, launch toolsets, host support, ignored fields and read-only global delegation settings.
+- Observed run IDs are bounded to 4,096 entries.
+- `teammate_wait` skips blocking Kanban retries to preserve its deadline; monitors and checks still hand off.
+- Wait replies omit goals and share a summary budget across finished runs; checks keep their existing budget.
+
 ## 0.2.0 (2026-10-14)
 
 - Concurrent assignments in one conversation now respect its live-run limit. If two processes ever share one conversation, the ledger still rejects the extra run, and its already-started child is cancelled.

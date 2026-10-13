@@ -16,6 +16,7 @@ def current_session_id(kwargs):
 class HermesHost:
     def __init__(self, ctx):
         self.ctx = ctx
+        self.token_receipts = False
         self.isolated = os.environ.get('HERMES_PLUGIN_HOST_PROCESS', '').strip().lower() not in ('', '0', 'false')
         try:
             from hermes_cli import kanban_db
@@ -48,10 +49,22 @@ class HermesHost:
         return {'reasoning_effort': 'reasoning_effort' in names,
                 'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
                 'steer': steer,
-                'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None)))}
+                'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None))),
+                'token_receipts': self.token_receipts and not self.isolated}
 
     def launch_request(self, **kwargs):
         return self.request_class()(**kwargs)
+
+    @staticmethod
+    def delegation_settings():
+        values = {}
+        try:
+            from hermes_cli.config import load_config_readonly
+            values = load_config_readonly().get('delegation', {})
+        except Exception:
+            pass
+        return {key: values.get(key, 'unknown') for key in
+                ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds')}
 
     @staticmethod
     def completion_target():
