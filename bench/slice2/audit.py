@@ -23,6 +23,8 @@ def audit_reads(records, protected, run):
 def recipe_errors(b):
     """Effective per-batch recipe, shared by qualification and every later cell."""
     errors = []
+    if b.get('observer_errors'):
+        errors.append('observer error')
     children = b.get('children', [])
     if b.get('arm') not in {'B-briefed', 'C'}:
         errors.append('unknown arm')
@@ -49,7 +51,7 @@ def valid_cell(b):
     return (b.get('status') in {'COMPLETE', 'FAILED'} and b.get('recipe_valid') is True
             and b.get('integrity') is True and b.get('audit', {}).get('pass') is True
             and (accounting is True or isinstance(accounting, dict) and accounting.get('pass') is True)
-            and not b.get('quota') and not b.get('integrity_violation'))
+            and not b.get('observer_errors') and not b.get('quota') and not b.get('integrity_violation'))
 
 
 def qualify(batches):

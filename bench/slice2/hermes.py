@@ -13,6 +13,7 @@ import shlex
 import subprocess
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
 from bench.slice2.accounting import PLUGIN, reconcile, sessions
@@ -164,13 +165,17 @@ def classify(returncode, timeout, answer, stderr, requests, quota, key):
         return 'HARNESS_ERROR',reason
     return 'FAILED',reason
 
-def execute(launch, directory):
+def execute(launch, directory, *, fake_base_url=None):
     # Explicit opt-in is required only at a later, separately authorized live gate.
     if os.environ.get('SLICE2_LIVE')!='1':
         raise ValueError('Live executor disabled; owner review and live authorization required')
     if subprocess.check_output(['git','-C',str(HERMES),'rev-parse','HEAD'],text=True).strip()!=HERMES_SHA:
         raise ValueError('Pinned Hermes drift')
-    key=os.environ.get('GLM_API_KEY')
+    if fake_base_url is not None:
+        url = urlsplit(fake_base_url)
+        if url.scheme != 'http' or url.hostname != '127.0.0.1' or not url.port or url.username or url.password:
+            raise ValueError('Test server must be HTTP IPv4 loopback')
+    key='bench-not-a-secret' if fake_base_url is not None else os.environ.get('GLM_API_KEY')
     if not key: raise ValueError('Owner must supply coding-plan credential in environment')
     run=directory.resolve()
     for folder in ('home','hermes/plugins/hermes-teammates','probe','tmp'):
@@ -180,7 +185,9 @@ def execute(launch, directory):
     shutil.copy2(ROOT/'bench/slice2/runtime_probe.py',run/'probe/runtime_probe.py')
     (run/'probe/sitecustomize.py').write_text('from runtime_probe import bootstrap\nbootstrap()\n')
     (run/'hermes/config.yaml').write_text(json.dumps(launch['config']))
-    profile=run/'sandbox.sb'; profile.write_text(sandbox_profile(run))
+    profile=run/'sandbox.sb'
+    profile.write_text(sandbox_profile(run) + ('(deny network*)\n(allow network* (remote ip "localhost:*"))\n'
+                                             if fake_base_url is not None else ''))
     targets=[TASK/'hidden',ROOT/'bench/declared',ROOT/'bench/results',ROOT/'bench/slice2/proofs.py',run.parent/'outside-control']
     (run.parent/'outside-control').touch(exist_ok=True)
     (run/'work/protected-link').symlink_to(TASK/'hidden/oracles.json')
@@ -197,7 +204,7 @@ def execute(launch, directory):
          'PATH':'/usr/bin:/bin:/usr/sbin:/sbin','LANG':'en_US.UTF-8','HERMES_DISABLE_LAZY_INSTALLS':'1',
          'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str(run/'probe')+':'+str(HERMES),
          'TERMINAL_CWD':str(run/'work'),'TERMINAL_HOME_MODE':'profile','GLM_API_KEY':key,
-         'GLM_BASE_URL':launch['endpoint'],'SLICE2_USAGE':str(run/'usage.jsonl'),'SLICE2_EVENTS':str(run/'events.jsonl')}
+         'GLM_BASE_URL':fake_base_url or launch['endpoint'],'SLICE2_USAGE':str(run/'usage.jsonl'),'SLICE2_EVENTS':str(run/'events.jsonl')}
     command=['/usr/bin/sandbox-exec','-f',str(profile),str(HERMES/'.venv/bin/python'),'-m','hermes_cli.main',
              'chat','-Q','--query-file',str(run/'query.txt'),'--format','stream-json','--ignore-rules',
              '--toolsets','file,terminal,'+('teammates' if launch['arm']=='C' else 'delegation'),
@@ -205,7 +212,7 @@ def execute(launch, directory):
     started=time.monotonic(); timeout=False
     # Keep raw stdout/stderr in memory only; persist final synthetic answer, never credentials.
     process=subprocess.Popen(command,cwd=run/'work',env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
-    try: stdout,stderr=process.communicate(timeout=900)
+    try: stdout,stderr=process.communicate(timeout=90 if fake_base_url is not None else 900)
     except subprocess.TimeoutExpired:
         timeout=True; os.killpg(process.pid,signal.SIGKILL); stdout,stderr=process.communicate()
     stream=[json.loads(s) for s in stdout.decode(errors='replace').splitlines() if s.startswith('{')]
@@ -222,7 +229,9 @@ def execute(launch, directory):
                 handle=json.loads(r['handle_json'] or '{}')
                 child_id=next((e['session_id'] for e in events if e['kind']=='child_lineage' and e.get('subagent_id')==r['subagent_id']),handle.get('session_id'))
                 receipts.append(dict(run_id=r['run_id'],session_id=child_id,teammate=r['teammate'],**{k:r[k] for k in PLUGIN}))
-    reconciliation=reconcile(usage,db,receipts,root,require_plugin=launch['arm']=='C')
+    observer_errors=[r for r in events+usage if r.get('kind')=='observer_error']
+    reconciliation=reconcile(usage+[r for r in events if r.get('kind')=='observer_error'],
+                             db,receipts,root,require_plugin=launch['arm']=='C')
     after=controls(run,profile,probes)
     reads=before+after
     for r in events:
@@ -278,10 +287,13 @@ def execute(launch, directory):
     quota=bool(QUOTA.search(stderr.decode(errors='replace')))
     status,reason=classify(process.returncode,timeout,answer,stderr.decode(errors='replace'),
                            reconciliation['metrics']['requests'],quota,key)
+    if observer_errors:
+        status,reason='HARNESS_ERROR','observer error'
     parent_agent=next((e for e in events if e['kind']=='agent' and e.get('session_id')==root),{})
     return launch | dict(status=status,arm=launch['arm'],started=started,ended=time.monotonic(),
                          wall_s=time.monotonic()-started,requests=reconciliation['metrics']['requests'],
                          accounting=reconciliation,audit=audit,integrity=audit['pass'],
+                         observer_errors=observer_errors,
                          outside_readable=outside,parent_denials=parent_denials,
                          parent_allowed_read=read_coverage(parent_tools,[run/'work/README.md',run/'work/allowed-marker'],run/'work'),children=children,
                          parent_max_turns=parent_agent.get('max_turns'),parent_compression=parent_agent.get('compression'),

@@ -4,7 +4,9 @@ Hermes canonical usage: input excludes cache buckets, prompt includes them;
 reasoning is a subset of output. No character-based token estimates.
 """
 import json
+import os
 import sqlite3
+import sys
 import threading
 from pathlib import Path
 
@@ -14,12 +16,33 @@ HOOKS = {'pre_api_request', 'post_api_request', 'api_request_error',
          'pre_auxiliary_call', 'post_auxiliary_call'}
 
 
+def observer_error(path, where, exc):
+    """One payload-free marker; even a broken error sink cannot affect Hermes."""
+    row = dict(kind='observer_error', where=where, type=type(exc).__name__)
+    try:
+        target = path or os.environ.get('SLICE2_USAGE')
+        if target:
+            with Path(target).open('a') as out:
+                out.write(json.dumps(row) + '\n')
+        else:
+            sys.stderr.write(json.dumps(row) + '\n')
+    except Exception:
+        pass
+
+
 class Observer:
     def __init__(self, path):
         self.path, self.pending, self.finished = Path(path), {}, set()
         self.lock = threading.RLock()
 
     def hook(self, hook, **kw):
+        try:
+            self._hook(hook, **kw)
+        except Exception as exc:
+            with self.lock:
+                observer_error(self.path, 'accounting.' + str(hook), exc)
+
+    def _hook(self, hook, **kw):
         if hook not in HOOKS:
             return
         rid = kw.get('api_request_id') or str(kw.get('started_at') or '')
@@ -142,16 +165,20 @@ def install(lifecycle, path):
     """Same hook subscriber for both arms, preserving real hook dispatch on failure."""
     observer = Observer(path)
     old_has, old_invoke = lifecycle.has_hook, lifecycle.invoke_hook
-    lifecycle.has_hook = lambda name: name in HOOKS or old_has(name)
+    def has_hook(name):
+        try:
+            if name in HOOKS:
+                return True
+        except Exception as exc:
+            observer_error(path, 'accounting.has_hook', exc)
+        return old_has(name)
+    lifecycle.has_hook = has_hook
     def invoke(name, **kw):
         try:
             observer.hook(name, **kw)
-        except Exception:
+        except Exception as exc:
             # A scalar error marker invalidates accounting, without persisting payloads.
-            try:
-                with Path(path).open('a') as out: out.write('{"kind":"observer_error"}\n')
-            except OSError:
-                pass
+            observer_error(path, 'accounting.invoke', exc)
         return old_invoke(name, **kw)
     lifecycle.invoke_hook = invoke
     return observer
