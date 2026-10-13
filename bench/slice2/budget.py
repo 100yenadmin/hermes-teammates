@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 
 from bench.slice2.protocol import ARMS, schedule
+from bench.slice2.audit import valid_cell
 
 
 def admit(cells, limits):
@@ -15,8 +16,7 @@ def admit(cells, limits):
     if limits.get('plan')!='GLM coding plan' or any(type(limits.get(k)) not in (int,float) or not math.isfinite(limits[k]) or limits[k]<0 for k in required):
         return out
     for c in cells:
-        accounting=c.get('accounting')
-        if not (accounting is True or isinstance(accounting,dict) and accounting.get('pass') is True):
+        if not valid_cell(c):
             return out
         if c.get('status')!='COMPLETE' or c.get('arm') not in ARMS or any(type(c.get(k)) not in (int,float) or not math.isfinite(c[k]) or c[k]<=0 for k in ('wall_s','requests')):
             return out

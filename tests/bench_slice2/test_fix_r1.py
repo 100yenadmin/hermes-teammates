@@ -46,10 +46,13 @@ def adapter(tmp_path, monkeypatch):
     events += [dict(kind='agent', session_id='p', max_turns=40, compression=True),
                dict(kind='pre_tool_call', session_id='p', tool='teammate_wait', call_id='w', args=wait_args),
                dict(kind='post_tool_call', session_id='p', tool='teammate_wait', call_id='w', args=wait_args,
-                    result={'ok': True, 'done': [], 'pending': []}, success=True, denied=False)]
+                    result={'ok': True, 'done': [dict(run_id=f'r{i}',status='succeeded') for i in range(4)], 'pending': [], 'timed_out':False}, success=True, denied=False)]
     probes = [hermes.TASK / 'hidden/oracles.json', hermes.ROOT / 'bench/slice2/proofs.py',
               hermes.ROOT / 'bench/declared/slice2/DECLARED.md', hermes.ROOT / 'bench/results/slice1/REPORT.md',
               run.parent / 'outside-control', run / 'work/protected-link']
+    qualified_recipe=hermes.qualification_recipe('C',run,probes[:-1])
+    for i,e in enumerate(e for e in events if e['kind']=='launch'):
+        e['messages']=[{'role':'user','content':qualified_recipe['children'][i]}]
     def denials():
         for p in probes:
             for tool, args in [('read_file', {'path': str(p)}), ('terminal', {'command': f'cat {p}'})]:
@@ -77,7 +80,7 @@ def adapter(tmp_path, monkeypatch):
     monkeypatch.setattr(hermes, 'controls', lambda run, profile, targets:
                         [dict(path=str(run / 'work' / p), success=True) for p in ['README.md', 'allowed-marker']] +
                         [dict(path=str(p), success=False, error='EPERM') for p in probes])
-    launch = dict(arm='C', phase='qualification', recipe=recipe('C'), config=config('C'), endpoint='synthetic')
+    launch = dict(arm='C', phase='qualification', recipe=qualified_recipe, config=config('C'), endpoint='synthetic')
     return SimpleNamespace(run=run, events=events, state=state, launch=launch, execute=lambda: hermes.execute(launch, run))
 
 
@@ -117,7 +120,8 @@ def test_c_wait_pending_then_complete(adapter):
     pre = next(e for e in adapter.events if e['kind'] == 'pre_tool_call' and e['tool'] == 'teammate_wait')
     post = next(e for e in adapter.events if e['kind'] == 'post_tool_call' and e['tool'] == 'teammate_wait')
     adapter.events += [copy.deepcopy(pre) | {'call_id': 'w2'}, copy.deepcopy(post) | {'call_id': 'w2'}]
-    post['result']['pending'] = [{'run_id': 'r0'}]
+    post['result'].update(pending=[{'run_id':'r0','status':'running'}],
+                          done=[dict(run_id=f'r{i}',status='succeeded') for i in range(1,4)],timed_out=True)
     row = adapter.execute()
     assert row['wait_complete'] and row['full_wait_ids']
 
@@ -161,7 +165,7 @@ def test_public_workspace_mutation(tmp_path, asset):
 @pytest.mark.parametrize('accounting', [None, False, {}, {'pass': False}, {'pass': 1}])
 def test_admission_requires_calibration_accounting(accounting):
     from bench.slice2.budget import admit
-    rows = [c | dict(wall_s=30, requests=5, status='COMPLETE', accounting={'pass': True}) for c in schedule('calibration')]
+    rows = [c | dict(wall_s=30, requests=5, status='COMPLETE', accounting={'pass': True},recipe_valid=True,integrity=True,audit={'pass':True}) for c in schedule('calibration')]
     rows[0]['accounting'] = accounting
     limits = dict(plan='GLM coding plan', request_limit=1000, used_requests=50, grading_requests=50,
                   grading_wall_s=100, reproducer_wall_s=10, human_wall_s=100)
@@ -184,7 +188,7 @@ def test_quota_cell_stops_phase(tmp_path):
     with pytest.raises(ValueError, match='Stop receipt preserved'):
         run_phase('qualification', tmp_path, quota)
     assert len(calls) == 1
-    assert json.loads((tmp_path / calls[0] / 'cell.json').read_text())['status'] == 'QUOTA_STOP'
+    assert json.loads((tmp_path / calls[0] / 'B-briefed/batch.json').read_text())['status'] == 'QUOTA_STOP'
 
 
 @pytest.mark.parametrize('tool', ['teammate_wait', 'teammate_check'])
@@ -218,7 +222,7 @@ def test_cell_report_preserves_clipping(adapter):
 
 
 def scored_rows():
-    return [c | dict(status='COMPLETE', metrics=metrics(), integrity=True, accounting={'pass': True},
+    return [c | dict(status='COMPLETE', metrics=metrics(), integrity=True, accounting={'pass': True},recipe_valid=True,audit={'pass':True},
                      answer='synthetic finding', public_spec='synthetic spec') for c in schedule()]
 
 

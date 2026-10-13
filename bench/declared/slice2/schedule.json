@@ -436,5 +436,16 @@
       "cell": "calibration-dev01-seats-1-B-briefed",
       "seed": 1402
     }
-  ]
+  ],
+  "qualification": {
+    "slice": "slice2",
+    "phase": "qualification",
+    "case": "dev01-seats",
+    "cell": "qualification",
+    "seed": 1402,
+    "batches": [
+      "B-briefed",
+      "C"
+    ]
+  }
 }

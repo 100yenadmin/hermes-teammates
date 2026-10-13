@@ -9,7 +9,8 @@ calibration/admission, final audit; read source identities, hashes and receipts.
 ## Identity and matrix
 
 Plugin worktree: `/Users/m1/repos/worktrees/hermes-teammates-bench2`, branch
-`bench/slice2`, base/HEAD `5f4f72e4789b8adde1217134e69b9d5ef06eeb01` (v0.2.1).
+`bench/prequal`, from main `1b9a1c5e386429511de40cb7e1523af4f369934c` for #25.
+Runtime bytes remain v0.2.1 (ancestor `5f4f72e4789b8adde1217134e69b9d5ef06eeb01`).
 Hermes main: `3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065`; compatibility-test tree:
 `1078a4e5f363472c43a50c6738e47e54eab2940c`. Runtime-byte SHA256s, public and hidden
 assets, recipes, judge controls, harness and schedule are in
@@ -23,6 +24,10 @@ C batch, sequentially: 49 execution cells, 50 process batches. One active cell;
 maximum concurrency four. There are no A or bare B arms, no scored pilots,
 replacement cases, selected cells, selective reruns or trimmed matrices.
 
+The single `qualification/cell.json` owns two separate `B-briefed/batch.json`
+and `C/batch.json` receipts, each with a fresh process/workspace. It is COMPLETE
+only when both batches are COMPLETE and qualification passes. Interrupted batches
+are preserved, never replayed; completed batches are validated on resume.
 Case order is shuffled once, seed 1402, frozen in `schedule.json`. Run a complete
 case pass before the second pass. Within each case, pair order reverses between
 repetitions; each arm is first for five cases per pass. Calibration uses its
@@ -67,6 +72,14 @@ retries, call/wait counts, compression, clipping and within-case repeat spread.
 SHA256 hashes. Qualification must show four leaves, matching briefs, tools,
 effective budgets/compression, single-batch fan-out, completion, wait recipe and
 request lineage; configuration declarations alone cannot pass it.
+Every calibration/scored cell must pass the same effective recipe validation;
+deviations are RECIPE_INVALID, never COMPLETE and never graded/analyzed as an arm.
+Failed accounting/integrity also excludes a cell from admission, grading and analysis.
+Fan-out validates call IDs, role/goal arguments and all launch attempts, not just
+batch counts. C wait replies must partition the exact ledger run-ID set into
+terminal done and queued/running pending rows, with consistent timeout status.
+Qualification adds the same explicit protected/positive probes to each child goal
+and to the parent: both read_file and single-target terminal `cat` must be observed.
 
 ## Grading and blinding
 
@@ -81,7 +94,10 @@ check a seeded 10% sample and control disagreements before freezing grades.
 The frozen six controls in `judge-controls.json` are: correct concise finding,
 verbose equivalent, persuasive false claim, contradiction, duplicate and embedded
 grading instruction. Equivalent causal verdicts and no instruction compliance
-are required before any scoring. Structured verdicts cite causal evidence.
+are required before any scoring, including cause and evidence normalized by case
+and whitespace. Both controls and scored requests include frozen public source,
+specification and oracle. Blinding removes mechanism words and identifiers in any case.
+Structured verdicts cite causal evidence.
 TP requires the root cause plus correct trigger/observable failure/explanation,
 or a bounded reproducer failing on buggy source and passing its correction.
 No location/keyword scoring. Syntax/import failures in reproducers earn no credit.
@@ -113,14 +129,18 @@ Parent cumulative usage includes attributable auxiliaries; parent PEAK is maximu
 full prompt across its requests, with main/aux peaks also reported separately.
 Plugin tokens_* receipts deduplicate by run and SQLite session totals cross-check
 main requests; auxiliary usage is reported separately, never double-added.
-Unknown/unowned/mismatched accounting blocks the claim. Qualification reconciles
+Unknown/unowned/mismatched accounting blocks the claim. Duplicate starts and
+inconsistent prompt/cache/reasoning buckets also invalidate accounting. Qualification reconciles
 both arms and requires C receipt coverage. Canonical provider normalization is
 recorded; the hook cannot prove raw provider bucket fidelity.
 
 The production read-deny profile must deny real reads of existing readable oracle,
 proof/grader, declarations/results, outside-RUN evidence and a RUN-local symlink.
 Parent and every child need OS-denial tool evidence (file and terminal), allowed
-source/marker controls and inherited sandbox evidence. Run controls before and
+source/marker controls from BOTH of their own tools and inherited sandbox evidence
+derived from those observations. Exact target arguments must match; path mentions,
+echo commands, another tool or another session do not qualify. Missing or failed
+tool status never proves success. Run controls before and
 after each batch. Preserved synthetic successful-protected-read evidence MUST be
 rejected by the audit; allowed-read evidence MUST pass. Neither missing files nor
 canary absence proves isolation. An unexpected protected success stops execution
@@ -147,7 +167,12 @@ composite claim; no Bonferroni. Total tokens and every other contrast descriptiv
   CLOSE GAP. Undefined/zero-denominator ratios remain missing; do not invent savings.
 
 If both arms' mean recall ≥0.95 or both ≤0.20, withhold quality claim and label
-ceiling/floor limitation. Efficiency is descriptive. Tolerances are practical
+ceiling/floor limitation. Withhold only the quality conclusion: an overhead lower
+bound above its maximum still yields DOES NOT CLOSE GAP. A missing metric withholds
+its own contrast, never an independently established negative bound; CLOSES GAP
+still needs every primary bound. FAILED cells have zero quality even if submitted
+metrics claim success. Efficiency remains descriptive at a ceiling/floor when
+no overhead failure is established. Tolerances are practical
 allowances, not literal equality. No post-result threshold or sample changes.
 
 ## Admission and reproduction

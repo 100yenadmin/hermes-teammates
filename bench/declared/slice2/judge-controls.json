@@ -23,6 +23,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -49,6 +52,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -75,6 +81,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -101,6 +110,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -127,6 +139,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -153,6 +168,9 @@
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   }
 ]

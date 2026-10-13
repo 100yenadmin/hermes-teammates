@@ -71,6 +71,7 @@ def accounting(events, lineage, root):
     starts = [r for r in events if r.get('kind') == 'request_start']
     rows = [r for r in events if r.get('kind') == 'usage']
     good = (bool(ids) and not any(r.get('kind') == 'observer_error' for r in events)
+            and len({request_key(r) for r in starts}) == len(starts)
             and len({request_key(r) for r in rows}) == len(rows)
             and {request_key(r) for r in starts} == {request_key(r) for r in rows}
             and all(r.get('session_id') in ids and r.get('request_id') and not r.get('missing_start') for r in rows))
@@ -89,7 +90,10 @@ def accounting(events, lineage, root):
                 result[kind + '_peak_prompt_tokens'] = max(prompts) if prompts and all(type(v) is int for v in prompts) else None
     p, c = result['parent_tokens'], result['child_tokens']
     result['total_tokens'] = p+c if p is not None and c is not None else None
-    result['complete'] = good and all(result[k] is not None for k in ('parent_tokens','child_tokens','parent_peak_prompt_tokens'))
+    consistent = all(all(type(r.get('usage', {}).get(b)) is int and r['usage'][b] >= 0 for b in BUCKETS)
+                     and r.get('prompt_tokens') == sum(r['usage'][b] for b in ('input_tokens','cache_read_tokens','cache_write_tokens'))
+                     and r['usage']['reasoning_tokens'] <= r['usage']['output_tokens'] for r in rows)
+    result['complete'] = good and consistent and all(result[k] is not None for k in ('parent_tokens','child_tokens','parent_peak_prompt_tokens'))
     result['compression_events'] = sum(r.get('aux_task') in {'compression','context_compression'} for r in rows)
     return result
 

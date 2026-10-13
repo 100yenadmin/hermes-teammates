@@ -37,8 +37,7 @@ def manifest():
 def schedule(phase='scored'):
     if phase not in {'scored', 'calibration'}:
         raise ValueError('unsupported schedule')
-    cases = sorted(p.name for p in (TASK / 'cases').iterdir() if p.is_dir()
-                   and p.name.startswith('dev') == (phase == 'calibration'))
+    cases = sorted(manifest()['dev' if phase=='calibration' else 'scored'])
     random.Random(SEED).shuffle(cases)
     result = []
     # Complete case passes; each case reverses pair order in its second pass.
@@ -48,6 +47,8 @@ def schedule(phase='scored'):
             for arm in arms:
                 result.append(dict(slice='slice2', phase=phase, case=case, arm=arm, rep=rep,
                                    cell=f'{phase}-{case}-{rep}-{arm}', seed=SEED))
+    if result != json.loads((DECLARED/'schedule.json').read_text())[phase]:
+        raise ValueError('Frozen schedule drift')
     return result
 
 
@@ -96,15 +97,32 @@ def stage(case, destination):
     m = manifest()
     if case not in m['scored'] + m['dev']:
         raise ValueError('Unknown case')
+    source = TASK / 'cases' / case
+    expected = {p for p in m['files'] if p.startswith(str(source.relative_to(ROOT)) + '/')}
+    entries = list(source.rglob('*'))
+    actual = {str(p.relative_to(ROOT)) for p in entries if not p.is_dir()}
+    if actual != expected or any(p.is_symlink() for p in [source, *entries]):
+        raise ValueError('Undeclared or symlink public entry')
+    if {p.name for p in source.iterdir()} != {'README.md', 'src'}:
+        raise ValueError('Undeclared public entry')
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=False)
-    source = TASK / 'cases' / case
     shutil.copy2(source / 'README.md', destination / 'README.md')
     (destination / 'src').mkdir()
     for file in sorted((source / 'src').iterdir()):
         if file.is_symlink() or file.suffix != '.py':
             raise ValueError('Unexpected public asset')
         shutil.copy2(file, destination / 'src' / file.name)
+
+
+def public_material(case):
+    m = manifest()
+    if case not in m['scored'] + m['dev']:
+        raise ValueError('Unknown case')
+    source = TASK / 'cases' / case
+    return dict(public_spec=(source / 'README.md').read_text(),
+                public_source={str(p.relative_to(source)): p.read_text()
+                               for p in sorted((source / 'src').glob('*.py'))})
 
 
 def identity():
