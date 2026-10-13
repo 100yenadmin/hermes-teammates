@@ -92,7 +92,9 @@ Each teammate takes `description`, `instructions` and `toolsets`, plus optional 
 `reasoning_effort` (see [Compatibility](#compatibility)). The form checks types, not ranges. A value it accepts but
 the plugin can't use is listed under **Config problems** in `/teammates`. Invalid teammates refuse launch:
 unknown keys, wrong field types, and empty or invalid `toolsets` fail closed. Absent or null `toolsets` inherit.
-Long descriptions and instructions are clipped with warnings and remain launchable; toolset names are trimmed.
+Long descriptions (over 300 characters) and instructions (over 4,000) are clipped with warnings and remain launchable;
+toolset names are trimmed. `model`, `route` and `reasoning_effort` over 100 characters, more than 24 toolsets, or a
+toolset name that is not 1–48 printable ASCII characters without spaces make the teammate invalid.
 
 Launch context reserves operator instructions, then card text (up to 6,000 characters), the follow-up digest,
 and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
@@ -174,6 +176,8 @@ most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes
 `unsupported`, and read-only global `delegation` values: `inherit_mcp_toolsets`, `worktree_isolation` and
 `child_timeout_seconds`. Unset values use Hermes's defaults; `delegation_sources` marks each value as
 `config`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
+The reply stays within 16,000 characters; if an explained definition would not fit (for example 4,000 characters of
+non-ASCII instructions, which JSON escapes), its instructions are shortened and `instructions_clipped` is true.
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
