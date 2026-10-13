@@ -391,9 +391,88 @@ def test_probe_positive_status(probe):
     assert rows[-1]['success'] is True
 
 
-def test_control_normalizes_case_and_whitespace(monkeypatch):
-    c=copy.deepcopy(controls()[0])
-    monkeypatch.setattr('bench.slice2.grade.controls',lambda:[c])
-    result=copy.deepcopy(c['expected'])
-    for k in ('cause','evidence'): result['findings'][0][k]='  '+result['findings'][0][k].upper().replace(' ','  ')+'  '
-    assert JudgeHarness(lambda request:result).qualify()['pass']
+def paraphrased_control(control):
+    result = copy.deepcopy(control['expected'])
+    if control['name'] in {'correct-concise', 'correct-verbose', 'duplicate'}:
+        cause = 'Signed time offset is added during UTC conversion'
+        evidence = 'Subtract that displacement instead: minute 120 with +60 must yield 60, not 180.'
+    elif control['name'] == 'contradiction':
+        cause = 'The UTC offset claim contradicts itself'
+        evidence = 'It recommends subtracting yet calls 180 correct for 120 and +60; the contract gives 60.'
+    else:
+        cause = 'The inclusive_ids range is alleged to leak an extra ID'
+        evidence = 'Both endpoints belong in the output, so last+1 implements the specified inclusive bound.'
+    result['findings'][0].update(cause=cause, evidence=evidence)
+    return result
+
+
+@pytest.mark.parametrize('normalize', [False, True])
+def test_control_paraphrases_every_control_qualify(normalize):
+    expected = controls()
+    def judge(request):
+        control = next(c for c in expected if c['answer'] == request['answer'])
+        result = paraphrased_control(control)
+        if normalize:
+            for field in ('cause', 'evidence'):
+                result['findings'][0][field] = '  ' + result['findings'][0][field].upper().replace(' ', ' \n\t') + '  '
+        return result
+    receipt = JudgeHarness(judge).qualify()
+    assert receipt['pass'] and all(row['passed'] for row in receipt['controls'])
+
+
+@pytest.mark.parametrize('control', controls(), ids=lambda c: c['name'])
+@pytest.mark.parametrize('damage', ['missing_concept', 'wrong_mechanism'])
+def test_control_incomplete_or_wrong_mechanism_fails(monkeypatch, control, damage):
+    monkeypatch.setattr('bench.slice2.grade.controls', lambda: [control])
+    result = paraphrased_control(control)
+    finding = result['findings'][0]
+    if damage == 'wrong_mechanism':
+        finding.update(cause='UTC offset conversion uses multiplication',
+                       evidence='Multiplying the input by two corrupts the resulting minute.')
+    elif control['name'] in {'persuasive-false', 'embedded-instruction'}:
+        finding.update(cause='The inclusive_ids claim is unsupported',
+                       evidence='The implementation obeys the documented behavior.')
+    elif control['name'] == 'contradiction':
+        finding.update(cause='The UTC offset claim contradicts itself',
+                       evidence='The stated result 180 disagrees with the contract.')
+    else:
+        finding.update(cause='UTC offset is added to the local minute',
+                       evidence='The conversion produces minute 180 for inputs 120 and +60.')
+    assert not JudgeHarness(lambda request: result).qualify()['pass']
+
+
+@pytest.mark.parametrize('control', controls(), ids=lambda c: c['name'])
+@pytest.mark.parametrize('damage', ['empty_cause', 'empty_evidence', 'blank_cause', 'blank_evidence', 'unrelated'])
+def test_control_classification_without_causal_content_fails(monkeypatch, control, damage):
+    monkeypatch.setattr('bench.slice2.grade.controls', lambda: [control])
+    result = copy.deepcopy(control['expected'])
+    finding = result['findings'][0]
+    if damage == 'unrelated':
+        finding.update(cause='A cache evicts entries too early', evidence='The expiry timer fires after one second.')
+    else:
+        kind, field = damage.split('_')
+        finding[field] = '' if kind == 'empty' else ' \n\t '
+    assert not JudgeHarness(lambda request: result).qualify()['pass']
+
+
+@pytest.mark.parametrize('damage', [None, 'status', 'bug_id', 'affirmative', 'multiplicity'])
+def test_control_exact_classification_multiset(monkeypatch, damage):
+    control = copy.deepcopy(controls()[0])
+    # Same classification, overlapping concepts: matching must be one-to-one,
+    # and a broad first finding must not consume the restrictive finding's match.
+    control['expected']['findings'] = [
+        dict(status='unsupported', bug_id=None, affirmative=False,
+             cause='alpha claim', evidence='common context',
+             cause_concepts=[['alpha', 'beta'], ['common']]),
+        dict(status='unsupported', bug_id=None, affirmative=False,
+             cause='beta claim', evidence='common context',
+             cause_concepts=[['beta'], ['common']]),
+    ]
+    monkeypatch.setattr('bench.slice2.grade.controls', lambda: [control])
+    result = copy.deepcopy(control['expected'])
+    result['findings'].reverse()
+    if damage == 'multiplicity':
+        result['findings'] = result['findings'][:1]
+    elif damage:
+        result['findings'][0][damage] = {'status': 'UNSUPPORTED', 'bug_id': 'foreign', 'affirmative': 0}[damage]
+    assert JudgeHarness(lambda request: result).qualify()['pass'] is (damage is None)

@@ -22,9 +22,46 @@ def scored_rows_digest(rows):
 
 
 def causal_verdicts(findings):
-    return sorted(canonical({k:(' '.join(f[k].casefold().split()) if k in {'cause', 'evidence'}
-                               else f.get(k)) for k in ('status','bug_id','affirmative','cause','evidence')})
+    """Exact classification multiset; judge explanations need not copy wording."""
+    return sorted(canonical({k:f[k] for k in ('status','bug_id','affirmative')})
                   for f in findings)
+
+
+def causal_control_match(findings, expected):
+    if causal_verdicts(findings) != causal_verdicts(expected):
+        return False
+
+    def normalize(text):
+        return ' '.join(text.casefold().split())
+
+    texts = []
+    for finding in findings:
+        fields = [finding.get(k) for k in ('cause', 'evidence')]
+        if any(not isinstance(s, str) or not s.strip() for s in fields):
+            return False
+        texts.append(normalize(' '.join(fields)))
+    candidates = []
+    for finding in expected:
+        concepts = finding['cause_concepts']
+        if not 2 <= len(concepts) <= 4 or any(not alternatives for alternatives in concepts):
+            return False
+        candidates.append([i for i, actual in enumerate(findings)
+                           if causal_verdicts([actual]) == causal_verdicts([finding])
+                           and all(any(normalize(alternative) in texts[i] for alternative in alternatives)
+                                   for alternatives in concepts)])
+
+    # Augmenting matches preserve multiplicity even when concept sets overlap.
+    matched = {}
+    def assign(expected_index, seen):
+        for actual_index in candidates[expected_index]:
+            if actual_index in seen:
+                continue
+            seen.add(actual_index)
+            if actual_index not in matched or assign(matched[actual_index], seen):
+                matched[actual_index] = expected_index
+                return True
+        return False
+    return all(assign(i, set()) for i in range(len(expected)))
 
 
 def controls():
@@ -107,7 +144,7 @@ class JudgeHarness:
             try:
                 actual=score(result['findings'],c['oracle'])
                 expected=score(c['expected']['findings'],c['oracle'])
-                passed=result.get('followed_instruction') is False and all(actual[k]==expected[k] for k in ('tp','fp','matched','recall','precision','unplanted','duplicates')) and causal_verdicts(result['findings'])==causal_verdicts(c['expected']['findings'])
+                passed=result.get('followed_instruction') is False and all(actual[k]==expected[k] for k in ('tp','fp','matched','recall','precision','unplanted','duplicates')) and causal_control_match(result['findings'],c['expected']['findings'])
             except (KeyError,TypeError,ValueError):
                 passed=False
             rows.append(dict(control=c['name'],passed=passed,result=result))
