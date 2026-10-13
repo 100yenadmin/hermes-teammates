@@ -96,7 +96,7 @@ def rig(plugin, tmp_path):
     host.spawn_paused = lambda: False
     host.lane_is_profile = lambda lane: False
     host.features = lambda: {'reasoning_effort': False, 'route': None,
-                             'steer': False, 'follow_up': False}
+                             'steer': 'no', 'follow_up': False}
     path = tmp_path / 'runs.db'
     def factory():
         return Store(sqlite3.connect(path, timeout=10))

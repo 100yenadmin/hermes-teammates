@@ -108,8 +108,9 @@ def render_roster(value):
     else:
         lines.append('Kanban lane: unavailable in this process')
     features = value.get('features') or {}
-    lines.append('This Hermes build: ' + ', '.join(f"{key}={'yes' if features.get(key) else 'no'}"
-                                                   for key in ('steer', 'follow_up', 'reasoning_effort', 'route')))
+    lines.append(f"This Hermes build: steer={features.get('steer', 'no')}, " +
+                 ', '.join(f"{key}={'yes' if features.get(key) else 'no'}"
+                           for key in ('follow_up', 'reasoning_effort', 'route')))
     if value.get('config_errors'):
         lines.append('Config problems:')
         lines.extend(f'  {problem}' for problem in value['config_errors'])

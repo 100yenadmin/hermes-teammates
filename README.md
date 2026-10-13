@@ -200,6 +200,25 @@ the same API, but end-to-end TUI delivery has not been verified here.
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
 
+## Benchmarks
+
+The first live slice ran one code-review task three ways on the same model (GLM `glm-5.3`, one Hermes build, 3 runs each):
+**A** one agent alone, **B** core `delegate_task` fan-out to 4 helpers, **C** 4 teammates.
+
+| Setup | Bugs found (of 8) | Parent tokens | Total tokens | Parent API calls | Wall time |
+|---|---:|---:|---:|---:|---:|
+| A, one agent | 8 | 135k | 135k | 9 | 87 s |
+| B, `delegate_task` | 8 | 32k | 171k | 3.3 | 81 s |
+| C, teammates (0.1.3) | 8 | 52k | 195k | 6.3 | 86 s |
+
+All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating keeps
+the parent's context 2.6–4.2× smaller, costs 26–44% more tokens in total, and was not faster here. Teammates made about twice
+as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` and completion notices in 0.2.0 are meant to remove.
+An audit of every recorded tool call found no run read the answer key. These are means of 3 runs, without significance tests.
+
+Full report, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md). The `$0` mechanics benchmarks
+(`tests/bench_mechanics`) run in CI on every change. A harder task and a re-measure with `teammate_wait` are tracked in #16.
+
 ## Limits (honest list)
 
 - **Follow-ups carry context, not the transcript.** A follow-up starts a fresh subagent with a digest of earlier

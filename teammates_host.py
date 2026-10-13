@@ -42,9 +42,12 @@ class HermesHost:
             except Exception:
                 return default
         names = probe(lambda: {field.name for field in fields(self.request_class())}, set())
+        # The fallback uses the public dispatch_tool seam; discovery must not dispatch or require a live parent.
+        steer = ('lifecycle' if probe(lambda: callable(getattr(self.service, 'steer', None))) else
+                 'delegate_task' if probe(lambda: callable(getattr(self.ctx, 'dispatch_tool', None))) else 'no')
         return {'reasoning_effort': 'reasoning_effort' in names,
                 'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
-                'steer': probe(lambda: callable(getattr(self.service, 'steer', None))),
+                'steer': steer,
                 'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None)))}
 
     def launch_request(self, **kwargs):

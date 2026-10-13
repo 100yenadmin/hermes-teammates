@@ -565,7 +565,7 @@ class TeammatesService:
             return error('not_running')
         if not isinstance(text, str) or not text.strip() or len(text) > 4000:
             return error('invalid_message')
-        if self.host.features()['steer']:
+        if self.host.features()['steer'] == 'lifecycle':
             handle = self.host.handle_from_dict(json.loads(row['handle_json']))
             return {'ok': bool(self.host.service.steer(handle, text)), 'via': 'lifecycle'}
         result = self.host.steer_fallback(parent_agent, row['subagent_id'], text)

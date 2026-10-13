@@ -8,8 +8,8 @@ import pytest
 def test_steer_seen_by_running_child(mount, tmp_path, metrics):
     rig = mount()
     features = rig.host.features()
-    via = 'lifecycle' if features['steer'] else 'delegate_task'
-    if not features['steer'] and not callable(getattr(rig.host.ctx, 'dispatch_tool', None)):
+    via = features['steer']
+    if via == 'no':
         pytest.skip('Hermes lacks lifecycle steer and plugin dispatch_tool fallback seam')
     seed = uuid4().hex
     label, text = f'steer-{seed}', f'STEER-{seed}'
