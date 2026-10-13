@@ -5,7 +5,7 @@
   "bugs": [
     {
       "id": "T1-1",
-      "file": "collections.py",
+      "file": "batching.py",
       "line": 9,
       "keywords": [
         "batch",
@@ -18,7 +18,7 @@
     },
     {
       "id": "T1-2",
-      "file": "collections.py",
+      "file": "batching.py",
       "line": 16,
       "keywords": [
         "clamp",
@@ -102,7 +102,7 @@
   ],
   "decoys": [
     {
-      "file": "collections.py",
+      "file": "batching.py",
       "line": 21
     },
     {

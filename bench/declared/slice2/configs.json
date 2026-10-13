@@ -1,0 +1,107 @@
+{
+  "B-briefed": {
+    "model": {
+      "provider": "zai",
+      "default": "glm-5.3"
+    },
+    "auth": {
+      "adopt_external_logins": false
+    },
+    "security": {
+      "allow_lazy_installs": false
+    },
+    "agent": {
+      "max_turns": 40,
+      "api_max_retries": 1
+    },
+    "compression": {
+      "enabled": true
+    },
+    "terminal": {
+      "backend": "local"
+    },
+    "delegation": {
+      "max_concurrent_children": 4,
+      "oneshot_max_children": 4,
+      "max_iterations": 250
+    },
+    "plugins": {
+      "isolation": "in_process",
+      "enabled": []
+    }
+  },
+  "C": {
+    "model": {
+      "provider": "zai",
+      "default": "glm-5.3"
+    },
+    "auth": {
+      "adopt_external_logins": false
+    },
+    "security": {
+      "allow_lazy_installs": false
+    },
+    "agent": {
+      "max_turns": 40,
+      "api_max_retries": 1
+    },
+    "compression": {
+      "enabled": true
+    },
+    "terminal": {
+      "backend": "local"
+    },
+    "delegation": {
+      "max_concurrent_children": 4,
+      "oneshot_max_children": 4,
+      "max_iterations": 250
+    },
+    "plugins": {
+      "isolation": "in_process",
+      "enabled": [
+        "hermes-teammates"
+      ],
+      "entries": {
+        "hermes-teammates": {
+          "settings": {
+            "max_live_runs": 4,
+            "teammates": {
+              "contracts": {
+                "instructions": "Review concrete supported-path bugs in your assigned scope. Read dependent modules as needed. Do not edit or delegate. Report location, triggering conditions, causal explanation, expected versus actual behavior, and optional reproducer. Exclude style and speculative findings.",
+                "description": "contracts/units",
+                "toolsets": [
+                  "file",
+                  "terminal"
+                ]
+              },
+              "state": {
+                "instructions": "Review concrete supported-path bugs in your assigned scope. Read dependent modules as needed. Do not edit or delegate. Report location, triggering conditions, causal explanation, expected versus actual behavior, and optional reproducer. Exclude style and speculative findings.",
+                "description": "state/order",
+                "toolsets": [
+                  "file",
+                  "terminal"
+                ]
+              },
+              "boundaries": {
+                "instructions": "Review concrete supported-path bugs in your assigned scope. Read dependent modules as needed. Do not edit or delegate. Report location, triggering conditions, causal explanation, expected versus actual behavior, and optional reproducer. Exclude style and speculative findings.",
+                "description": "boundaries/data",
+                "toolsets": [
+                  "file",
+                  "terminal"
+                ]
+              },
+              "errors": {
+                "instructions": "Review concrete supported-path bugs in your assigned scope. Read dependent modules as needed. Do not edit or delegate. Report location, triggering conditions, causal explanation, expected versus actual behavior, and optional reproducer. Exclude style and speculative findings.",
+                "description": "errors/async",
+                "toolsets": [
+                  "file",
+                  "terminal"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
