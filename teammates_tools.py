@@ -35,7 +35,7 @@ SPECS = {
         ['run_id']),
     'teammate_wait': (
         'Wait for any or all runs in this conversation. Returns finished results and pending statuses at the deadline.',
-        {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string'}, minItems=1, maxItems=16,
+        {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string', 'minLength': 1}, minItems=1, maxItems=16,
                        uniqueItems=True),
          'mode': _p('string', 'Completion rule.', enum=['any', 'all'], default='any'),
          'wait_seconds': _p('number', 'Seconds to wait.', minimum=0, maximum=60, default=30)}, ['run_ids']),

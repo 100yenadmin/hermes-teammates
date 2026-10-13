@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
+import hashlib
 import json
 import logging
 import math
@@ -26,7 +27,8 @@ _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', thread
 # Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
 _stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
-_admission_locks = sys.__dict__.setdefault('_hermes_teammates_admission_locks', {})
+_admission_locks = sys.__dict__.setdefault(
+    '_hermes_teammates_admission_stripes', tuple(threading.Lock() for _ in range(64)))
 logger = logging.getLogger(__name__)
 
 
@@ -122,6 +124,7 @@ class TeammatesService:
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
         self._condition = threading.Condition()
+        self._generation = 0
         self._seen, self._notices = set(), {}
 
     def _sweep(self):
@@ -158,9 +161,8 @@ class TeammatesService:
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
                kanban_task=None, parent_agent=None):
-        with _sweep_lock:
-            lock = _admission_locks.setdefault(session_id, threading.Lock())
-        with lock:
+        stripe = int.from_bytes(hashlib.sha256(str(session_id).encode()).digest()[:8], 'big') % 64
+        with _admission_locks[stripe]:
             return self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
 
     def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
@@ -268,10 +270,12 @@ class TeammatesService:
                        kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
                        parent_session_key=self.host.completion_target()[0],
                        created_at=self.clock())
+            # In-process the lock covers launch + insert. Across processes the conditional insert
+            # rejects the extra run, but its child may already have started and is cancelled at once.
             with self.store_factory() as store:
                 admitted = store.admit(row, config['max_live_runs'])
             if not admitted:
-                self._launch_failed(run_id, handle, claim, kanban_task, RuntimeError('capacity exhausted'))
+                self._launch_failed(run_id, handle, claim, kanban_task, RuntimeError('capacity exhausted'), row=row)
                 return error('too_many_live_runs')
             self._owners[run_id] = session_id
             self.start_monitor(row, handle, config['claim_ttl_seconds'] if kanban_task else None)
@@ -280,7 +284,7 @@ class TeammatesService:
         return {key: value for key, value in public_row(row).items()
                 if key in {'ok', 'run_id', 'teammate', 'status', 'provider', 'model', 'unsupported', 'kanban_task'}}
 
-    def _launch_failed(self, run_id, handle, claim, task_id, exc):
+    def _launch_failed(self, run_id, handle, claim, task_id, exc, *, row=None):
         message = f'{type(exc).__name__}: {clip(exc, 1500)}'
         if 'Unknown toolsets' in str(exc):
             message += ('; check the spelling. Hermes builds before NousResearch/hermes-agent#137167 cannot grant '
@@ -292,7 +296,9 @@ class TeammatesService:
             with suppress(Exception), self.host.connection() as conn:
                 self.host.block_task(conn, task_id, reason=clip(message, 500), expected_run_id=claim['kanban_run_id'])
         with suppress(Exception), self.store_factory() as store:
-            store.finish(run_id, 'cancelled', completed_at=self.clock(), error=message)
+            won = store.finish(run_id, 'cancelled', completed_at=self.clock(), error=message)
+            if not won and row is not None:
+                store.insert(dict(row, status='cancelled', completed_at=self.clock(), error=message))
         return error('launch_failed', message)
 
     def _public_run(self, row, summary_budget=8000):
@@ -313,18 +319,17 @@ class TeammatesService:
         if row is None:
             return error('unknown_run')
         if row['status'] != 'running':
-            with self._condition:
-                self._seen.add(run_id)
+            self._observe(row)
             self._handoff(row)
-            return public_row(self._get(session_id, run_id))
+            return self._observe(self._get(session_id, run_id))
         self._owners[run_id] = session_id
         if row['instance_id'] != INSTANCE_ID:
             if row['pid'] != os.getpid() and pid_alive(row['pid']):
-                return dict(public_row(row), note='owned_by_other_process')
+                return dict(self._observe(row), note='owned_by_other_process')
             if self._dead_owner(row):
                 with self.store_factory() as store:
                     store.finish(run_id, 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
-                return public_row(self._get(session_id, run_id))
+                return self._observe(self._get(session_id, run_id))
         if row['status'] == 'running':
             handle = self.host.handle_from_dict(json.loads(row['handle_json']))
             wait_seconds = max(0, min(60, float(wait_seconds)))
@@ -339,7 +344,13 @@ class TeammatesService:
                 self.finalize(run_id, result)
             elif state == 'UNKNOWN':
                 self._unknown(row)
-        return self._public_run(self._get(session_id, run_id))
+        return self._observe(self._get(session_id, run_id))
+
+    def _observe(self, row):
+        with self._condition:
+            if row['status'] != 'running':
+                self._seen.add(row['run_id'])
+        return self._public_run(row)
 
     @safe
     def wait(self, session_id, run_ids, mode='any', wait_seconds=30):
@@ -354,22 +365,25 @@ class TeammatesService:
             if self._get(session_id, run_id) is None:
                 return error('unknown_run', f'unknown run: {run_id}')
         deadline = time.monotonic() + wait_seconds
-        with self._condition:
-            while True:
-                done, pending = [], []
-                for run_id in run_ids:
-                    row = self.check(session_id, run_id)
-                    if not row['ok']:
-                        return row
-                    if row['status'] in ('running', 'queued'):
-                        pending.append(dict(run_id=run_id, status=row['status']))
-                    else:
-                        done.append(row)
-                complete = bool(done) if mode == 'any' else not pending
-                remaining = deadline - time.monotonic()
-                if complete or remaining <= 0:
-                    return dict(ok=True, done=done, pending=pending, timed_out=not complete)
-                self._condition.wait(timeout=min(1, remaining))
+        while True:
+            with self._condition:
+                generation = self._generation
+            done, pending = [], []
+            for run_id in run_ids:
+                row = self.check(session_id, run_id)
+                if not row['ok']:
+                    return row
+                if row['status'] in ('running', 'queued'):
+                    pending.append(dict(run_id=run_id, status=row['status']))
+                else:
+                    done.append(row)
+            complete = bool(done) if mode == 'any' else not pending
+            remaining = deadline - time.monotonic()
+            if complete or remaining <= 0:
+                return dict(ok=True, done=done, pending=pending, timed_out=not complete)
+            with self._condition:
+                if generation == self._generation:
+                    self._condition.wait(timeout=min(1, remaining))
 
     def _unknown(self, row, *, notify=False):
         with self.store_factory() as store:
@@ -419,11 +433,15 @@ class TeammatesService:
         with self._condition:
             if not notify:
                 self._seen.add(row['run_id'])
+            self._generation += 1
             self._condition.notify_all()
             if not won or not notify or row.get('stop_requested_at') is not None:
                 return
             try:
-                if self.host.push_feature(parse(self.config_reader())['notify_on_completion'])['status'] != 'on':
+                feature = self.host.push_feature(parse(self.config_reader())['notify_on_completion'])
+                if feature['status'] != 'on':
+                    if feature['status'] == 'unsupported':
+                        logger.info('completion notice dropped: host cannot bind notices to a session')
                     return
                 owner = row['owner_session_id']
                 if owner not in self._notices:
@@ -439,13 +457,16 @@ class TeammatesService:
         try:
             with self._condition:
                 rows = [row for row in self._notices.pop(owner, []) if row['run_id'] not in self._seen]
-            if not rows or not parse(self.config_reader())['notify_on_completion']:
-                return
-            listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})" for r in rows[:8])
-            if len(rows) > 8:
-                listed += f'; and {len(rows) - 8} more'
-            content = f'[hermes-teammates] {listed}. Call teammate_check or teammate_wait to read the result.'
-            accepted = self.host.ctx.inject_message(content, role='user', session_key=rows[0]['parent_session_key'])
+                if not rows or not parse(self.config_reader())['notify_on_completion']:
+                    return
+                if self.host.notice_session_id(rows[0]['parent_session_key']) != owner:
+                    logger.info('completion notice dropped: host cannot confirm the owning session')
+                    return
+                listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})" for r in rows[:8])
+                if len(rows) > 8:
+                    listed += f'; and {len(rows) - 8} more'
+                content = f'[hermes-teammates] {listed}. Call teammate_check or teammate_wait to read the result.'
+                accepted = self.host.ctx.inject_message(content, role='user', session_key=rows[0]['parent_session_key'])
             if accepted is True:
                 with self.store_factory() as store:
                     for row in rows:

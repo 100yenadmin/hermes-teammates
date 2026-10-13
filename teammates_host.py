@@ -64,6 +64,11 @@ class HermesHost:
         except (ImportError, AttributeError):
             return None, False
 
+    def notice_session_id(self, session_key=None):
+        # Neither tested host exposes a public live REPL/route lookup to plugins.
+        # Copied session ContextVars identify the assigner, not the receiver at flush time.
+        return None
+
     def push_feature(self, enabled):
         key, cli = self.completion_target()
         if not callable(getattr(self.ctx, 'inject_message', None)):
@@ -72,6 +77,8 @@ class HermesHost:
             return dict(status='off', reason='setting off')
         if not key and not cli:
             return dict(status='unsupported', reason='no session key')
+        if not self.notice_session_id(key):
+            return dict(status='unsupported', reason='host cannot bind notices to a session')
         return dict(status='on', reason='CLI queue' if cli else 'gateway injection requires operator consent')
 
     @staticmethod

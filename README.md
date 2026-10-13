@@ -150,32 +150,18 @@ either is `null` when Hermes does not supply it. The roster's recent runs includ
 use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
 return `unknown_run` before waiting. Finished rows have the same result budget as `teammate_check`.
 
-### Completion notices (off by default)
+### Completion notices (not available yet)
 
-Enable `plugins.entries.hermes-teammates.settings.notify_on_completion: true` to receive a short notice
-in the parent conversation when a background run ends. Gateway/TUI delivery additionally needs
-`plugins.entries.hermes-teammates.allow_gateway_injection: true`; Hermes enforces that consent.
+Notices that tell the parent when a run ends are built, but no current Hermes build can deliver them safely. Hermes can't
+yet confirm which conversation would receive an injected message. In the CLI it goes to whatever session is open, and in the
+gateway a chat keeps the same routing key after `/new`. A notice could land in the wrong conversation, so the plugin never
+injects one; the roster reports `push_completion` as `unsupported` with the reason. Use `teammate_wait` instead.
 
-```yaml
-plugins:
-  entries:
-    hermes-teammates:
-      allow_gateway_injection: true
-      settings:
-        notify_on_completion: true
-```
-
-The notice says, for example: “[hermes-teammates] reviewer finished (run tm_ab12, succeeded).
-Call teammate_check or teammate_wait to read the result.” It contains only the teammate name, run ID,
-status and that fixed instruction. It never includes child output, goals or child error text.
-Completions within two seconds share one notice (eight listed, then “and N more”). Runs already
-read with check/wait or stopped by the parent produce no notice. Delivery is attempted once;
-refusal or failure does not change the retained result. `notified_at` records host acceptance only.
-CLI uses the attached REPL queue. Non-CLI delivery captures the public durable session key at assign
-time and is unsupported when that key is missing. The roster reports on/off/unsupported and its reason;
-gateway consent is enforced by the host and may still cause refusal. Both tested pinned and main
-Hermes trees expose injection; older hosts without it report unsupported. TUI host acceptance follows
-the same API, but end-to-end TUI delivery has not been verified here.
+Session-bound injection is requested upstream in
+[NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212#issuecomment-6152052854).
+Once Hermes has it, a plugin update can enable notices behind `notify_on_completion` (off by default; outside the CLI
+also the operator's `allow_gateway_injection`). A notice contains only the teammate name, run ID and status, never child
+output, goals or child error text. Runs already read with check/wait or stopped by the parent get no notice.
 
 ## Compatibility
 
@@ -195,7 +181,7 @@ the same API, but end-to-end TUI delivery has not been verified here.
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
-| push completion | public `inject_message`; non-CLI also needs a durable session key and operator consent | Roster reports unsupported; results remain available via check/wait |
+| push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
@@ -211,8 +197,7 @@ The first live slice ran one code-review task three ways on the same model (GLM 
 | B, `delegate_task` | 8 | 32k | 171k | 3.3 | 81 s |
 | C, teammates (0.1.3) | 8 | 52k | 195k | 6.3 | 86 s |
 
-All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating keeps
-the parent's context 2.6–4.2× smaller, costs 26–44% more tokens in total, and was not faster here. Teammates made about twice
+All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating cut the parent's cumulative token use 2.6–4.2× (its peak prompt about 1.6×), cost 26–44% more tokens in total, and was not faster here. Teammates made about twice
 as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` and completion notices in 0.2.0 are meant to remove.
 An audit of every recorded tool call found no run read the answer key. These are means of 3 runs, without significance tests.
 

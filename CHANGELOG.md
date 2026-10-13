@@ -2,11 +2,10 @@
 
 ## 0.2.0 (2026-10-14)
 
-- Concurrent assignments now respect the conversation's live-run limit, including across processes.
+- Concurrent assignments in one conversation now respect its live-run limit. If two processes ever share one conversation, the ledger still rejects the extra run, and its already-started child is cancelled.
 - Invalid or oversized usage receipts become null without preventing result retention.
 - Use `teammate_wait` to wait for any or all of several runs in one call.
-- Optional completion notices tell the parent which teammates finished, without including child text.
-  Notices are off by default and are grouped over two seconds. Gateway delivery needs operator consent.
+- Completion notices are built but not active: no current Hermes build can confirm which conversation would receive one, so the plugin never injects. Use `teammate_wait`; session-bound injection is requested upstream.
 - The roster reports steering as `lifecycle`, `delegate_task` or `no`. It used to say `no` on builds where the `delegate_task` fallback steers fine.
 
 ## 0.1.4 (2026-10-14)

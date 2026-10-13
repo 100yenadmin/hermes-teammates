@@ -123,6 +123,8 @@ def test_wait_wakes_on_finalize(rig):
 
 def enable_notices(rig, monkeypatch):
     calls = []
+    # Synthetic binding exercises the machinery; stock hosts are unsupported (test_r2).
+    monkeypatch.setattr(rig.host, 'notice_session_id', lambda key=None: 'owner')
     rig.raw['notify_on_completion'] = True
     monkeypatch.setenv('HERMES_PLATFORM', 'cli')
     rig.host.ctx.inject_message = lambda content, **kwargs: calls.append((content, kwargs)) or True

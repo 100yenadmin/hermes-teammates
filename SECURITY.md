@@ -64,5 +64,8 @@ Completion notices are opt-in (`notify_on_completion`, off by default); gateway/
 requires the operator's `allow_gateway_injection` grant, enforced by Hermes. Notices contain only
 validated operator teammate names, generated run IDs, terminal status and a fixed instruction to read
 the result. Child output, goals and child error text are never injected as user messages. The durable
-parent session key is captured through the public session context at assignment; host refusal or an
-injection exception never changes finalization, and acceptance does not prove delivery of a turn.
+parent session key is captured through the public session context at assignment, but a key alone
+cannot bind a notice to its owner. Injection requires confirmation of the receiving session ID at
+flush time; otherwise the notice is dropped. Both tested hosts lack that public binding API, so
+notices are unsupported on CLI, gateway and TUI. Host refusal or an injection exception never changes
+finalization, and acceptance does not prove delivery of a turn.
