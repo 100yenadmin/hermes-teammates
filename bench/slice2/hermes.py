@@ -5,6 +5,7 @@ No live-home reads, dependency installation, preflight calls or model fallback.
 Qualification remains fail-closed if actual tool/budget/denial evidence is absent.
 """
 import json
+import re
 import os
 import shutil
 import signal
@@ -148,6 +149,21 @@ def wait_recipe(events, root, receipt_ids=None):
     return previous_pending == []
 
 
+
+def classify(returncode, timeout, answer, stderr, requests, quota, key):
+    """Status plus a bounded, key-free reason. A crash before any model call is the harness's fault, not the agent's."""
+    lines=[l.strip() for l in stderr.splitlines() if l.strip()]
+    error=next((l for l in reversed(lines) if re.match(r'^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b',l)),None)
+    reason=(error or ('timeout' if timeout else f'exit {returncode}'))
+    reason=reason.replace(key,'[REDACTED]')[:200] if key else reason[:200]
+    if quota:
+        return 'QUOTA_STOP',reason
+    if not timeout and returncode==0 and answer:
+        return 'COMPLETE',None
+    if not requests:
+        return 'HARNESS_ERROR',reason
+    return 'FAILED',reason
+
 def execute(launch, directory):
     # Explicit opt-in is required only at a later, separately authorized live gate.
     if os.environ.get('SLICE2_LIVE')!='1':
@@ -260,7 +276,8 @@ def execute(launch, directory):
     answer=final.get('text','').replace(key,'[REDACTED]')
     (run/'answer.txt').write_text(answer)
     quota=bool(QUOTA.search(stderr.decode(errors='replace')))
-    status='QUOTA_STOP' if quota else 'COMPLETE' if not timeout and process.returncode==0 and answer else 'FAILED'
+    status,reason=classify(process.returncode,timeout,answer,stderr.decode(errors='replace'),
+                           reconciliation['metrics']['requests'],quota,key)
     parent_agent=next((e for e in events if e['kind']=='agent' and e.get('session_id')==root),{})
     return launch | dict(status=status,arm=launch['arm'],started=started,ended=time.monotonic(),
                          wall_s=time.monotonic()-started,requests=reconciliation['metrics']['requests'],
@@ -272,5 +289,5 @@ def execute(launch, directory):
                          no_teammate_check=not any(e.get('tool')=='teammate_check' for e in events),
                          wait_complete=valid_wait and all(c['completed'] for c in children),
                          full_wait_ids=valid_wait,clipping=clipping,
-                         quota=quota,
+                         quota=quota,reason=reason,
                          integrity_violation=not audit['pass'],metrics=reconciliation['metrics'])
