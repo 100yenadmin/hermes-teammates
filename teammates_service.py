@@ -5,6 +5,7 @@ from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
 import json
+import logging
 import math
 import os
 import sys
@@ -25,6 +26,8 @@ _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', thread
 # Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
 _stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
+_admission_locks = sys.__dict__.setdefault('_hermes_teammates_admission_locks', {})
+logger = logging.getLogger(__name__)
 
 
 def error(code, message=None):
@@ -118,6 +121,8 @@ class TeammatesService:
         # run_id -> live parent agent. The lifecycle only holds a weakref once the child finishes; the monitor
         # must keep the parent alive until it has read the result, or the handle resolves to UNKNOWN.
         self._monitor_parents = {}
+        self._condition = threading.Condition()
+        self._seen, self._notices = set(), {}
 
     def _sweep(self):
         with _sweep_lock, self.store_factory() as store:
@@ -153,6 +158,12 @@ class TeammatesService:
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
                kanban_task=None, parent_agent=None):
+        with _sweep_lock:
+            lock = _admission_locks.setdefault(session_id, threading.Lock())
+        with lock:
+            return self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
+
+    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
@@ -255,9 +266,13 @@ class TeammatesService:
                        requested_route=teammate_config['route'], requested_effort=teammate_config['reasoning_effort'],
                        unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
                        kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
+                       parent_session_key=self.host.completion_target()[0],
                        created_at=self.clock())
             with self.store_factory() as store:
-                store.insert(row)
+                admitted = store.admit(row, config['max_live_runs'])
+            if not admitted:
+                self._launch_failed(run_id, handle, claim, kanban_task, RuntimeError('capacity exhausted'))
+                return error('too_many_live_runs')
             self._owners[run_id] = session_id
             self.start_monitor(row, handle, config['claim_ttl_seconds'] if kanban_task else None)
         except Exception as exc:
@@ -298,6 +313,8 @@ class TeammatesService:
         if row is None:
             return error('unknown_run')
         if row['status'] != 'running':
+            with self._condition:
+                self._seen.add(run_id)
             self._handoff(row)
             return public_row(self._get(session_id, run_id))
         self._owners[run_id] = session_id
@@ -324,13 +341,45 @@ class TeammatesService:
                 self._unknown(row)
         return self._public_run(self._get(session_id, run_id))
 
-    def _unknown(self, row):
+    @safe
+    def wait(self, session_id, run_ids, mode='any', wait_seconds=30):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if (not isinstance(run_ids, list) or not 1 <= len(run_ids) <= 16 or
+                not all(isinstance(i, str) and i for i in run_ids) or len(set(run_ids)) != len(run_ids) or
+                mode not in ('any', 'all') or type(wait_seconds) not in (int, float) or
+                not 0 <= wait_seconds <= 60):
+            return error('invalid_wait')
+        for run_id in run_ids:
+            if self._get(session_id, run_id) is None:
+                return error('unknown_run', f'unknown run: {run_id}')
+        deadline = time.monotonic() + wait_seconds
+        with self._condition:
+            while True:
+                done, pending = [], []
+                for run_id in run_ids:
+                    row = self.check(session_id, run_id)
+                    if not row['ok']:
+                        return row
+                    if row['status'] in ('running', 'queued'):
+                        pending.append(dict(run_id=run_id, status=row['status']))
+                    else:
+                        done.append(row)
+                complete = bool(done) if mode == 'any' else not pending
+                remaining = deadline - time.monotonic()
+                if complete or remaining <= 0:
+                    return dict(ok=True, done=done, pending=pending, timed_out=not complete)
+                self._condition.wait(timeout=min(1, remaining))
+
+    def _unknown(self, row, *, notify=False):
         with self.store_factory() as store:
-            store.finish(row['run_id'], 'unknown', completed_at=self.clock(), error=UNKNOWN_ERROR,
-                         kanban_outcome=None)
+            won = store.finish(row['run_id'], 'unknown', completed_at=self.clock(), error=UNKNOWN_ERROR,
+                               kanban_outcome=None)
+            current = store.get(row['run_id'], row['owner_session_id'])
+        self._completion(current, won, notify)
         self._handoff(row)
 
-    def finalize(self, run_id, result):
+    def finalize(self, run_id, result, *, notify=False):
         owner = self._owners.get(run_id)
         status = TERMINAL.get(state_name(result.terminal_state))
         if status is None:
@@ -344,10 +393,13 @@ class TeammatesService:
             usage, tools = fields.get('usage_metadata'), fields.get('tool_execution_summary')
             api_calls = usage.get('api_calls') if isinstance(usage, dict) else None
             duration = tools.get('duration_seconds') if isinstance(tools, dict) else None
-            if not isinstance(api_calls, int) or isinstance(api_calls, bool):
+            if not isinstance(api_calls, int) or isinstance(api_calls, bool) or not 0 <= api_calls <= 2**63 - 1:
                 api_calls = None
-            if (not isinstance(duration, (int, float)) or isinstance(duration, bool)
-                    or not math.isfinite(duration)):
+            try:
+                duration = float(duration) if isinstance(duration, (int, float)) and not isinstance(duration, bool) else None
+            except (OverflowError, ValueError, TypeError):
+                duration = None
+            if duration is not None and (not math.isfinite(duration) or not 0 <= duration <= 1e12):
                 duration = None
             stopped = row.get('stop_requested_at')
             if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
@@ -359,8 +411,49 @@ class TeammatesService:
                                    result_hash=result.result_hash, provider=result.handle.provider,
                                    model=result.handle.model, completed_at=result.completed_at or self.clock(),
                                    api_calls=api_calls, duration_seconds=duration)
+        self._completion(dict(row, status=status), won, notify)
         self._handoff(row)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
+
+    def _completion(self, row, won, notify):
+        with self._condition:
+            if not notify:
+                self._seen.add(row['run_id'])
+            self._condition.notify_all()
+            if not won or not notify or row.get('stop_requested_at') is not None:
+                return
+            try:
+                if self.host.push_feature(parse(self.config_reader())['notify_on_completion'])['status'] != 'on':
+                    return
+                owner = row['owner_session_id']
+                if owner not in self._notices:
+                    self._notices[owner] = []
+                    timer = threading.Timer(2, self._flush_notice, args=(owner,))
+                    timer.daemon = True
+                    timer.start()
+                self._notices[owner].append(row)
+            except Exception:
+                logger.info('completion notice scheduling failed')
+
+    def _flush_notice(self, owner):
+        try:
+            with self._condition:
+                rows = [row for row in self._notices.pop(owner, []) if row['run_id'] not in self._seen]
+            if not rows or not parse(self.config_reader())['notify_on_completion']:
+                return
+            listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})" for r in rows[:8])
+            if len(rows) > 8:
+                listed += f'; and {len(rows) - 8} more'
+            content = f'[hermes-teammates] {listed}. Call teammate_check or teammate_wait to read the result.'
+            accepted = self.host.ctx.inject_message(content, role='user', session_key=rows[0]['parent_session_key'])
+            if accepted is True:
+                with self.store_factory() as store:
+                    for row in rows:
+                        store.update(row['run_id'], notified_at=self.clock())
+            else:
+                logger.info('completion notice not accepted')
+        except Exception:
+            logger.info('completion notice failed')
 
     def _handoff(self, row):
         if not row['kanban_task']:
@@ -417,12 +510,12 @@ class TeammatesService:
                     terminal = service.wait(handle, timeout_seconds=interval)
                     state = state_name(terminal.state)
                     if state == 'UNKNOWN':
-                        self._unknown(row)
+                        self._unknown(row, notify=True)
                         return
                     if state in TERMINAL or not terminal.timed_out:
                         result = service.result(handle)
                         if result.ready:
-                            self.finalize(row['run_id'], result)
+                            self.finalize(row['run_id'], result, notify=True)
                             return
                     if terminal.timed_out and heartbeat:
                         with self.host.connection() as conn:
@@ -511,6 +604,8 @@ class TeammatesService:
     def roster(self, session_id, include_runs=True):
         self._sweep()
         config, features = parse(self.config_reader()), self.host.features()
+        features = dict(features, teammate_wait=True,
+                        push_completion=self.host.push_feature(config['notify_on_completion']))
         teammates = []
         for name, teammate in config['teammates'].items():
             if name in config['invalid_teammates']:

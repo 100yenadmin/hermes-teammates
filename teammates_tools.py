@@ -18,7 +18,7 @@ SPECS = {
         {'include_runs': _p('boolean', "Include this conversation's recent runs (default true).")}, []),
     'teammate_assign': (
         'Start a named teammate (a Hermes subagent with operator-set instructions and toolsets) on a goal. Returns a '
-        'run_id at once; the teammate works in the background. Get the result with teammate_check.',
+        'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait.',
         {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
          'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
@@ -30,9 +30,15 @@ SPECS = {
         ['teammate', 'goal']),
     'teammate_check': (
         "Get a teammate run's status and, once finished, its result. wait_seconds waits up to 60 s for it to finish "
-        "first; if it is still running, call again later.",
+        "first; if it is still running, call again later. Use teammate_wait for several runs.",
         {'run_id': _RUN_ID, 'wait_seconds': _p('integer', 'Seconds to wait for completion, 0-60.', minimum=0, maximum=60)},
         ['run_id']),
+    'teammate_wait': (
+        'Wait for any or all runs in this conversation. Returns finished results and pending statuses at the deadline.',
+        {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string'}, minItems=1, maxItems=16,
+                       uniqueItems=True),
+         'mode': _p('string', 'Completion rule.', enum=['any', 'all'], default='any'),
+         'wait_seconds': _p('number', 'Seconds to wait.', minimum=0, maximum=60, default=30)}, ['run_ids']),
     'teammate_message': (
         'Send a short course correction to a running teammate. It arrives at the next step without stopping the '
         'teammate. Some Hermes builds cannot steer plugin-launched teammates and answer unsupported.',
@@ -66,6 +72,9 @@ def handler(name, get_service):
                                        kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'))
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0))
+            elif name == 'teammate_wait':
+                value = service.wait(session_id, args.get('run_ids'), args.get('mode', 'any'),
+                                     args.get('wait_seconds', 30))
             elif name == 'teammate_message':
                 value = service.message(session_id, args.get('run_id'), args.get('message'),
                                         parent_agent=kwargs.get('parent_agent'))
@@ -104,4 +113,6 @@ def render_roster(value):
     if value.get('config_errors'):
         lines.append('Config problems:')
         lines.extend(f'  {problem}' for problem in value['config_errors'])
+    push = features.get('push_completion', {})
+    lines.append(f"teammate_wait=yes; push completion={push.get('status')} ({push.get('reason')})")
     return '\n'.join(lines)

@@ -55,12 +55,12 @@ def test_plain_monitor_and_check_finalize_once(rig):
     barrier = threading.Barrier(2)
     finalized, errors, checked = [], [], []
     original = rig.service.finalize
-    def finalize(*args):
+    def finalize(*args, **kwargs):
         try:
             if threading.current_thread() is checker:
                 check_entered.set()
             barrier.wait(timeout=5)
-            value = original(*args)
+            value = original(*args, **kwargs)
             finalized.append(value['finalized'])
             return value
         except Exception as exc:

@@ -7,7 +7,7 @@ Do not open a public issue for them.
 
 ## Model
 
-Hermes Teammates is an in-agent plugin. It adds five tools and one slash command, and it runs subagents only
+Hermes Teammates is an in-agent plugin. It adds six tools and one slash command, and it runs subagents only
 through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
 
 - **Who decides what a teammate is.** Teammates are defined by the operator in
@@ -25,7 +25,7 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
   delegation spawn pause is on, when it can read that flag, and above a per-conversation cap on live runs.
 - **Ownership.**
   - A run belongs to the conversation (session) that started it.
-  - Roster, check, message, stop and follow-up context only see that conversation's runs.
+  - Roster, check, wait, message, stop and follow-up context only see that conversation's runs.
   - An unknown run and another conversation's run return the same `unknown_run` error.
   - Hermes's lifecycle handles enforce the same rule independently.
 - **Data at rest.**
@@ -57,3 +57,12 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
   enforcement boundary.
 - The plugin reads Hermes's Kanban database through `hermes_cli.kanban_db` and checks lane names against profiles
   with a Hermes helper. It does not patch or wrap any Hermes function.
+
+## Completion notices
+
+Completion notices are opt-in (`notify_on_completion`, off by default); gateway/TUI injection also
+requires the operator's `allow_gateway_injection` grant, enforced by Hermes. Notices contain only
+validated operator teammate names, generated run IDs, terminal status and a fixed instruction to read
+the result. Child output, goals and child error text are never injected as user messages. The durable
+parent session key is captured through the public session context at assignment; host refusal or an
+injection exception never changes finalization, and acceptance does not prove delivery of a turn.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-10-14)
+
+- Concurrent assignments now respect the conversation's live-run limit, including across processes.
+- Invalid or oversized usage receipts become null without preventing result retention.
+- Use `teammate_wait` to wait for any or all of several runs in one call.
+- Optional completion notices tell the parent which teammates finished, without including child text.
+  Notices are off by default and are grouped over two seconds. Gateway delivery needs operator consent.
+
 ## 0.1.4 (2026-10-14)
 
 - Plain runs save their results to the ledger when the child finishes, even without a check.

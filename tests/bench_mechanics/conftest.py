@@ -244,7 +244,7 @@ class Mount:
             loaded = self.manager._plugins['hermes-teammates']
             assert not loaded.error, loaded.error
             self.handlers = {name: registry.get_entry(name, scope=self.manager.scope_key).handler
-                             for name in ('teammates_roster', 'teammate_assign', 'teammate_check',
+                             for name in ('teammates_roster', 'teammate_assign', 'teammate_check', 'teammate_wait',
                                           'teammate_message', 'teammate_stop')}
             self.service = inspect.getclosurevars(self.handlers['teammate_assign']).nonlocals['get_service']()
             self.host = self.service.host

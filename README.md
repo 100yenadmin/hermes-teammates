@@ -136,6 +136,7 @@ Ask in plain language:
 | `teammates_roster` | Lists teammates, this conversation's recent runs, open lane cards, and what this Hermes build supports |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
+| `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
 | `teammate_stop` | Cancels a run |
 
@@ -144,6 +145,37 @@ Ask in plain language:
 `queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
 live-run cap. Finished runs report the lifecycle's `api_calls` (integer) and `duration_seconds` (seconds);
 either is `null` when Hermes does not supply it. The roster's recent runs include these receipts too.
+
+`teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
+use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
+return `unknown_run` before waiting. Finished rows have the same result budget as `teammate_check`.
+
+### Completion notices (off by default)
+
+Enable `plugins.entries.hermes-teammates.settings.notify_on_completion: true` to receive a short notice
+in the parent conversation when a background run ends. Gateway/TUI delivery additionally needs
+`plugins.entries.hermes-teammates.allow_gateway_injection: true`; Hermes enforces that consent.
+
+```yaml
+plugins:
+  entries:
+    hermes-teammates:
+      allow_gateway_injection: true
+      settings:
+        notify_on_completion: true
+```
+
+The notice says, for example: “[hermes-teammates] reviewer finished (run tm_ab12, succeeded).
+Call teammate_check or teammate_wait to read the result.” It contains only the teammate name, run ID,
+status and that fixed instruction. It never includes child output, goals or child error text.
+Completions within two seconds share one notice (eight listed, then “and N more”). Runs already
+read with check/wait or stopped by the parent produce no notice. Delivery is attempted once;
+refusal or failure does not change the retained result. `notified_at` records host acceptance only.
+CLI uses the attached REPL queue. Non-CLI delivery captures the public durable session key at assign
+time and is unsupported when that key is missing. The roster reports on/off/unsupported and its reason;
+gateway consent is enforced by the host and may still cause refusal. Both tested pinned and main
+Hermes trees expose injection; older hosts without it report unsupported. TUI host acceptance follows
+the same API, but end-to-end TUI delivery has not been verified here.
 
 ## Compatibility
 
@@ -162,6 +194,8 @@ either is `null` when Hermes does not supply it. The roster's recent runs includ
 | `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; first in the v0.21.7 canary of 2026-10-13; not yet in a stable release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
+| `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
+| push completion | public `inject_message`; non-CLI also needs a durable session key and operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
