@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3 (2026-10-13)
+
+- On Hermes builds with NousResearch/hermes-agent#137167, a teammate's `route` selects its provider for that run;
+  verified live with two routes on real GLM endpoints. A routed teammate ignores the `delegation:` section, so set
+  `model` with `route`.
+- The `plugins.isolation: host` refusal now names what still blocks it: calls made after a tool returns cannot
+  resolve their parent session, and the plugin cannot see the delegation depth or spawn pause from the host process.
+- Handles and cancel results that arrive as plain mappings (as they do across the plugin-host wire) are stored and
+  read correctly.
+- The plugin-toolset hint now says that only Hermes builds before #137167 refuse plugin toolsets.
+
 ## 0.1.2 (2026-10-11)
 
 - Delegated children cannot launch nested teammates.
