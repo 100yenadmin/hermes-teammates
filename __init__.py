@@ -38,7 +38,7 @@ def register(ctx):
             try:
                 if token_receipts:
                     getattr(get_service(), method)(**kwargs)
-            except BaseException:
+            except Exception:
                 logger.debug('teammates token hook failed: %s', method)
         return on_hook
     try:

@@ -49,7 +49,8 @@ class HermesHost:
         return {'reasoning_effort': 'reasoning_effort' in names,
                 'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
                 'steer': steer,
-                'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None))),
+                # The plugin's own follow-up digest works everywhere; 'native' means a Hermes follow-up seam.
+                'follow_up': 'native' if probe(lambda: callable(getattr(self.service, 'follow_up', None))) else 'digest',
                 'token_receipts': self.token_receipts and not self.isolated}
 
     def launch_request(self, **kwargs):
@@ -86,12 +87,13 @@ class HermesHost:
         key, cli = self.completion_target()
         if not callable(getattr(self.ctx, 'inject_message', None)):
             return dict(status='unsupported', reason='host lacks inject_message')
+        # Support before the setting: "off" must not suggest that turning it on would deliver notices.
+        if not self.notice_session_id(key):
+            return dict(status='unsupported', reason='host cannot bind notices to a session')
         if not enabled:
             return dict(status='off', reason='setting off')
         if not key and not cli:
             return dict(status='unsupported', reason='no session key')
-        if not self.notice_session_id(key):
-            return dict(status='unsupported', reason='host cannot bind notices to a session')
         return dict(status='on', reason='CLI queue' if cli else 'gateway injection requires operator consent')
 
     @staticmethod

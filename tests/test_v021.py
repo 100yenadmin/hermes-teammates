@@ -292,3 +292,33 @@ def test_wait_reply_shared_summary_budget_and_no_goals(rig):
     checked = rig.service.check('owner', run_ids[0])
     assert len(checked['goal']) == 12000 and len(checked['summary']) == 8000
     assert checked['summary_clipped'] is False
+
+
+def test_roster_reports_unsupported_notices_before_the_setting(rig, monkeypatch):
+    # khan smoke 2026-10-14: the default config read "off (setting off)", implying the setting would enable
+    # notices. No current host can bind a notice to a session, so the roster must say unsupported.
+    from hermes_teammates.teammates_tools import render_roster
+    rig.host.ctx.inject_message = lambda *a, **k: pytest.fail('unbound injection')
+    for enabled in (False, True):
+        rig.raw['notify_on_completion'] = enabled
+        roster = rig.service.roster('owner', False)
+        assert roster['features']['push_completion'] == {
+            'status': 'unsupported', 'reason': 'host cannot bind notices to a session'}
+    # With a (synthetic) binding, the setting decides.
+    monkeypatch.setattr(rig.host, 'notice_session_id', lambda key=None: 'owner')
+    rig.raw['notify_on_completion'] = False
+    assert rig.service.roster('owner', False)['features']['push_completion']['status'] == 'off'
+    assert 'push completion=unsupported' not in render_roster(rig.service.roster('owner', False))
+
+
+def test_roster_follow_up_names_the_digest(rig):
+    from dataclasses import make_dataclass
+    from hermes_teammates.teammates_tools import render_roster
+    rig.host.features = type(rig.host).features.__get__(rig.host)
+    request_class = make_dataclass('Request', [])
+    rig.host.request_class = lambda: request_class
+    rig.host.kanban_available = False
+    roster = rig.service.roster('owner', False)
+    expected = 'native' if callable(getattr(rig.host.service, 'follow_up', None)) else 'digest'
+    assert roster['features']['follow_up'] == expected
+    assert f'follow_up={expected}' in render_roster(roster)

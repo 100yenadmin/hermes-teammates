@@ -9,6 +9,8 @@
 - Observed run IDs are bounded to 4,096 entries.
 - `teammate_wait` skips blocking Kanban retries to preserve its deadline; monitors and checks still hand off.
 - Wait replies omit goals and share a summary budget across finished runs; checks keep their existing budget.
+- The roster reports completion notices as `unsupported` whenever Hermes cannot bind a notice to a session, which is every current build. Before, the default setting showed `off`, which suggested that turning it on would help.
+- The roster reports `follow_up` as `digest` (the plugin's own follow-up, which works on every build) or `native` (a Hermes follow-up seam). Before, it showed `no`, which read as if `follow_up: true` did not work.
 
 ## 0.2.0 (2026-10-14)
 
