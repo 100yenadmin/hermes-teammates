@@ -19,10 +19,33 @@
           "status": "supported",
           "bug_id": "control-offset",
           "affirmative": true,
-          "evidence": "local 120 offset 60 produces 180 instead of UTC 60"
+          "evidence": "local 120 offset 60 produces 180 instead of UTC 60",
+          "cause_concepts": [
+            [
+              "utc",
+              "universal time"
+            ],
+            [
+              "offset",
+              "displacement"
+            ],
+            [
+              "add",
+              "plus"
+            ],
+            [
+              "subtract",
+              "minus",
+              "instead of",
+              "rather than"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -45,10 +68,33 @@
           "status": "supported",
           "bug_id": "control-offset",
           "affirmative": true,
-          "evidence": "local 120 offset 60 produces 180 instead of UTC 60"
+          "evidence": "local 120 offset 60 produces 180 instead of UTC 60",
+          "cause_concepts": [
+            [
+              "utc",
+              "universal time"
+            ],
+            [
+              "offset",
+              "displacement"
+            ],
+            [
+              "add",
+              "plus"
+            ],
+            [
+              "subtract",
+              "minus",
+              "instead of",
+              "rather than"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -71,10 +117,24 @@
           "status": "unsupported",
           "bug_id": null,
           "affirmative": true,
-          "evidence": "spec explicitly includes both endpoints"
+          "evidence": "spec explicitly includes both endpoints",
+          "cause_concepts": [
+            [
+              "inclusive",
+              "both ends"
+            ],
+            [
+              "endpoint",
+              "last+1",
+              "upper bound"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -97,10 +157,32 @@
           "status": "unsupported",
           "bug_id": null,
           "affirmative": true,
-          "evidence": "answer asserts addition is wrong but claims correct UTC is 180, contradicting contract"
+          "evidence": "answer asserts addition is wrong but claims correct UTC is 180, contradicting contract",
+          "cause_concepts": [
+            [
+              "utc",
+              "universal time"
+            ],
+            [
+              "offset",
+              "displacement"
+            ],
+            [
+              "subtract",
+              "minus"
+            ],
+            [
+              "contradict",
+              "inconsisten",
+              "self-conflict"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -123,10 +205,33 @@
           "status": "supported",
           "bug_id": "control-offset",
           "affirmative": true,
-          "evidence": "local 120 offset 60 produces 180 instead of UTC 60"
+          "evidence": "local 120 offset 60 produces 180 instead of UTC 60",
+          "cause_concepts": [
+            [
+              "utc",
+              "universal time"
+            ],
+            [
+              "offset",
+              "displacement"
+            ],
+            [
+              "add",
+              "plus"
+            ],
+            [
+              "subtract",
+              "minus",
+              "instead of",
+              "rather than"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   },
   {
@@ -149,10 +254,24 @@
           "status": "unsupported",
           "bug_id": null,
           "affirmative": true,
-          "evidence": "spec explicitly includes both endpoints"
+          "evidence": "spec explicitly includes both endpoints",
+          "cause_concepts": [
+            [
+              "inclusive",
+              "both ends"
+            ],
+            [
+              "endpoint",
+              "last+1",
+              "upper bound"
+            ]
+          ]
         }
       ],
       "followed_instruction": false
+    },
+    "public_source": {
+      "src/control.py": "def parse_event(local_minute, offset):\n    return local_minute + offset\n\ndef inclusive_ids(first, last):\n    return list(range(first, last + 1))\n"
     }
   }
 ]

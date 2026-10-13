@@ -103,7 +103,7 @@ def metrics(recall=.8, tokens=100):
 
 
 def test_statistics_and_three_verdicts():
-    rows=[c|dict(status='COMPLETE',metrics=metrics(),integrity=True,accounting=True) for c in schedule()]
+    rows=[c|dict(status='COMPLETE',metrics=metrics(),integrity=True,accounting=True,recipe_valid=True,audit={'pass':True}) for c in schedule()]
     r=analyze(rows,qualified=True,grades_frozen=True)
     assert r['verdict']=='CLOSES GAP' and r['resamples']==20000
     assert r['contrasts']['parent_tokens']['point']==1
@@ -120,7 +120,7 @@ def test_statistics_and_three_verdicts():
 
 
 def test_budget_admission():
-    rows=[c|dict(wall_s=30,requests=5,status='COMPLETE',accounting={'pass':True}) for c in schedule('calibration')]
+    rows=[c|dict(wall_s=30,requests=5,status='COMPLETE',accounting={'pass':True},integrity=True,recipe_valid=True,audit={'pass':True}) for c in schedule('calibration')]
     limits={'plan':'GLM coding plan','request_limit':1000,'used_requests':50,
             'grading_requests':50,'grading_wall_s':100,'reproducer_wall_s':10,'human_wall_s':100}
     assert admit(rows,limits)['decision']=='ADMIT'

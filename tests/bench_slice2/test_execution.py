@@ -9,6 +9,7 @@ from bench.slice2.run import run_phase
 
 def qualified_batch(arm,start=0):
     return dict(arm=arm,started=start,ended=start+1,peak_concurrency=4,fanout_batches=1,
+                status='COMPLETE',integrity=True,recipe_valid=True,no_teammate_check=True,
                 parent_max_turns=40,parent_compression=True,
                 outside_readable=True,parent_denials=True,parent_allowed_read=True,
                 accounting={'pass':True},audit={'pass':True},wait_complete=True,full_wait_ids=True,
