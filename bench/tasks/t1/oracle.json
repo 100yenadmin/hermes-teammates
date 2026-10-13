@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "seed": 1401,
+  "tolerance": 3,
+  "bugs": [
+    {
+      "id": "T1-1",
+      "file": "collections.py",
+      "line": 9,
+      "keywords": [
+        "batch",
+        "range",
+        "off-by-one",
+        "partial",
+        "last",
+        "chunk"
+      ]
+    },
+    {
+      "id": "T1-2",
+      "file": "collections.py",
+      "line": 16,
+      "keywords": [
+        "clamp",
+        "upper",
+        "lower",
+        "bound",
+        "min",
+        "max"
+      ]
+    },
+    {
+      "id": "T1-3",
+      "file": "access.py",
+      "line": 4,
+      "keywords": [
+        "default",
+        "disabled",
+        "true",
+        "false"
+      ]
+    },
+    {
+      "id": "T1-4",
+      "file": "access.py",
+      "line": 13,
+      "keywords": [
+        "credit",
+        "balance",
+        "comparison",
+        "revers",
+        ">=",
+        "less"
+      ]
+    },
+    {
+      "id": "T1-5",
+      "file": "delivery.py",
+      "line": 6,
+      "keywords": [
+        "await",
+        "coroutine",
+        "async"
+      ]
+    },
+    {
+      "id": "T1-6",
+      "file": "delivery.py",
+      "line": 17,
+      "keywords": [
+        "swap",
+        "order",
+        "city",
+        "country",
+        "argument"
+      ]
+    },
+    {
+      "id": "T1-7",
+      "file": "billing.py",
+      "line": 8,
+      "keywords": [
+        "percent",
+        "division",
+        "discount",
+        "floor",
+        "//"
+      ]
+    },
+    {
+      "id": "T1-8",
+      "file": "billing.py",
+      "line": 13,
+      "keywords": [
+        "shipping",
+        "multiple",
+        "once",
+        "empty",
+        "per line"
+      ]
+    }
+  ],
+  "decoys": [
+    {
+      "file": "collections.py",
+      "line": 21
+    },
+    {
+      "file": "access.py",
+      "line": 18
+    },
+    {
+      "file": "delivery.py",
+      "line": 22
+    },
+    {
+      "file": "billing.py",
+      "line": 18
+    }
+  ]
+}
