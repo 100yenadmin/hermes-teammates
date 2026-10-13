@@ -4,7 +4,7 @@
 
 - On Hermes builds with NousResearch/hermes-agent#137167, a teammate's `route` selects its provider for that run;
   verified live with two routes on real GLM endpoints. A routed teammate does not use the `delegation:` provider
-  settings (provider, model, base URL, API mode), so set `model` with `route`; `delegation.reasoning_effort` still applies.
+  settings (provider, model, base URL, API mode), so set `model` with `route`; the global `delegation.reasoning_effort` still applies.
 - The `plugins.isolation: host` refusal now names what still blocks it: calls made after a tool returns cannot
   resolve their parent session, and the plugin cannot see the delegation depth or spawn pause from the host process.
 - Handles and cancel results that arrive as plain mappings (as they do across the plugin-host wire) are stored and
