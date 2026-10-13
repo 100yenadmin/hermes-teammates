@@ -7,8 +7,8 @@
   settings (provider, model, base URL, API mode), so set `model` with `route`; the global `delegation.reasoning_effort` still applies.
 - The `plugins.isolation: host` refusal now names what still blocks it: calls made after a tool returns cannot
   resolve their parent session, and the plugin cannot see the delegation depth or spawn pause from the host process.
-- Handles and cancel results that arrive as plain mappings (as they do across the plugin-host wire) are stored and
-  read correctly.
+- Handles and cancel results that arrive as plugin-host wire records (mappings with attribute access but no
+  `to_dict()`) are stored and read correctly.
 - The plugin-toolset hint now says that only Hermes builds before #137167 refuse plugin toolsets.
 
 ## 0.1.2 (2026-10-11)
