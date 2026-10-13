@@ -58,14 +58,32 @@ class HermesHost:
 
     @staticmethod
     def delegation_settings():
-        values = {}
+        values, defaults, explicit = {}, {}, None
         try:
-            from hermes_cli.config import load_config_readonly
-            values = load_config_readonly().get('delegation', {})
+            from hermes_cli import config
+            defaults = dict(config.DEFAULT_CONFIG.get('delegation', {}))
+            values = config.load_config_readonly().get('delegation') or {}
         except Exception:
             pass
-        return {key: values.get(key, 'unknown') for key in
-                ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds')}
+        try:
+            # Provenance only: behavioral values always come from the merged read.
+            explicit = config.read_raw_config_readonly().get('delegation') or {}
+        except Exception:
+            pass
+        try:
+            # Not in DEFAULT_CONFIG; with the key unset, Hermes's own getter returns its default.
+            if 'worktree_isolation' not in values:
+                from tools.delegate_tool_config import _get_worktree_isolation
+                defaults.setdefault('worktree_isolation', _get_worktree_isolation())
+        except Exception:
+            pass
+        settings, sources = {}, {}
+        for key in ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds'):
+            settings[key] = values.get(key, defaults.get(key, 'unknown'))
+            sources[key] = ('config' if key in values and
+                            (explicit is None or key in explicit or values[key] != defaults.get(key, 'unknown')) else
+                            'default' if key in defaults else 'unknown')
+        return settings, sources
 
     @staticmethod
     def completion_target():

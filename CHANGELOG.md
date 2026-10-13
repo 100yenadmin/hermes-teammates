@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 (2026-10-14)
+
+- Successful run replies omit `error` when there is no error, so Hermes no longer mistakes that empty field for a tool failure. Actual tool errors keep their text and `ok: false`.
+- `summary_clipped` stays true when a stop races with success and the added stop note hides that the result was cut.
+- Explaining one teammate keeps its definition even when many sibling definitions are invalid.
+- Explain replies show Hermes's delegation defaults for unset settings and add `delegation_sources` to distinguish defaults from configured values.
+
 ## 0.2.1 (2026-10-14)
 
 - Results report `summary_clipped` and the original `summary_chars`, including ledger clipping; old rows keep unknown lengths.

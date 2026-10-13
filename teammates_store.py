@@ -9,6 +9,7 @@ _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
               'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
               'parent_session_key': 'TEXT', 'notified_at': 'REAL', 'summary_chars': 'INTEGER',
+              'summary_clipped': 'INTEGER',
               'role_hash': 'TEXT', 'tokens_input': 'INTEGER', 'tokens_output': 'INTEGER',
               'tokens_cache_read': 'INTEGER', 'tokens_cache_write': 'INTEGER', 'tokens_reasoning': 'INTEGER'}
 SCHEMA = '''
@@ -40,7 +41,7 @@ class Store:
                         if name not in columns:
                             conn.execute(f'ALTER TABLE runs ADD COLUMN {name} {kind}')
                     conn.execute('CREATE INDEX IF NOT EXISTS runs_owner_status ON runs(owner_session_id, status)')
-                    conn.execute("UPDATE meta SET value='3' WHERE key='schema_version'")
+                    conn.execute("UPDATE meta SET value='4' WHERE key='schema_version'")
                 if self.path:
                     _schema_paths.add(self.path)
         self.columns = {r['name'] for r in conn.execute('PRAGMA table_info(runs)')}
