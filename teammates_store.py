@@ -6,7 +6,8 @@ from uuid import uuid4
 
 INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().hex)
 _schema_paths, _schema_lock = set(), threading.Lock()
-MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT'}
+MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
+              'api_calls': 'INTEGER', 'duration_seconds': 'REAL'}
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS runs (
  run_id TEXT PRIMARY KEY, teammate TEXT NOT NULL, owner_session_id TEXT NOT NULL,
@@ -36,7 +37,7 @@ class Store:
                         if name not in columns:
                             conn.execute(f'ALTER TABLE runs ADD COLUMN {name} {kind}')
                     conn.execute('CREATE INDEX IF NOT EXISTS runs_owner_status ON runs(owner_session_id, status)')
-                    conn.execute("UPDATE meta SET value='2' WHERE key='schema_version'")
+                    conn.execute("UPDATE meta SET value='3' WHERE key='schema_version'")
                 if self.path:
                     _schema_paths.add(self.path)
         self.columns = {r['name'] for r in conn.execute('PRAGMA table_info(runs)')}

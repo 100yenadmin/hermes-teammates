@@ -288,7 +288,7 @@ class Mount:
         while time.monotonic() < deadline:
             row = self.check(run_id, wait_seconds=min(1, max(0, deadline - time.monotonic())))
             assert row['ok'], row
-            if row['status'] != 'running':
+            if row['status'] not in {'running', 'queued'}:
                 return row
         pytest.fail(f'run not terminal within {timeout}s: {row}')
 

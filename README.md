@@ -38,7 +38,8 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
 2. `teammate_assign` launches a subagent through `ctx.subagent_lifecycle` and returns a `run_id` at once. The
    teammate's instructions travel in its context. Its toolsets can only narrow the parent's, never widen them.
 3. `teammate_check` reports status, or waits up to 60 s and returns the result. Every run is recorded in a
-   per-profile SQLite ledger (`<HERMES_HOME>/plugin-data/hermes-teammates/data.db`).
+   per-profile SQLite ledger (`<HERMES_HOME>/plugin-data/hermes-teammates/data.db`). Results of plain runs are
+   saved when the child finishes, even if you never call `teammate_check`.
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
    picks up where it left off.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
@@ -134,18 +135,22 @@ Ask in plain language:
 |---|---|
 | `teammates_roster` | Lists teammates, this conversation's recent runs, open lane cards, and what this Hermes build supports |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task` |
-| `teammate_check` | Shows status, or waits (`wait_seconds` ≤ 60) for the result |
+| `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_message` | Steers a running teammate |
 | `teammate_stop` | Cancels a run |
 
 `/teammates` prints the roster in any chat surface.
+
+`queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
+live-run cap. Finished runs report the lifecycle's `api_calls` (integer) and `duration_seconds` (seconds);
+either is `null` when Hermes does not supply it. The roster's recent runs include these receipts too.
 
 ## Compatibility
 
 - Requires Hermes **0.21.4 or newer**. CI runs against a pinned upstream commit and against `main`.
 - Runs with `plugins.isolation: in_process` (the default). Under `plugins.isolation: host`, every tool except the
   roster answers `unsupported_isolation`. Hermes builds with NousResearch/hermes-agent#137167 can carry launches across
-  the plugin-host boundary. But calls made after a tool returns (the Kanban monitor) cannot yet resolve their parent
+  the plugin-host boundary. But calls made after a tool returns (run monitors) cannot yet resolve their parent
   session, and the plugin cannot see the delegation depth or spawn pause from the host process.
 - Some features depend on the Hermes build. The plugin detects each one at call time and never quietly
   substitutes something else:

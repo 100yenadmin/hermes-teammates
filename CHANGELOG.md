@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4 (2026-10-14)
+
+- Plain runs save their results to the ledger when the child finishes, even without a check.
+- Checks and the roster show waiting children as `queued`; they still count toward the live-run cap.
+- Finished runs include `api_calls` and `duration_seconds`; existing ledgers upgrade in place.
+- Real-lifecycle steering is tested against both the older `delegate_task` fallback and lifecycle `steer`.
+
 ## 0.1.3 (2026-10-13)
 
 - On Hermes builds with NousResearch/hermes-agent#137167, a teammate's `route` selects its provider for that run;
