@@ -288,7 +288,7 @@ class Mount:
         while time.monotonic() < deadline:
             row = self.check(run_id, wait_seconds=min(1, max(0, deadline - time.monotonic())))
             assert row['ok'], row
-            if row['status'] != 'running':
+            if row['status'] not in {'running', 'queued'}:
                 return row
         pytest.fail(f'run not terminal within {timeout}s: {row}')
 
@@ -342,7 +342,7 @@ class Mount:
                     self.stop(row['run_id'], reason='benchmark teardown')
                 for row in rows:
                     self.wait_terminal(row['run_id'])
-                for thread in self.service.monitors.values():
+                for thread in list(self.service.monitors.values()):
                     thread.join(timeout=5)
                     assert not thread.is_alive(), thread.name
         finally:

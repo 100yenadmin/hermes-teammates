@@ -5,6 +5,7 @@ from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
 import json
+import math
 import os
 import sys
 import threading
@@ -80,7 +81,7 @@ def public_row(row, summary_budget=8000):
     # Opaque lifecycle capabilities remain private to the adapter/store.
     keys = ('run_id', 'teammate', 'goal', 'status', 'provider', 'model', 'requested_route',
             'requested_effort', 'kanban_task', 'kanban_outcome', 'created_at', 'completed_at',
-            'summary', 'error', 'result_hash')
+            'summary', 'error', 'result_hash', 'api_calls', 'duration_seconds')
     result = {key: row.get(key) for key in keys}
     result.update(ok=True, unsupported=json.loads(row.get('unsupported') or '[]'))
     result['summary'] = clip(result['summary'], summary_budget)
@@ -103,7 +104,7 @@ def handle_dict(handle):
 
 
 ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process. Under the plugin host, Hermes cannot yet '
-                     'resolve the parent session for calls made after a tool returns (Kanban monitors), and the '
+                     'resolve the parent session for calls made after a tool returns (run monitors), and the '
                      'plugin cannot see the delegation depth or spawn pause it enforces.')
 
 
@@ -258,8 +259,7 @@ class TeammatesService:
             with self.store_factory() as store:
                 store.insert(row)
             self._owners[run_id] = session_id
-            if kanban_task:
-                self.start_monitor(row, handle, config['claim_ttl_seconds'])
+            self.start_monitor(row, handle, config['claim_ttl_seconds'] if kanban_task else None)
         except Exception as exc:
             return self._launch_failed(run_id, handle, claim, kanban_task, exc)
         return {key: value for key, value in public_row(row).items()
@@ -279,6 +279,16 @@ class TeammatesService:
         with suppress(Exception), self.store_factory() as store:
             store.finish(run_id, 'cancelled', completed_at=self.clock(), error=message)
         return error('launch_failed', message)
+
+    def _public_run(self, row, summary_budget=8000):
+        value = public_row(row, summary_budget)
+        # Queued is a lifecycle display state; capacity and reconciliation still use ledger running.
+        if row['status'] == 'running' and row.get('handle_json') and row['pid'] == os.getpid() and not self.host.isolated:
+            with suppress(Exception):
+                handle = self.host.handle_from_dict(json.loads(row['handle_json']))
+                if state_name(self.host.service.status(handle).state) == 'PENDING':
+                    value['status'] = 'queued'
+        return value
 
     @safe
     def check(self, session_id, run_id, wait_seconds=0):
@@ -304,13 +314,15 @@ class TeammatesService:
             service = self.host.service
             if wait_seconds > 0:
                 service.wait(handle, timeout_seconds=wait_seconds)
-            state = state_name(service.status(handle).state)
+            state = 'RUNNING'
+            with suppress(Exception):
+                state = state_name(service.status(handle).state)
             result = service.result(handle)
             if state in TERMINAL or result.ready:
                 self.finalize(run_id, result)
             elif state == 'UNKNOWN':
                 self._unknown(row)
-        return public_row(self._get(session_id, run_id))
+        return self._public_run(self._get(session_id, run_id))
 
     def _unknown(self, row):
         with self.store_factory() as store:
@@ -328,6 +340,15 @@ class TeammatesService:
             if row is None:
                 return error('unknown_run')
             summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
+            fields = as_dict(result)
+            usage, tools = fields.get('usage_metadata'), fields.get('tool_execution_summary')
+            api_calls = usage.get('api_calls') if isinstance(usage, dict) else None
+            duration = tools.get('duration_seconds') if isinstance(tools, dict) else None
+            if not isinstance(api_calls, int) or isinstance(api_calls, bool):
+                api_calls = None
+            if (not isinstance(duration, (int, float)) or isinstance(duration, bool)
+                    or not math.isfinite(duration)):
+                duration = None
             stopped = row.get('stop_requested_at')
             if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
                 if status == 'succeeded':
@@ -336,7 +357,8 @@ class TeammatesService:
             with self.store_factory() as store:
                 won = store.finish(run_id, status, summary=summary, error=failure,
                                    result_hash=result.result_hash, provider=result.handle.provider,
-                                   model=result.handle.model, completed_at=result.completed_at or self.clock())
+                                   model=result.handle.model, completed_at=result.completed_at or self.clock(),
+                                   api_calls=api_calls, duration_seconds=duration)
         self._handoff(row)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
 
@@ -382,12 +404,13 @@ class TeammatesService:
                                           expected_run_id=claim['kanban_run_id'])
             return 'blocked' if blocked else 'block_refused'
 
-    def start_monitor(self, row, handle, ttl):
+    def start_monitor(self, row, handle, ttl=None):
         context = contextvars.copy_context()
         self._monitor_parents[row['run_id']] = self.host.active_parent()
-        interval = self.monitor_interval if self.monitor_interval is not None else min(max(30, ttl // 3), 1200)
+        interval = self.monitor_interval if self.monitor_interval is not None else (
+            min(max(30, ttl // 3), 1200) if row['kanban_task'] else 300)
         def loop():
-            heartbeat, failures = True, 0
+            heartbeat, failures = bool(row['kanban_task']), 0
             while True:
                 try:
                     service = self.host.service
@@ -415,8 +438,9 @@ class TeammatesService:
                 except Exception as exc:
                     failures += 1
                     if failures == 10:
-                        with self.store_factory() as store:
-                            store.update_if(row['run_id'], 'running', kanban_outcome=f'error:{type(exc).__name__}')
+                        if row['kanban_task']:
+                            with self.store_factory() as store:
+                                store.update_if(row['run_id'], 'running', kanban_outcome=f'error:{type(exc).__name__}')
                         return
                     time.sleep(min(60, 2 ** (failures - 1)))
         def run():
@@ -424,6 +448,7 @@ class TeammatesService:
                 loop()
             finally:
                 self._monitor_parents.pop(row['run_id'], None)
+                self.monitors.pop(row['run_id'], None)
         thread = threading.Thread(target=context.run, args=(run,), daemon=True,
                                   name=f"hermes-teammates-{row['run_id']}")
         self.monitors[row['run_id']] = thread
@@ -494,7 +519,7 @@ class TeammatesService:
                                   unsupported=[key for key in ('route', 'reasoning_effort')
                                                if teammate[key] is not None and not features[key]]))
         with self.store_factory() as store:
-            runs = [public_row(row, 300) for row in store.list(session_id, limit=20)] if include_runs else []
+            runs = [self._public_run(row, 300) for row in store.list(session_id, limit=20)] if include_runs else []
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
                 'is_profile': self.host.lane_is_profile(config['lane']), 'open_tasks': []}
         if lane['available']:
