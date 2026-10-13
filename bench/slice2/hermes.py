@@ -67,9 +67,35 @@ def read_target(event, work):
     return Path(os.path.abspath(path if path.is_absolute() else work / path))
 
 
+def outside_readability(paths):
+    return {Path(os.path.abspath(p)): p.is_file() and os.access(p, os.R_OK) for p in paths}
+
+
+def hidden_read(event, tools, paths, work, before, after):
+    target = read_target(event, work)
+    return (event.get('kind') == 'post_tool_call' and event.get('tool') == 'read_file'
+            and event.get('success') is False and event.get('not_found') is True
+            and target in paths and before.get(target) is True and after.get(target) is True
+            and bool(event.get('session_id'))
+            and any(t.get('kind') == 'post_tool_call' and t.get('tool') == 'terminal'
+                    and t.get('session_id') == event['session_id'] and read_target(t, work) == target
+                    and t.get('success') is False and t.get('denied') is True
+                    and t.get('error') in {'EPERM', 'EACCES'} for t in tools))
+
+
+def classify_hidden_reads(events, paths, work, before, after):
+    paths = {Path(os.path.abspath(p)) for p in paths}
+    return [e | dict(denied=True, error='SANDBOX_HIDDEN', outside_before=True, outside_after=True)
+            if hidden_read(e, events, paths, work, before, after) else e for e in events]
+
+
 def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'terminal')):
     return all(any(t.get('tool') == tool and read_target(t, work) == Path(os.path.abspath(p))
-                   and (t.get('denied') is True and t.get('error') in {'EPERM', 'EACCES'} if denied
+                   and (t.get('denied') is True and (t.get('error') in {'EPERM', 'EACCES'}
+                        or t.get('error') == 'SANDBOX_HIDDEN' and hidden_read(
+                            t, tools, {Path(os.path.abspath(p))}, work,
+                            {read_target(t, work): t.get('outside_before')},
+                            {read_target(t, work): t.get('outside_after')})) if denied
                         else t.get('success') is True and not t.get('denied')) for t in tools)
                for p in paths for tool in kinds)
 
@@ -194,7 +220,8 @@ def execute(launch, directory, *, fake_base_url=None):
     (run/'work/allowed-marker').write_text('synthetic allowed read marker\n')
     # Outside readability controls test synthetic files only and never save their contents.
     probes=[TASK/'hidden/oracles.json',ROOT/'bench/slice2/proofs.py',ROOT/'bench/declared/slice2/DECLARED.md',ROOT/'bench/results/slice1/REPORT.md',run.parent/'outside-control']
-    outside=all(p.is_file() and os.access(p,os.R_OK) for p in probes+[run/'work/protected-link'])
+    protected_probes=probes+[run/'work/protected-link']
+    outside_before=outside_readability(protected_probes)
     before=controls(run,profile,probes)
     if launch['phase']=='qualification':
         launch=launch | {'recipe':qualification_recipe(launch['arm'],run,probes)}
@@ -233,17 +260,22 @@ def execute(launch, directory, *, fake_base_url=None):
     reconciliation=reconcile(usage+[r for r in events if r.get('kind')=='observer_error'],
                              db,receipts,root,require_plugin=launch['arm']=='C')
     after=controls(run,profile,probes)
+    outside_after=outside_readability(protected_probes)
+    outside=all(outside_before.values()) and all(outside_after.values())
+    events=classify_hidden_reads(events,protected_probes,run/'work',outside_before,outside_after)
+    (run/'classified-tool-receipts.json').write_text(json.dumps(
+        [e for e in events if e.get('kind')=='post_tool_call'],indent=2))
     reads=before+after
     for r in events:
         if r.get('kind')=='post_tool_call':
             for k in ('path','file_path'):
                 if r.get('args',{}).get(k):
                     path=Path(r['args'][k]); path=path if path.is_absolute() else run/'work'/path
-                    reads.append(dict(path=str(path),success=r['success'],error='EPERM' if r['denied'] else 'OTHER'))
+                    reads.append(dict(path=str(path),success=r['success'],error=r.get('error') if r['denied'] else 'OTHER'))
             command=r.get('args',{}).get('command','')
             for p in probes+[run/'work/protected-link']:
                 if str(p) in command:
-                    reads.append(dict(path=str(p),success=r['success'] and not r['denied'],error='EPERM' if r['denied'] else 'OTHER'))
+                    reads.append(dict(path=str(p),success=r['success'] and not r['denied'],error=r.get('error') if r['denied'] else 'OTHER'))
     audit=audit_reads(reads,targets,run)
     launch_events=[e for e in events if e['kind']=='launch' and e.get('session_id')!=root]
     effective=[canonical(e['messages']) for e in launch_events]; wrappers=[e['system'] for e in launch_events]
@@ -294,7 +326,8 @@ def execute(launch, directory, *, fake_base_url=None):
                          wall_s=time.monotonic()-started,requests=reconciliation['metrics']['requests'],
                          accounting=reconciliation,audit=audit,integrity=audit['pass'],
                          observer_errors=observer_errors,
-                         outside_readable=outside,parent_denials=parent_denials,
+                         outside_readable=outside,outside_readable_before=all(outside_before.values()),
+                         outside_readable_after=all(outside_after.values()),parent_denials=parent_denials,
                          parent_allowed_read=read_coverage(parent_tools,[run/'work/README.md',run/'work/allowed-marker'],run/'work'),children=children,
                          parent_max_turns=parent_agent.get('max_turns'),parent_compression=parent_agent.get('compression'),
                          peak_concurrency=peak,fanout_batches=fanout,

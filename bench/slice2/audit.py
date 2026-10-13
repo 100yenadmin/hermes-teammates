@@ -15,7 +15,7 @@ def audit_reads(records, protected, run):
         forbidden = any(path == p or path.is_relative_to(p) for p in protected)
         if row['success'] and (forbidden or not path.is_relative_to(run)):
             errors.append('successful protected read')
-        if not row['success'] and forbidden and row.get('error') not in {'EACCES','EPERM'}:
+        if not row['success'] and forbidden and row.get('error') not in {'EACCES','EPERM','SANDBOX_HIDDEN'}:
             errors.append('missing file is not denial')
     return {'pass': not errors, 'errors': errors}
 

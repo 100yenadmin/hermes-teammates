@@ -108,8 +108,16 @@ def _bootstrap():
             try: result=json.loads(result) if isinstance(result,str) else result
             except (ValueError,TypeError): result={}
             result=result if isinstance(result,dict) else {}
-            error=('EPERM' if 'Operation not permitted' in denial or 'EPERM' in denial else
-                   'EACCES' if 'Permission denied' in denial or 'EACCES' in denial else None)
+            error=(('EPERM' if 'Operation not permitted' in denial or 'EPERM' in denial else
+                    'EACCES' if 'Permission denied' in denial or 'EACCES' in denial else None)
+                   if tool in {'read_file', 'terminal'} else None)
+            success=(kw.get('status') == 'ok' and not kw.get('error_type')
+                     and error is None and not result.get('error') and result.get('ok',True) is not False and result.get('exit_code',0)==0)
+            if tool in {'teammate_assign','teammate_wait','teammate_check'}:
+                success=(result.get('ok') is True and not result.get('error')
+                         and kw.get('error_type') in {None, '', 'tool_error'}
+                         and (kw.get('status') == 'ok' or
+                              kw.get('status') == 'error' and kw.get('error_type') == 'tool_error'))
             receipt={}
             clipping=[]
             if name=='post_tool_call' and tool in {'teammate_assign','teammate_wait','teammate_check'}:
@@ -124,8 +132,9 @@ def _bootstrap():
                       call_id=kw.get('tool_call_id'),args=args,
                       status=kw.get('status'),error_type=kw.get('error_type'),
                       denied=error is not None,error=error,result=receipt,clipping=clipping,
-                      success=kw.get('status') == 'ok' and not kw.get('error_type')
-                          and error is None and not result.get('error') and result.get('ok',True) is not False and result.get('exit_code',0)==0))
+                      success=success,
+                      **({'not_found': result.get('not_found') is True}
+                         if name == 'post_tool_call' and tool == 'read_file' else {})))
     def invoke(name,**kw):
         guarded('probe.' + str(name), observe, name, **kw)
         return old_invoke(name,**kw)

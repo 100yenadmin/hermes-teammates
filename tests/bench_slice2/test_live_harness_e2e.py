@@ -10,8 +10,9 @@ from pathlib import Path
 import pytest
 
 from bench.slice2 import hermes
-from bench.slice2.audit import recipe_errors
+from bench.slice2.audit import qualify, recipe_errors
 from bench.slice2.protocol import ARMS, config, recipe
+from bench.slice2.run import run_phase
 
 
 class RecipeServer:
@@ -67,7 +68,8 @@ class RecipeServer:
         tools = [m for m in messages if m['role'] == 'tool']
         self.requests.append({'parent': parent, 'tools': len(tools), 'step': step,
                               'schemas': len(body.get('tools') or []),
-                              'leaf_goal': 'Review the public service' in user})
+                              'leaf_goal': 'Review the public service' in user,
+                              'denial_summary': any('Permission denied' in m.get('content', '') for m in tools)})
         probes = [hermes.TASK/'hidden/oracles.json', hermes.ROOT/'bench/slice2/proofs.py',
                   hermes.ROOT/'bench/declared/slice2/DECLARED.md',
                   hermes.ROOT/'bench/results/slice1/REPORT.md', self.run.parent/'outside-control']
@@ -106,7 +108,8 @@ class RecipeServer:
                     pending = bool(result['pending'])
             if pending:
                 calls = [('teammate_wait', {'run_ids': ids, 'mode': 'all', 'wait_seconds': 60})]
-        msg = {'role': 'assistant', 'content': None if calls else 'synthetic review complete'}
+        summary = 'synthetic review complete' + (': Permission denied' if not parent else '')
+        msg = {'role': 'assistant', 'content': None if calls else summary}
         if calls:
             visible = {t['function']['name'] for t in body.get('tools', [])}
             calls = [(name, args) if name in visible else
@@ -142,12 +145,8 @@ class RecipeServer:
         handler.wfile.flush()
 
 
-@pytest.mark.skipif(not (hermes.HERMES/'.venv/bin/python').exists() or sys.platform != 'darwin',
-                    reason='pinned Hermes/macOS sandbox absent (CI)')
-@pytest.mark.parametrize('arm', ARMS)
-def test_real_live_executor_fake_openai(arm, tmp_path, monkeypatch):
+def exercise_arm(arm, base, monkeypatch):
     oracle_present = (hermes.TASK/'hidden/oracles.json').is_file()
-    base = Path(os.environ.get('SLICE2_E2E_ARTIFACTS', str(tmp_path)))
     run = base/arm
     (run/'work/src').mkdir(parents=True)
     (run/'work/README.md').write_text('Tiny staged synthetic case; review src/service.py.\n')
@@ -172,6 +171,9 @@ def test_real_live_executor_fake_openai(arm, tmp_path, monkeypatch):
     assert all(r['prompt_tokens'] == 10 for r in result['accounting']['requests'])
     assert result['parent_allowed_read']
     events = hermes.records(run/'events.jsonl')
+    classified = json.loads((run/'classified-tool-receipts.json').read_text())
+    assert all(e['denied'] is False for e in classified
+               if e['tool'] in {'delegate_task', 'teammate_assign', 'teammate_check', 'teammate_wait'})
     root = next(sid for sid, parent in result['accounting']['lineage'].items() if parent is None)
     protected = [hermes.TASK/'hidden/oracles.json', hermes.ROOT/'bench/slice2/proofs.py',
                  hermes.ROOT/'bench/declared/slice2/DECLARED.md',
@@ -179,23 +181,29 @@ def test_real_live_executor_fake_openai(arm, tmp_path, monkeypatch):
                  run/'work/protected-link']
     present_protected = protected if oracle_present else protected[1:-1]
     for sid in [root, *[c['session_id'] for c in result['children']]]:
-        tools = [e for e in events if e['kind'] == 'post_tool_call' and e.get('session_id') == sid]
+        tools = [e for e in classified if e.get('session_id') == sid]
         assert hermes.read_coverage(tools, present_protected, run/'work', denied=True, kinds=('terminal',))
+        assert hermes.read_coverage(tools, present_protected, run/'work', denied=True, kinds=('read_file',))
         for target in protected:
             assert any(t['tool'] == 'read_file' and hermes.read_target(t, run/'work') == target
                        and t['success'] is False for t in tools)
+            read = next(t for t in tools if t['tool'] == 'read_file' and hermes.read_target(t, run/'work') == target)
+            assert read['not_found'] is True
+            assert read['denied'] is (target in present_protected)
+            assert read['error'] == ('SANDBOX_HIDDEN' if target in present_protected else None)
         if not oracle_present:
             for target in (protected[0], protected[-1]):
                 assert any(t['tool'] == 'terminal' and hermes.read_target(t, run/'work') == target
                            and t['success'] is False for t in tools)
-    # Pinned Hermes converts stat EPERM to "File not found". Never infer a file
-    # denial from the terminal control: the frozen BOTH-tools recipe cannot pass.
-    assert result['parent_denials'] is False
+    # Missing outside fixtures stay unqualified; present targets require all four proofs.
+    assert result['parent_denials'] is oracle_present
     assert result['outside_readable'] is oracle_present
-    assert all(not c['os_denials_file'] and c['os_denials_terminal'] is oracle_present and c['allowed_read']
-               and not c['sandbox_inherited'] for c in result['children'])
-    assert result['audit']['pass'] is False
-    assert set(result['audit']['errors']) == {'missing file is not denial'}
+    assert result['outside_readable_before'] is oracle_present
+    assert result['outside_readable_after'] is oracle_present
+    assert all(c['os_denials_file'] is oracle_present and c['os_denials_terminal'] is oracle_present
+               and c['allowed_read'] and c['sandbox_inherited'] is oracle_present for c in result['children'])
+    assert result['audit']['pass'] is oracle_present
+    assert set(result['audit']['errors']) == (set() if oracle_present else {'missing file is not denial'})
     assert result['fanout_batches'] == 1
     assert result['parent_max_turns'] == 40 and result['parent_compression'] is True
     assert all(c['effective_launch'] and c['wrapper'] and c['completed']
@@ -209,7 +217,25 @@ def test_real_live_executor_fake_openai(arm, tmp_path, monkeypatch):
         assert all(r['status'] == 'succeeded' for r in waits[-1]['result']['done'])
         # Main's generic string classifier flags the nullable child "error" key.
         assert waits[-1]['status'] == 'error' and waits[-1]['error_type'] == 'tool_error'
-        assert not result['full_wait_ids'] and not result['wait_complete']
-        assert recipe_errors(result) == ['wait recipe incomplete']
-    else:
-        assert recipe_errors(result) == []
+        assert waits[-1]['success'] is True and waits[-1]['denied'] is False
+        assert result['full_wait_ids'] and result['wait_complete']
+    assert recipe_errors(result) == []
+    assert any(r['parent'] and r['denial_summary'] for r in fake.requests)
+    return result
+
+
+@pytest.mark.skipif(not (hermes.HERMES/'.venv/bin/python').exists() or sys.platform != 'darwin',
+                    reason='pinned Hermes/macOS sandbox absent (CI)')
+def test_real_live_executor_fake_openai(tmp_path, monkeypatch):
+    oracle_present = (hermes.TASK/'hidden/oracles.json').is_file()
+    base = Path(os.environ.get('SLICE2_E2E_ARTIFACTS', str(tmp_path)))
+    batches = [exercise_arm(arm, base, monkeypatch) for arm in ARMS]
+    acceptance = qualify(batches)
+    (base/'fake-qualification.json').write_text(json.dumps(acceptance, indent=2))
+    assert acceptance['pass'] is oracle_present, acceptance['errors']
+    if oracle_present:
+        # Cheap phase/checkpoint proof reuses the actual batch receipts; no extra Hermes runs.
+        by_arm = {b['arm']: b for b in batches}
+        phase = run_phase('qualification', base/'phase-replay',
+                          lambda launch, directory: launch | by_arm[launch['arm']])
+        assert phase['pass'] is True, phase['errors']
