@@ -8,3 +8,4 @@ bench/results/slice1/*
 !bench/results/slice1/DECLARED.md
 !bench/results/slice1/REPORT.md
 !bench/results/slice1/results.jsonl
+bench/tasks/t1h/hidden/

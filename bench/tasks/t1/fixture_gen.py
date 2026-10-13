@@ -6,7 +6,7 @@ from pathlib import Path
 
 SEED = 1401
 MODULES = {
-    'collections.py': '''"""Small batch and numeric helpers for the synthetic parcel service."""
+    'batching.py': '''"""Small batch and numeric helpers for the synthetic parcel service."""
 from collections import Counter
 
 
@@ -107,8 +107,8 @@ def sum_cents(lines):
 ''',
 }
 BUGS = [
-    ('collections.py', 'return [items[i:', ['batch', 'range', 'off-by-one', 'partial', 'last', 'chunk']),
-    ('collections.py', 'return max(upper', ['clamp', 'upper', 'lower', 'bound', 'min', 'max']),
+    ('batching.py', 'return [items[i:', ['batch', 'range', 'off-by-one', 'partial', 'last', 'chunk']),
+    ('batching.py', 'return max(upper', ['clamp', 'upper', 'lower', 'bound', 'min', 'max']),
     ('access.py', 'def visible_members', ['default', 'disabled', 'true', 'false']),
     ('access.py', 'return balance <', ['credit', 'balance', 'comparison', 'revers', '>=', 'less']),
     ('delivery.py', 'record = client.fetch', ['await', 'coroutine', 'async']),
@@ -116,7 +116,7 @@ BUGS = [
     ('billing.py', 'return cents -', ['percent', 'division', 'discount', 'floor', '//']),
     ('billing.py', "return sum(line['cents'] +", ['shipping', 'multiple', 'once', 'empty', 'per line']),
 ]
-DECOYS = [('collections.py', 'return list(range'), ('access.py', "return all(m['enabled']"),
+DECOYS = [('batching.py', 'return list(range'), ('access.py', "return all(m['enabled']"),
           ('delivery.py', 'return code.strip'), ('billing.py', 'return cents // 100')]
 
 

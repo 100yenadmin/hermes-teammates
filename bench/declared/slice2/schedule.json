@@ -1,0 +1,440 @@
+{
+  "slice": "slice2",
+  "seed": 1402,
+  "scored": [
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "06-reports",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-06-reports-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "06-reports",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-06-reports-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "04-policy",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-04-policy-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "04-policy",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-04-policy-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "02-stock",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-02-stock-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "02-stock",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-02-stock-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "07-pages",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-07-pages-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "07-pages",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-07-pages-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "08-delivery",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-08-delivery-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "08-delivery",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-08-delivery-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "05-retry",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-05-retry-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "05-retry",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-05-retry-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "03-events",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-03-events-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "03-events",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-03-events-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "09-config",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-09-config-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "09-config",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-09-config-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "01-parcel",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-01-parcel-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "01-parcel",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-01-parcel-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "10-ledger",
+      "arm": "C",
+      "rep": 1,
+      "cell": "scored-10-ledger-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "10-ledger",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "scored-10-ledger-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "06-reports",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-06-reports-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "06-reports",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-06-reports-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "04-policy",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-04-policy-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "04-policy",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-04-policy-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "02-stock",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-02-stock-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "02-stock",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-02-stock-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "07-pages",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-07-pages-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "07-pages",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-07-pages-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "08-delivery",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-08-delivery-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "08-delivery",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-08-delivery-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "05-retry",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-05-retry-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "05-retry",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-05-retry-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "03-events",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-03-events-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "03-events",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-03-events-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "09-config",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-09-config-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "09-config",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-09-config-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "01-parcel",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-01-parcel-2-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "01-parcel",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-01-parcel-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "10-ledger",
+      "arm": "B-briefed",
+      "rep": 2,
+      "cell": "scored-10-ledger-2-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "scored",
+      "case": "10-ledger",
+      "arm": "C",
+      "rep": 2,
+      "cell": "scored-10-ledger-2-C",
+      "seed": 1402
+    }
+  ],
+  "calibration": [
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev02-cache",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "calibration-dev02-cache-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev02-cache",
+      "arm": "C",
+      "rep": 1,
+      "cell": "calibration-dev02-cache-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev04-timesheets",
+      "arm": "C",
+      "rep": 1,
+      "cell": "calibration-dev04-timesheets-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev04-timesheets",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "calibration-dev04-timesheets-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev03-search",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "calibration-dev03-search-1-B-briefed",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev03-search",
+      "arm": "C",
+      "rep": 1,
+      "cell": "calibration-dev03-search-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev01-seats",
+      "arm": "C",
+      "rep": 1,
+      "cell": "calibration-dev01-seats-1-C",
+      "seed": 1402
+    },
+    {
+      "slice": "slice2",
+      "phase": "calibration",
+      "case": "dev01-seats",
+      "arm": "B-briefed",
+      "rep": 1,
+      "cell": "calibration-dev01-seats-1-B-briefed",
+      "seed": 1402
+    }
+  ]
+}

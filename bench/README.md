@@ -1,5 +1,14 @@
 # Live T1 slice
 
+Slice 2 is a separate harness: see [the frozen declaration](declared/slice2/DECLARED.md).
+Use `python -m bench.slice2.run` with an explicit executor and phase; importing or
+testing the harness never calls a model. Tests use fakes and isolated Python proofs.
+No slice2 result is written to slice1. The source-based live executor is disabled
+unless `SLICE2_LIVE=1` is explicitly set after owner review and authorization.
+It does not read ~/.hermes or call the system Hermes executable.
+The legacy fixture now uses `batching.py`, avoiding stdlib shadowing; original
+slice1 fixture/results identities belong to the historical slice1 checkout.
+
 Run from the assigned plugin worktree with the existing pinned Hermes venv:
 
 ```sh
