@@ -1,5 +1,5 @@
 name: hermes-teammates
-version: 0.1.4
+version: 0.2.0
 description: "Named subagent teammates for Hermes: an operator-defined roster, follow-ups that carry prior results, live steering, and a Kanban teammates lane with a review handoff. Stock Hermes; no patched core."
 author: Electric Sheep
 kind: standalone
@@ -14,6 +14,7 @@ config_schema:
   lane: {type: str, default: "teammates", label: "Kanban lane", description: "Kanban assignee for teammate cards. Must not be a Hermes profile name, or lane work is refused. Empty falls back to teammates."}
   claim_ttl_seconds: {type: int, default: 900, label: "Kanban claim TTL (seconds)", description: "How long a teammate's claim on a Kanban card lasts between heartbeats. 60-86400; anything else falls back to 900."}
   max_live_runs: {type: int, default: 4, label: "Max live runs per conversation", description: "Most teammate runs one conversation may have in flight. 1-16; anything else falls back to 4."}
+  notify_on_completion: {type: bool, default: false, label: "Completion notices (not available on current Hermes)", description: "Reserved. No current Hermes build can confirm which conversation would receive a notice, so none is sent; use teammate_wait. See the README."}
   followup_context_chars: {type: int, default: 8000, label: "Follow-up context budget (characters)", description: "How much of a teammate's earlier results a follow-up carries. 0-24000; anything else falls back to 8000."}
-provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_message, teammate_stop]
+provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_wait, teammate_message, teammate_stop]
 provides_hooks: []

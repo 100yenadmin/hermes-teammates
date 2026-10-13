@@ -4,7 +4,7 @@ import re
 import threading
 
 DEFAULTS = {'teammates': {}, 'lane': 'teammates', 'claim_ttl_seconds': 900,
-            'max_live_runs': 4, 'followup_context_chars': 8000}
+            'max_live_runs': 4, 'followup_context_chars': 8000, 'notify_on_completion': False}
 FIELDS = {'description', 'instructions', 'toolsets', 'model', 'route', 'reasoning_effort'}
 NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
 logger = logging.getLogger(__name__)
@@ -17,6 +17,10 @@ def parse(raw):
         raw = {}
         errors.append('settings must be a dict')
     result = dict(DEFAULTS)
+    if type(raw.get('notify_on_completion', False)) is bool:
+        result['notify_on_completion'] = raw.get('notify_on_completion', False)
+    else:
+        errors.append('notify_on_completion: expected boolean; using default')
     for key in raw.keys() - DEFAULTS.keys():
         errors.append(f'unknown setting: {key}')
     for key, low, high in [('claim_ttl_seconds', 60, 86400), ('max_live_runs', 1, 16),

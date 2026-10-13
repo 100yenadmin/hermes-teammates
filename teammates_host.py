@@ -42,13 +42,44 @@ class HermesHost:
             except Exception:
                 return default
         names = probe(lambda: {field.name for field in fields(self.request_class())}, set())
+        # The fallback uses the public dispatch_tool seam; discovery must not dispatch or require a live parent.
+        steer = ('lifecycle' if probe(lambda: callable(getattr(self.service, 'steer', None))) else
+                 'delegate_task' if probe(lambda: callable(getattr(self.ctx, 'dispatch_tool', None))) else 'no')
         return {'reasoning_effort': 'reasoning_effort' in names,
                 'route': next((name for name in ('provider', 'model_profile', 'route', 'profile') if name in names), None),
-                'steer': probe(lambda: callable(getattr(self.service, 'steer', None))),
+                'steer': steer,
                 'follow_up': probe(lambda: callable(getattr(self.service, 'follow_up', None)))}
 
     def launch_request(self, **kwargs):
         return self.request_class()(**kwargs)
+
+    @staticmethod
+    def completion_target():
+        try:
+            from gateway.session_context import get_session_env
+            key = get_session_env('HERMES_SESSION_KEY') or None
+            surface = (get_session_env('HERMES_SESSION_PLATFORM') or
+                       get_session_env('HERMES_SESSION_SOURCE', 'cli'))
+            return key, surface == 'cli'
+        except (ImportError, AttributeError):
+            return None, False
+
+    def notice_session_id(self, session_key=None):
+        # Neither tested host exposes a public live REPL/route lookup to plugins.
+        # Copied session ContextVars identify the assigner, not the receiver at flush time.
+        return None
+
+    def push_feature(self, enabled):
+        key, cli = self.completion_target()
+        if not callable(getattr(self.ctx, 'inject_message', None)):
+            return dict(status='unsupported', reason='host lacks inject_message')
+        if not enabled:
+            return dict(status='off', reason='setting off')
+        if not key and not cli:
+            return dict(status='unsupported', reason='no session key')
+        if not self.notice_session_id(key):
+            return dict(status='unsupported', reason='host cannot bind notices to a session')
+        return dict(status='on', reason='CLI queue' if cli else 'gateway injection requires operator consent')
 
     @staticmethod
     def handle_from_dict(value):

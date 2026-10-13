@@ -82,7 +82,7 @@ def test_steer_scenario_stops_child_on_setup_failure(tmp_path, failure):
         if failure == 'wait':
             raise RuntimeError('request wait failed')
     rig = SimpleNamespace(
-        host=SimpleNamespace(features=lambda: {'steer': True}),
+        host=SimpleNamespace(features=lambda: {'steer': 'lifecycle'}),
         fake=SimpleNamespace(wait_requests=wait_requests, texts=lambda label: []),
         assign=lambda *args, **kwargs: {'ok': True, 'run_id': 'synthetic-run'},
         call=lambda *args, **kwargs: {'ok': False, 'via': 'lifecycle'},

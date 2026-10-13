@@ -84,7 +84,7 @@ def test_message_priority_and_stop(rig):
     assert service.message('s', run_id, 'hello')['error'] == 'unsupported'
     rig.host.steer_fallback = lambda *args: {'ok': True}
     assert service.message('s', run_id, 'hello', parent_agent=object())['via'] == 'delegate_task'
-    rig.host.features = lambda: {'steer': True, 'follow_up': False, 'route': None, 'reasoning_effort': False}
+    rig.host.features = lambda: {'steer': 'lifecycle', 'follow_up': False, 'route': None, 'reasoning_effort': False}
     assert service.message('s', run_id, 'course correction')['via'] == 'lifecycle'
     assert rig.lifecycle.steers == ['course correction']
     assert service.stop('s', run_id, 'stop please')['accepted']

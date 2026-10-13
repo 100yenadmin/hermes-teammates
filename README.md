@@ -136,6 +136,7 @@ Ask in plain language:
 | `teammates_roster` | Lists teammates, this conversation's recent runs, open lane cards, and what this Hermes build supports |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
+| `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
 | `teammate_stop` | Cancels a run |
 
@@ -144,6 +145,23 @@ Ask in plain language:
 `queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
 live-run cap. Finished runs report the lifecycle's `api_calls` (integer) and `duration_seconds` (seconds);
 either is `null` when Hermes does not supply it. The roster's recent runs include these receipts too.
+
+`teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
+use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
+return `unknown_run` before waiting. Finished rows have the same result budget as `teammate_check`.
+
+### Completion notices (not available yet)
+
+Notices that tell the parent when a run ends are built, but no current Hermes build can deliver them safely. Hermes can't
+yet confirm which conversation would receive an injected message. In the CLI it goes to whatever session is open, and in the
+gateway a chat keeps the same routing key after `/new`. A notice could land in the wrong conversation, so the plugin never
+injects one; the roster reports `push_completion` as `unsupported` with the reason. Use `teammate_wait` instead.
+
+Session-bound injection is requested upstream in
+[NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212#issuecomment-6152052854).
+Once Hermes has it, a plugin update can enable notices behind `notify_on_completion` (off by default; outside the CLI
+also the operator's `allow_gateway_injection`). A notice contains only the teammate name, run ID and status, never child
+output, goals or child error text. Runs already read with check/wait or stopped by the parent get no notice.
 
 ## Compatibility
 
@@ -162,9 +180,29 @@ either is `null` when Hermes does not supply it. The roster's recent runs includ
 | `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; first in the v0.21.7 canary of 2026-10-13; not yet in a stable release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
+| `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
+| push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
+
+## Benchmarks
+
+The first live slice ran one code-review task three ways on the same model (GLM `glm-5.3`, one Hermes build, 3 runs each):
+**A** one agent alone, **B** core `delegate_task` fan-out to 4 helpers, **C** 4 teammates.
+
+| Setup | Bugs found (of 8) | Parent tokens | Total tokens | Parent API calls | Wall time |
+|---|---:|---:|---:|---:|---:|
+| A, one agent | 8 | 135k | 135k | 9 | 87 s |
+| B, `delegate_task` | 8 | 32k | 171k | 3.3 | 81 s |
+| C, teammates (0.1.3) | 8 | 52k | 195k | 6.3 | 86 s |
+
+All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating cut the parent's cumulative token use 2.6–4.2× (its peak prompt about 1.6×), cost 26–44% more tokens in total, and was not faster here. Teammates made about twice
+as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` in 0.2.0 is meant to cut (not yet re-measured).
+An audit of every recorded tool call found no run read the answer key. These are means of 3 runs, without significance tests.
+
+Full report, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md). The `$0` mechanics benchmarks
+(`tests/bench_mechanics`) run in CI on every change. A harder task and a re-measure with `teammate_wait` are tracked in #16.
 
 ## Limits (honest list)
 
@@ -175,9 +213,10 @@ The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://g
   recovered or re-run. Plugin reloads within the same process preserve live runs. A lane card's claim expires through Kanban's normal TTL.
 - **Runs belong to the conversation that started them.** Another chat on the same profile cannot see, steer or
   stop them.
-- **A context compression starts a new conversation segment.** Hermes gives the conversation a new session id when
-  it compresses, and runs belong to the segment that started them. Earlier runs then answer `unknown_run`. A lane
-  card is blocked when its monitor detects the lost handle (also after `/new`); the child may continue without a recoverable result.
+- **Runs belong to the conversation that started them.** Hermes' default in-place compression (`compression.in_place: true`)
+  keeps the session id, so runs survive it. In rotation mode (`in_place: false`) and after `/new`, the conversation gets a new
+  session id and earlier runs answer `unknown_run`. A lane card is blocked when its monitor detects the lost handle; the child
+  may continue without a recoverable result.
 - **Toolsets narrow, but they are Hermes toolsets.** `file` includes write tools, so a teammate with `file` can
   edit files even if its instructions say not to. Pick toolsets for what the teammate may do, not what it should
   do. By default Hermes adds the parent's MCP toolsets back to a teammate with narrowed `toolsets` (`delegation.inherit_mcp_toolsets: true`); set it to `false` for a strict intersection.

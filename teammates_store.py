@@ -7,7 +7,8 @@ from uuid import uuid4
 INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().hex)
 _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
-              'api_calls': 'INTEGER', 'duration_seconds': 'REAL'}
+              'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
+              'parent_session_key': 'TEXT', 'notified_at': 'REAL'}
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS runs (
  run_id TEXT PRIMARY KEY, teammate TEXT NOT NULL, owner_session_id TEXT NOT NULL,
@@ -58,6 +59,18 @@ class Store:
     def _validate(self, values):
         if not values.keys() <= self.columns:
             raise ValueError('unknown run columns')
+
+    def admit(self, row, cap):
+        """Cross-process admission: count and insert share one SQLite write transaction."""
+        self._validate(row)
+        with self.conn:
+            self.conn.execute('BEGIN IMMEDIATE')
+            live = self.conn.execute("SELECT count(*) FROM runs WHERE owner_session_id=? AND status='running'",
+                                     (row['owner_session_id'],)).fetchone()[0]
+            if live >= cap:
+                return False
+            self.insert(row)
+        return True
 
     def get(self, run_id, owner_session_id):
         row = self.conn.execute('SELECT * FROM runs WHERE run_id=? AND owner_session_id=?',
