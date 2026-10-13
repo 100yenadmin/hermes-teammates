@@ -7,6 +7,7 @@
 - Use `teammate_wait` to wait for any or all of several runs in one call.
 - Optional completion notices tell the parent which teammates finished, without including child text.
   Notices are off by default and are grouped over two seconds. Gateway delivery needs operator consent.
+- The roster reports steering as `lifecycle`, `delegate_task` or `no`. It used to say `no` on builds where the `delegate_task` fallback steers fine.
 
 ## 0.1.4 (2026-10-14)
 
