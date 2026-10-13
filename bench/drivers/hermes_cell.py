@@ -74,7 +74,9 @@ def sandbox_profile(run):
                    '/usr/share', '/bin', '/sbin', '/usr/bin', '/usr/sbin', '/dev']
     directories += [HERMES / name for name in
                     ('agent', 'hermes_cli', 'tools', 'hermes_platform', 'providers',
-                     'gateway', 'cron', 'pm', 'assets', 'locales', 'hermes_agent.egg-info')]
+                     'gateway', 'cron', 'pm', 'assets', 'locales', 'hermes_agent.egg-info',
+                     # Bundled Hermes packages imported at startup on current main (not this repo).
+                     'plugins', 'acp_adapter', 'tui_gateway')]
     files = list(HERMES.glob('*.py')) + [Path('/'), HERMES / 'pyproject.toml',
              Path('/private/etc/resolv.conf'), Path('/private/etc/hosts'),
              Path('/private/etc/localtime'), Path('/private/etc/services')]

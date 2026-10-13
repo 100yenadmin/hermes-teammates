@@ -293,9 +293,10 @@ def probe(monkeypatch):
     lifecycle=SimpleNamespace(has_hook=lambda name:False, invoke_hook=lambda name, **kw:None)
     class Agent:
         def __init__(self): pass
-    monkeypatch.setitem(sys.modules,'observer2',SimpleNamespace(install=lambda *a:None))
+    monkeypatch.setitem(sys.modules,'observer2',SimpleNamespace(install=lambda *a:None, observer_error=lambda path, where, exc: rows.append(dict(kind="observer_error", where=where, type=type(exc).__name__))))
     monkeypatch.setitem(sys.modules,'hermes_cli',SimpleNamespace(lifecycle=lifecycle))
     monkeypatch.setitem(sys.modules,'run_agent',SimpleNamespace(AIAgent=Agent))
+    monkeypatch.setitem(sys.modules,'model_tools',SimpleNamespace(_emit_post_tool_call_hook=lambda **kw: None))
     spec=importlib.util.spec_from_file_location('prequal_probe',hermes.ROOT/'bench/slice2/runtime_probe.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     monkeypatch.setattr(module,'emit',rows.append)

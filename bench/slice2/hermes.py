@@ -5,6 +5,7 @@ No live-home reads, dependency installation, preflight calls or model fallback.
 Qualification remains fail-closed if actual tool/budget/denial evidence is absent.
 """
 import json
+import re
 import os
 import shutil
 import signal
@@ -12,6 +13,7 @@ import shlex
 import subprocess
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
 from bench.slice2.accounting import PLUGIN, reconcile, sessions
@@ -65,9 +67,35 @@ def read_target(event, work):
     return Path(os.path.abspath(path if path.is_absolute() else work / path))
 
 
+def outside_readability(paths):
+    return {Path(os.path.abspath(p)): p.is_file() and os.access(p, os.R_OK) for p in paths}
+
+
+def hidden_read(event, tools, paths, work, before, after):
+    target = read_target(event, work)
+    return (event.get('kind') == 'post_tool_call' and event.get('tool') == 'read_file'
+            and event.get('success') is False and event.get('not_found') is True
+            and target in paths and before.get(target) is True and after.get(target) is True
+            and bool(event.get('session_id'))
+            and any(t.get('kind') == 'post_tool_call' and t.get('tool') == 'terminal'
+                    and t.get('session_id') == event['session_id'] and read_target(t, work) == target
+                    and t.get('success') is False and t.get('denied') is True
+                    and t.get('error') in {'EPERM', 'EACCES'} for t in tools))
+
+
+def classify_hidden_reads(events, paths, work, before, after):
+    paths = {Path(os.path.abspath(p)) for p in paths}
+    return [e | dict(denied=True, error='SANDBOX_HIDDEN', outside_before=True, outside_after=True)
+            if hidden_read(e, events, paths, work, before, after) else e for e in events]
+
+
 def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'terminal')):
     return all(any(t.get('tool') == tool and read_target(t, work) == Path(os.path.abspath(p))
-                   and (t.get('denied') is True and t.get('error') in {'EPERM', 'EACCES'} if denied
+                   and (t.get('denied') is True and (t.get('error') in {'EPERM', 'EACCES'}
+                        or t.get('error') == 'SANDBOX_HIDDEN' and hidden_read(
+                            t, tools, {Path(os.path.abspath(p))}, work,
+                            {read_target(t, work): t.get('outside_before')},
+                            {read_target(t, work): t.get('outside_after')})) if denied
                         else t.get('success') is True and not t.get('denied')) for t in tools)
                for p in paths for tool in kinds)
 
@@ -148,13 +176,32 @@ def wait_recipe(events, root, receipt_ids=None):
     return previous_pending == []
 
 
-def execute(launch, directory):
+
+def classify(returncode, timeout, answer, stderr, requests, quota, key):
+    """Status plus a bounded, key-free reason. A crash before any model call is the harness's fault, not the agent's."""
+    lines=[l.strip() for l in stderr.splitlines() if l.strip()]
+    error=next((l for l in reversed(lines) if re.match(r'^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b',l)),None)
+    reason=(error or ('timeout' if timeout else f'exit {returncode}'))
+    reason=reason.replace(key,'[REDACTED]')[:200] if key else reason[:200]
+    if quota:
+        return 'QUOTA_STOP',reason
+    if not timeout and returncode==0 and answer:
+        return 'COMPLETE',None
+    if not requests:
+        return 'HARNESS_ERROR',reason
+    return 'FAILED',reason
+
+def execute(launch, directory, *, fake_base_url=None):
     # Explicit opt-in is required only at a later, separately authorized live gate.
     if os.environ.get('SLICE2_LIVE')!='1':
         raise ValueError('Live executor disabled; owner review and live authorization required')
     if subprocess.check_output(['git','-C',str(HERMES),'rev-parse','HEAD'],text=True).strip()!=HERMES_SHA:
         raise ValueError('Pinned Hermes drift')
-    key=os.environ.get('GLM_API_KEY')
+    if fake_base_url is not None:
+        url = urlsplit(fake_base_url)
+        if url.scheme != 'http' or url.hostname != '127.0.0.1' or not url.port or url.username or url.password:
+            raise ValueError('Test server must be HTTP IPv4 loopback')
+    key='bench-not-a-secret' if fake_base_url is not None else os.environ.get('GLM_API_KEY')
     if not key: raise ValueError('Owner must supply coding-plan credential in environment')
     run=directory.resolve()
     for folder in ('home','hermes/plugins/hermes-teammates','probe','tmp'):
@@ -164,14 +211,17 @@ def execute(launch, directory):
     shutil.copy2(ROOT/'bench/slice2/runtime_probe.py',run/'probe/runtime_probe.py')
     (run/'probe/sitecustomize.py').write_text('from runtime_probe import bootstrap\nbootstrap()\n')
     (run/'hermes/config.yaml').write_text(json.dumps(launch['config']))
-    profile=run/'sandbox.sb'; profile.write_text(sandbox_profile(run))
+    profile=run/'sandbox.sb'
+    profile.write_text(sandbox_profile(run) + ('(deny network*)\n(allow network* (remote ip "localhost:*"))\n'
+                                             if fake_base_url is not None else ''))
     targets=[TASK/'hidden',ROOT/'bench/declared',ROOT/'bench/results',ROOT/'bench/slice2/proofs.py',run.parent/'outside-control']
     (run.parent/'outside-control').touch(exist_ok=True)
     (run/'work/protected-link').symlink_to(TASK/'hidden/oracles.json')
     (run/'work/allowed-marker').write_text('synthetic allowed read marker\n')
     # Outside readability controls test synthetic files only and never save their contents.
     probes=[TASK/'hidden/oracles.json',ROOT/'bench/slice2/proofs.py',ROOT/'bench/declared/slice2/DECLARED.md',ROOT/'bench/results/slice1/REPORT.md',run.parent/'outside-control']
-    outside=all(p.is_file() and os.access(p,os.R_OK) for p in probes+[run/'work/protected-link'])
+    protected_probes=probes+[run/'work/protected-link']
+    outside_before=outside_readability(protected_probes)
     before=controls(run,profile,probes)
     if launch['phase']=='qualification':
         launch=launch | {'recipe':qualification_recipe(launch['arm'],run,probes)}
@@ -181,7 +231,7 @@ def execute(launch, directory):
          'PATH':'/usr/bin:/bin:/usr/sbin:/sbin','LANG':'en_US.UTF-8','HERMES_DISABLE_LAZY_INSTALLS':'1',
          'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str(run/'probe')+':'+str(HERMES),
          'TERMINAL_CWD':str(run/'work'),'TERMINAL_HOME_MODE':'profile','GLM_API_KEY':key,
-         'GLM_BASE_URL':launch['endpoint'],'SLICE2_USAGE':str(run/'usage.jsonl'),'SLICE2_EVENTS':str(run/'events.jsonl')}
+         'GLM_BASE_URL':fake_base_url or launch['endpoint'],'SLICE2_USAGE':str(run/'usage.jsonl'),'SLICE2_EVENTS':str(run/'events.jsonl')}
     command=['/usr/bin/sandbox-exec','-f',str(profile),str(HERMES/'.venv/bin/python'),'-m','hermes_cli.main',
              'chat','-Q','--query-file',str(run/'query.txt'),'--format','stream-json','--ignore-rules',
              '--toolsets','file,terminal,'+('teammates' if launch['arm']=='C' else 'delegation'),
@@ -189,7 +239,7 @@ def execute(launch, directory):
     started=time.monotonic(); timeout=False
     # Keep raw stdout/stderr in memory only; persist final synthetic answer, never credentials.
     process=subprocess.Popen(command,cwd=run/'work',env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
-    try: stdout,stderr=process.communicate(timeout=900)
+    try: stdout,stderr=process.communicate(timeout=90 if fake_base_url is not None else 900)
     except subprocess.TimeoutExpired:
         timeout=True; os.killpg(process.pid,signal.SIGKILL); stdout,stderr=process.communicate()
     stream=[json.loads(s) for s in stdout.decode(errors='replace').splitlines() if s.startswith('{')]
@@ -206,19 +256,26 @@ def execute(launch, directory):
                 handle=json.loads(r['handle_json'] or '{}')
                 child_id=next((e['session_id'] for e in events if e['kind']=='child_lineage' and e.get('subagent_id')==r['subagent_id']),handle.get('session_id'))
                 receipts.append(dict(run_id=r['run_id'],session_id=child_id,teammate=r['teammate'],**{k:r[k] for k in PLUGIN}))
-    reconciliation=reconcile(usage,db,receipts,root,require_plugin=launch['arm']=='C')
+    observer_errors=[r for r in events+usage if r.get('kind')=='observer_error']
+    reconciliation=reconcile(usage+[r for r in events if r.get('kind')=='observer_error'],
+                             db,receipts,root,require_plugin=launch['arm']=='C')
     after=controls(run,profile,probes)
+    outside_after=outside_readability(protected_probes)
+    outside=all(outside_before.values()) and all(outside_after.values())
+    events=classify_hidden_reads(events,protected_probes,run/'work',outside_before,outside_after)
+    (run/'classified-tool-receipts.json').write_text(json.dumps(
+        [e for e in events if e.get('kind')=='post_tool_call'],indent=2))
     reads=before+after
     for r in events:
         if r.get('kind')=='post_tool_call':
             for k in ('path','file_path'):
                 if r.get('args',{}).get(k):
                     path=Path(r['args'][k]); path=path if path.is_absolute() else run/'work'/path
-                    reads.append(dict(path=str(path),success=r['success'],error='EPERM' if r['denied'] else 'OTHER'))
+                    reads.append(dict(path=str(path),success=r['success'],error=r.get('error') if r['denied'] else 'OTHER'))
             command=r.get('args',{}).get('command','')
             for p in probes+[run/'work/protected-link']:
                 if str(p) in command:
-                    reads.append(dict(path=str(p),success=r['success'] and not r['denied'],error='EPERM' if r['denied'] else 'OTHER'))
+                    reads.append(dict(path=str(p),success=r['success'] and not r['denied'],error=r.get('error') if r['denied'] else 'OTHER'))
     audit=audit_reads(reads,targets,run)
     launch_events=[e for e in events if e['kind']=='launch' and e.get('session_id')!=root]
     effective=[canonical(e['messages']) for e in launch_events]; wrappers=[e['system'] for e in launch_events]
@@ -260,17 +317,22 @@ def execute(launch, directory):
     answer=final.get('text','').replace(key,'[REDACTED]')
     (run/'answer.txt').write_text(answer)
     quota=bool(QUOTA.search(stderr.decode(errors='replace')))
-    status='QUOTA_STOP' if quota else 'COMPLETE' if not timeout and process.returncode==0 and answer else 'FAILED'
+    status,reason=classify(process.returncode,timeout,answer,stderr.decode(errors='replace'),
+                           reconciliation['metrics']['requests'],quota,key)
+    if observer_errors:
+        status,reason='HARNESS_ERROR','observer error'
     parent_agent=next((e for e in events if e['kind']=='agent' and e.get('session_id')==root),{})
     return launch | dict(status=status,arm=launch['arm'],started=started,ended=time.monotonic(),
                          wall_s=time.monotonic()-started,requests=reconciliation['metrics']['requests'],
                          accounting=reconciliation,audit=audit,integrity=audit['pass'],
-                         outside_readable=outside,parent_denials=parent_denials,
+                         observer_errors=observer_errors,
+                         outside_readable=outside,outside_readable_before=all(outside_before.values()),
+                         outside_readable_after=all(outside_after.values()),parent_denials=parent_denials,
                          parent_allowed_read=read_coverage(parent_tools,[run/'work/README.md',run/'work/allowed-marker'],run/'work'),children=children,
                          parent_max_turns=parent_agent.get('max_turns'),parent_compression=parent_agent.get('compression'),
                          peak_concurrency=peak,fanout_batches=fanout,
                          no_teammate_check=not any(e.get('tool')=='teammate_check' for e in events),
                          wait_complete=valid_wait and all(c['completed'] for c in children),
                          full_wait_ids=valid_wait,clipping=clipping,
-                         quota=quota,
+                         quota=quota,reason=reason,
                          integrity_violation=not audit['pass'],metrics=reconciliation['metrics'])
