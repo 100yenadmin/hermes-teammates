@@ -10,12 +10,20 @@ from pathlib import Path
 
 from bench.slice2.audit import audit_reads, qualify
 from bench.slice2.budget import admit
-from bench.slice2.protocol import ARMS, DECLARED, ROOT, config, digest, identity, recipe, schedule, stage
+from bench.slice2.protocol import ARMS, DECLARED, ROOT, canonical, config, digest, identity, recipe, schedule, stage
 
 
 def write_new(path, value):
     with Path(path).open('x') as out:
         out.write(json.dumps(value,indent=2,sort_keys=True)+'\n')
+
+
+def workspace_hash(work):
+    paths=[work/'README.md', work/'src', *sorted((work/'src').rglob('*'))]
+    return digest(canonical({str(p.relative_to(work)):
+                             ('symlink:'+str(p.readlink()) if p.is_symlink() else
+                              digest(p.read_bytes()) if p.is_file() else 'directory' if p.is_dir() else 'missing')
+                             for p in paths}))
 
 
 def execute_cell(cell, directory, executor):
@@ -27,7 +35,12 @@ def execute_cell(cell, directory, executor):
                         max_children=4,workspace=str(directory/'work'))
     write_new(directory/'launch.json',launch)
     # An interrupted or failed uncheckpointed executor is preserved, never rerun.
+    before=workspace_hash(directory/'work')
     result = executor(launch,directory)
+    after=workspace_hash(directory/'work')
+    result.update(workspace_hash_before=before,workspace_hash_after=after)
+    if before!=after:
+        result.update(integrity=False,integrity_violation=True)
     if result.get('cell') != cell['cell'] or result.get('slice') != 'slice2':
         raise ValueError('Executor identity mismatch')
     result['identity'] = launch['identity']

@@ -95,8 +95,11 @@ arm-blind execution receipts, are excluded from FP and reported separately with
 the same disposition across arms. Ambiguity blocks frozen scoring until the
 release manager's blinded disposition. Recall=TP/oracle size; precision=TP/(TP+FP),
 zero for empty answer; report F1 and cross-file recall separately. Agent failures
-and timeouts score zero, stay in quality denominators, and retain usage. Harness
-or provider failures are explicit missing cells and block a complete verdict.
+and timeouts score zero, stay in quality denominators, and retain usage.
+Agent-FAILED cells enter both quality (their graded zero scores) and overhead
+(their measured values). Harness errors, quota stops, incomplete accounting or
+integrity make the verdict INCONCLUSIVE. CLOSES GAP is forbidden when C has
+more FAILED cells than B-briefed; DOES NOT CLOSE GAP remains possible.
 
 ## Authoritative accounting and integrity
 
@@ -138,8 +141,10 @@ composite claim; no Bonferroni. Total tokens and every other contrast descriptiv
 * **DOES NOT CLOSE GAP:** a quality upper bound <−0.05 or an overhead lower bound
   exceeds its allowed maximum.
 * **INCONCLUSIVE:** neither conclusion, or missing qualification/accounting/
-  integrity/frozen grades/cells, or unsuccessful execution preventing efficiency
-  claims. Undefined/zero-denominator ratios remain missing; do not invent savings.
+  integrity/frozen grades/cells, harness errors or quota stops. Agent-FAILED cells
+  retain graded quality and
+  measured overhead; excess C failures forbid CLOSES GAP, but permit DOES NOT
+  CLOSE GAP. Undefined/zero-denominator ratios remain missing; do not invent savings.
 
 If both arms' mean recall ≥0.95 or both ≤0.20, withhold quality claim and label
 ceiling/floor limitation. Efficiency is descriptive. Tolerances are practical

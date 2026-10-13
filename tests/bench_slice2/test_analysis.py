@@ -109,7 +109,8 @@ def test_statistics_and_three_verdicts():
     assert r['contrasts']['parent_tokens']['point']==1
     assert analyze(rows[:-1],qualified=True,grades_frozen=True)['verdict']=='INCONCLUSIVE'
     rows[0]['status']='FAILED'
-    assert analyze(rows,qualified=True,grades_frozen=True)['verdict']=='INCONCLUSIVE'
+    rows[0]['metrics'].update(recall=0,precision=0,cross_file_recall=0)
+    assert analyze(rows,qualified=True,grades_frozen=True)['verdict']=='CLOSES GAP'
     bounds={'recall':[-.04,0], 'precision':[-.04,0], 'parent_tokens':[1,1.1],
             'parent_peak_prompt_tokens':[1,1.1], 'parent_api_calls':[0,1]}
     assert verdict(bounds)=='CLOSES GAP'
@@ -119,7 +120,7 @@ def test_statistics_and_three_verdicts():
 
 
 def test_budget_admission():
-    rows=[c|dict(wall_s=30,requests=5,status='COMPLETE') for c in schedule('calibration')]
+    rows=[c|dict(wall_s=30,requests=5,status='COMPLETE',accounting={'pass':True}) for c in schedule('calibration')]
     limits={'plan':'GLM coding plan','request_limit':1000,'used_requests':50,
             'grading_requests':50,'grading_wall_s':100,'reproducer_wall_s':10,'human_wall_s':100}
     assert admit(rows,limits)['decision']=='ADMIT'

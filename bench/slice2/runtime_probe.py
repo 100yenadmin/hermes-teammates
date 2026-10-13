@@ -60,11 +60,24 @@ def bootstrap():
                 tool=args.get('name') or args.get('tool_name')
                 args=args.get('arguments') or args.get('args') or {}
             result=kw.get('result')
+            denial=str(result)
             try: result=json.loads(result) if isinstance(result,str) else result
             except (ValueError,TypeError): result={}
+            result=result if isinstance(result,dict) else {}
+            error=('EPERM' if 'Operation not permitted' in denial or 'EPERM' in denial else
+                   'EACCES' if 'Permission denied' in denial or 'EACCES' in denial else None)
+            receipt={}
+            clipping=[]
+            if name=='post_tool_call' and tool in {'teammate_assign','teammate_wait','teammate_check'}:
+                receipt={k:result[k] for k in ('ok','run_id','pending','timed_out') if k in result}
+                if 'pending' in receipt:
+                    receipt['pending']=[{k:r[k] for k in ('run_id','status') if k in r} for r in result['pending']]
+                summaries=result.get('done',[]) if tool=='teammate_wait' else [result]
+                clipping=[{k:r[k] for k in ('run_id','summary_clipped','summary_chars') if k in r}
+                          for r in summaries if 'summary_clipped' in r or 'summary_chars' in r]
             emit(dict(kind=name,session_id=kw.get('session_id'),tool=tool,
                       call_id=kw.get('tool_call_id'),args=args,
-                      denied='Operation not permitted' in str(result) or 'Permission denied' in str(result),
-                      success=isinstance(result,dict) and not result.get('error') and result.get('exit_code',0)==0))
+                      denied=error is not None,error=error,result=receipt,clipping=clipping,
+                      success=error is None and not result.get('error') and result.get('ok',True) is not False and result.get('exit_code',0)==0))
         return old_invoke(name,**kw)
     lifecycle.invoke_hook=invoke

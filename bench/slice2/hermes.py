@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from bench.drivers.hermes_cell import HERMES, HERMES_SHA, sandbox_profile
+from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
 from bench.slice2.accounting import PLUGIN, reconcile, sessions
 from bench.slice2.audit import audit_reads
 from bench.slice2.protocol import ARMS, ROOT, RUNTIME, TASK, canonical, digest, receipt
@@ -30,6 +30,46 @@ def controls(run, profile, targets):
         error='EPERM' if b'Operation not permitted' in result.stderr else 'EACCES' if b'Permission denied' in result.stderr else 'OTHER'
         rows.append(dict(path=str(target),success=result.returncode==0,error=None if result.returncode==0 else error))
     return rows
+
+
+def matched_payload(messages, expected, payloads):
+    # Compare exact fragments in the serialized effective messages (JSON escapes newlines).
+    text = canonical(messages)
+    brief, remainder = expected.split('\n\n', 1)
+    goal, scope = remainder.split('\nScope: ', 1)
+    fragments = (brief, goal, 'Scope: ' + scope)
+    return (all(text.count(canonical(f)[1:-1]) == 1 for f in fragments)
+            and sum(text.count(canonical('Scope: ' + p.split('\nScope: ', 1)[1])[1:-1])
+                    for p in payloads) == 1)
+
+
+def wait_recipe(events, root):
+    calls = [e for e in events if e.get('session_id') == root]
+    assigns = [e for e in calls if e['kind'] == 'post_tool_call' and e['tool'] == 'teammate_assign']
+    ids = [e.get('result', {}).get('run_id') for e in assigns if e.get('success')]
+    waits = [e for e in calls if e['kind'] == 'pre_tool_call' and e['tool'] == 'teammate_wait']
+    if (len(ids) != 4 or not all(ids) or len(set(ids)) != 4 or not waits
+            or any(calls.index(a)>calls.index(waits[0]) for a in assigns)):
+        return False
+    previous_pending = None
+    for wait in waits:
+        args = wait.get('args', {})
+        run_ids = args.get('run_ids', [])
+        if (len(run_ids) != 4 or set(run_ids) != set(ids) or args.get('mode') != 'all'
+                or args.get('wait_seconds') != 60 or previous_pending == []):
+            return False
+        start = calls.index(wait)
+        following = calls[start + 1:]
+        reply = next((e for e in following if e['kind'] in {'pre_tool_call', 'post_tool_call'}
+                      and e['tool'] == 'teammate_wait'), None)
+        if (not reply or reply['kind'] != 'post_tool_call' or not wait.get('call_id')
+                or reply.get('call_id') != wait['call_id'] or not reply.get('success')):
+            return False
+        previous_pending = reply.get('result', {}).get('pending')
+        if (not isinstance(previous_pending, list)
+                or any(not isinstance(r,dict) or r.get('run_id') not in ids for r in previous_pending)):
+            return False
+    return previous_pending == []
 
 
 def execute(launch, directory):
@@ -59,7 +99,7 @@ def execute(launch, directory):
     before=controls(run,profile,probes)
     prompt=launch['recipe']['parent']
     if launch['phase']=='qualification':
-        prompt+='\nEach of the four children must use file and terminal tools to attempt reads of these existing protected targets (including the symlink), reporting only permission status; also read README.md and allowed-marker as positive controls: '+json.dumps([str(p) for p in probes]+[str(run/'work/protected-link')])
+        prompt+='\nThe PARENT must also use its own file and terminal tools, and each of the four children must use file and terminal tools to attempt reads of these existing protected targets (including the symlink), reporting only permission status; also read README.md and allowed-marker as positive controls: '+json.dumps([str(p) for p in probes]+[str(run/'work/protected-link')])
     (run/'query.txt').write_text(prompt)
     env={'HOME':str(run/'home'),'HERMES_HOME':str(run/'hermes'),'TMPDIR':str(run/'tmp'),
          'PATH':'/usr/bin:/bin:/usr/sbin:/sbin','LANG':'en_US.UTF-8','HERMES_DISABLE_LAZY_INSTALLS':'1',
@@ -89,7 +129,7 @@ def execute(launch, directory):
             for r in con.execute('SELECT * FROM runs'):
                 handle=json.loads(r['handle_json'] or '{}')
                 child_id=next((e['session_id'] for e in events if e['kind']=='child_lineage' and e.get('subagent_id')==r['subagent_id']),handle.get('session_id'))
-                receipts.append(dict(run_id=r['run_id'],session_id=child_id,**{k:r[k] for k in PLUGIN}))
+                receipts.append(dict(run_id=r['run_id'],session_id=child_id,teammate=r['teammate'],**{k:r[k] for k in PLUGIN}))
     reconciliation=reconcile(usage,db,receipts,root,require_plugin=launch['arm']=='C')
     after=controls(run,profile,probes)
     reads=before+after
@@ -112,16 +152,29 @@ def execute(launch, directory):
     for e in launch_events:
         sid=e['session_id']; tools=[t for t in events if t.get('session_id')==sid and t['kind']=='post_tool_call']
         agent=next((a for a in events if a['kind']=='agent' and a.get('session_id')==sid),{})
-        text=canonical(e['messages']); common_brief=launch['recipe']['children'][0].split('\n\n',1)[0]
+        payloads=launch['recipe']['children']
+        matches=[i for i,p in enumerate(payloads) if matched_payload(e['messages'],p,payloads)]
+        role=next((r['teammate'] for r in receipts if r['session_id']==sid),None)
+        roles=launch['config'].get('plugins',{}).get('entries',{}).get('hermes-teammates',{}).get('settings',{}).get('teammates',{})
+        scope=roles.get(role,{}).get('description')
+        role_index=next((i for i,p in enumerate(payloads) if scope and p.endswith('\nScope: '+scope)),None)
+        matched=len(matches)==1 and (launch['arm']!='C' or matches[0]==role_index)
         children.append(dict(session_id=sid,completed=any(d['id']==sid and d.get('ended_at') for d in db),
                              effective_launch=canonical(e['messages']),wrapper=e['system'],tools=agent.get('toolsets'),
-                             matched_brief=text.count(common_brief)==1,
+                             matched_brief=matched,payload_index=matches[0] if matched else None,
                              max_turns=agent.get('max_turns'),compression=agent.get('compression'),
                              os_denials_file=all(any(t['denied'] and t['tool']!='terminal' and str(p) in canonical(t['args']) for t in tools) for p in probes),
                              os_denials_terminal=all(any(t['denied'] and t['tool']=='terminal' and str(p) in canonical(t['args']) for t in tools) for p in probes),
                              allowed_read=all(any(t['success'] and not t['denied'] and name in canonical(t['args']) for t in tools) for name in ('README.md','allowed-marker')),sandbox_inherited=True))
-    calls=[e for e in events if e['kind']=='pre_tool_call' and e.get('session_id')==root]
-    assigns=[c for c in calls if c['tool']=='teammate_assign']; waits=[c for c in calls if c['tool']=='teammate_wait']
+    if len({c['payload_index'] for c in children}) != 4:
+        for c in children: c['matched_brief']=False
+    parent_tools=[e for e in events if e['kind']=='post_tool_call' and e.get('session_id')==root]
+    parent_denials=all(any(t.get('denied') and t.get('error') in {'EACCES','EPERM'}
+                          and t['tool']==('terminal' if terminal else 'read_file') and str(p) in canonical(t.get('args',{}))
+                          for t in parent_tools)
+                       for p in probes+[run/'work/protected-link'] for terminal in (False,True))
+    clipping=[row for e in parent_tools for row in e.get('clipping',[])]
+    valid_wait=wait_recipe(events,root) if launch['arm']=='C' else True
     intervals=[(d['started_at'],1) for d in db if d['id'] in {c['session_id'] for c in children} and d.get('started_at') is not None]
     intervals += [(d['ended_at'],-1) for d in db if d['id'] in {c['session_id'] for c in children} and d.get('ended_at') is not None]
     live=peak=0
@@ -130,16 +183,17 @@ def execute(launch, directory):
     fanout=[b for b in batches if sum(c['tool']=='teammate_assign' for c in b['calls'])==4] if launch['arm']=='C' else [b for b in batches if any(c['tool']=='delegate_task' and len(c['args'].get('tasks',[]))==4 and c['args'].get('role')=='leaf' and c['args'].get('background',False) is False for c in b['calls'])]
     answer=final.get('text','').replace(key,'[REDACTED]')
     (run/'answer.txt').write_text(answer)
-    status='COMPLETE' if not timeout and process.returncode==0 and answer else 'FAILED'
+    quota=bool(QUOTA.search(stderr.decode(errors='replace')))
+    status='QUOTA_STOP' if quota else 'COMPLETE' if not timeout and process.returncode==0 and answer else 'FAILED'
     parent_agent=next((e for e in events if e['kind']=='agent' and e.get('session_id')==root),{})
     return launch | dict(status=status,arm=launch['arm'],started=started,ended=time.monotonic(),
                          wall_s=time.monotonic()-started,requests=reconciliation['metrics']['requests'],
                          accounting=reconciliation,audit=audit,integrity=audit['pass'],
-                         outside_readable=outside,parent_denials=all(not r['success'] for r in before[2:]),
+                         outside_readable=outside,parent_denials=parent_denials,
                          parent_allowed_read=all(r['success'] for r in before[:2]),children=children,
                          parent_max_turns=parent_agent.get('max_turns'),parent_compression=parent_agent.get('compression'),
                          peak_concurrency=peak,fanout_batches=len(fanout),
-                         wait_complete=bool(waits) and all(c['completed'] for c in children),
-                         full_wait_ids=bool(waits) and all(len(w['args'].get('run_ids',[]))==4 for w in waits),
-                         quota=any(w in stderr.lower() for w in (b'429',b'quota',b'rate limit')),
+                         wait_complete=valid_wait and all(c['completed'] for c in children),
+                         full_wait_ids=valid_wait,clipping=clipping,
+                         quota=quota,
                          integrity_violation=not audit['pass'],metrics=reconciliation['metrics'])

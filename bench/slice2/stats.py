@@ -5,6 +5,7 @@ import random
 import statistics
 from pathlib import Path
 
+from bench.slice2.grade import scored_rows_digest
 from bench.slice2.protocol import ARMS, SEED, schedule
 
 PRIMARY = ('recall','precision','parent_tokens','parent_peak_prompt_tokens','parent_api_calls')
@@ -39,8 +40,8 @@ def analyze(rows, qualified=False, grades_frozen=False):
     if not qualified or not grades_frozen or any(r.get('integrity') is not True or
             not (r.get('accounting') is True or isinstance(r.get('accounting'),dict) and r['accounting'].get('pass') is True) for r in rows):
         out['gaps'].append('qualification, frozen grades, accounting or integrity incomplete'); return out
-    if any(r.get('status')!='COMPLETE' for r in rows):
-        out['gaps'].append('execution failure: quality retained, no efficiency claim'); return out
+    if any(r.get('status') not in {'COMPLETE','FAILED'} or r.get('quota') or r.get('integrity_violation') for r in rows):
+        out['gaps'].append('harness/quota failure: no complete verdict'); return out
     cases = sorted({r['case'] for r in rows})
     keys = PRIMARY + ('total_tokens','cross_file_recall')
     means = {}
@@ -78,11 +79,16 @@ def analyze(rows, qualified=False, grades_frozen=False):
         out['gaps'].append('quality ceiling/floor: quality claim withheld')
     else:
         out['verdict'] = verdict({k:v['bounds'] for k,v in out['contrasts'].items()})
+    if out['verdict']=='CLOSES GAP' and sum(r.get('status')=='FAILED' and r['arm']=='C' for r in rows)>sum(r.get('status')=='FAILED' and r['arm']=='B-briefed' for r in rows):
+        out['verdict']='INCONCLUSIVE'
+        out['gaps'].append('C has more FAILED cells than B-briefed: no savings claim')
     return out
 
 
 def report(rows, qualification, frozen_grades):
-    result = analyze(rows,qualified=qualification,grades_frozen=frozen_grades)
+    frozen=(isinstance(frozen_grades,dict) and frozen_grades.get('frozen') is True
+            and frozen_grades.get('scored_rows_sha256')==scored_rows_digest(rows))
+    result = analyze(rows,qualified=qualification,grades_frozen=frozen)
     result['quality']={a:{k:statistics.mean([r['metrics'][k] for r in rows if r['arm']==a and r.get('status') in {'COMPLETE','FAILED'} and type(r.get('metrics',{}).get(k)) in (int,float)])
                          if any(r['arm']==a and r.get('status') in {'COMPLETE','FAILED'} and type(r.get('metrics',{}).get(k)) in (int,float) for r in rows) else None
                          for k in ('recall','precision','cross_file_recall')} for a in ARMS}
@@ -97,6 +103,6 @@ if __name__ == '__main__':
     p.add_argument('--grades',type=Path,required=True); p.add_argument('--output',type=Path,required=True)
     a=p.parse_args()
     rows=[json.loads(x) for x in a.results.read_text().splitlines()]
-    value=report(rows,json.loads(a.qualification.read_text()).get('pass'),json.loads(a.grades.read_text()).get('frozen'))
+    value=report(rows,json.loads(a.qualification.read_text()).get('pass'),json.loads(a.grades.read_text()))
     if 'slice1' in a.output.parts: raise SystemExit('slice1 immutable')
     with a.output.open('x') as out: json.dump(value,out,indent=2)
