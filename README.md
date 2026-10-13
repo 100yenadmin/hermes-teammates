@@ -143,18 +143,20 @@ Ask in plain language:
 ## Compatibility
 
 - Requires Hermes **0.21.4 or newer**. CI runs against a pinned upstream commit and against `main`.
-- Runs with `plugins.isolation: in_process` (the default). Under `plugins.isolation: host`, current Hermes builds
-  cannot carry a subagent launch across the plugin-host boundary, so every tool except the roster answers
-  `unsupported_isolation` instead of failing in an odd way.
+- Runs with `plugins.isolation: in_process` (the default). Under `plugins.isolation: host`, every tool except the
+  roster answers `unsupported_isolation`. Hermes builds with NousResearch/hermes-agent#137167 can carry launches across
+  the plugin-host boundary. But calls made after a tool returns (the Kanban monitor) cannot yet resolve their parent
+  session, and the plugin cannot see the delegation depth or spawn pause from the host process.
 - Some features depend on the Hermes build. The plugin detects each one at call time and never quietly
   substitutes something else:
 
 | Teammate setting / feature | Needs in Hermes | When missing |
 |---|---|---|
 | `model` | any supported version | Must be served by the child's selected provider (normally inherited from the parent) |
-| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider` (upstream draft PR #133762) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, route without model asks the new provider for the parent's model id; set `model` with `route`. |
+| `delegation:` config (provider, model, reasoning effort) | provider and model: builds with #137167; reasoning effort: any supported version | Teammates use the parent's provider and model; `delegation.reasoning_effort` still applies to every teammate |
+| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; not yet in a tagged release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
-| steering | a lifecycle `steer`; today it goes through `delegate_task` steer with the live parent (in-process) | `teammate_message` returns `unsupported` |
+| steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
@@ -175,7 +177,8 @@ The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://g
   edit files even if its instructions say not to. Pick toolsets for what the teammate may do, not what it should
   do.
 - The plugin refuses nested teammates, checks Hermes's spawn-pause flag, and caps live runs per conversation.
-- Current Hermes cannot grant plugin toolsets (for example Spotify) to teammates; launch returns `launch_failed`.
+- Hermes builds before #137167 cannot grant plugin toolsets (for example Spotify) to teammates; launch returns
+  `launch_failed`. Newer builds accept them.
 
 ## How to test
 

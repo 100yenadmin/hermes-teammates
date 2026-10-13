@@ -1,5 +1,6 @@
 """Named assignments and retained results; lifecycle work is injected."""
 import contextvars
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import asdict, is_dataclass
 from functools import wraps
@@ -87,8 +88,23 @@ def public_row(row, summary_budget=8000):
     return result
 
 
-ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process on this Hermes build: the plugin host '
-                     'does not yet carry subagent launch requests or handles across its process boundary.')
+def as_dict(value):
+    """Lifecycle values are dataclasses in process and mappings when they cross a plugin-host wire."""
+    if is_dataclass(value):
+        return asdict(value)
+    if isinstance(value, Mapping):
+        return dict(value)
+    return vars(value)
+
+
+def handle_dict(handle):
+    to_dict = getattr(handle, 'to_dict', None)
+    return to_dict() if callable(to_dict) else as_dict(handle)
+
+
+ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process. Under the plugin host, Hermes cannot yet '
+                     'resolve the parent session for calls made after a tool returns (Kanban monitors), and the '
+                     'plugin cannot see the delegation depth or spawn pause it enforces.')
 
 
 class TeammatesService:
@@ -234,7 +250,7 @@ class TeammatesService:
         try:
             row = dict(run_id=run_id, teammate=teammate, owner_session_id=session_id,
                        goal=goal, status='running', subagent_id=handle.subagent_id,
-                       handle_json=json.dumps(handle.to_dict()), provider=handle.provider, model=handle.model,
+                       handle_json=json.dumps(handle_dict(handle)), provider=handle.provider, model=handle.model,
                        requested_route=teammate_config['route'], requested_effort=teammate_config['reasoning_effort'],
                        unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
                        kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
@@ -252,7 +268,8 @@ class TeammatesService:
     def _launch_failed(self, run_id, handle, claim, task_id, exc):
         message = f'{type(exc).__name__}: {clip(exc, 1500)}'
         if 'Unknown toolsets' in str(exc):
-            message += '; check the spelling; plugin toolsets cannot be granted to teammates on current Hermes'
+            message += ('; check the spelling. Hermes builds before NousResearch/hermes-agent#137167 cannot grant '
+                        'plugin toolsets to teammates')
         if handle is not None:
             with suppress(Exception):
                 self.host.service.cancel(handle, reason=clip(message, 500))
@@ -456,7 +473,7 @@ class TeammatesService:
             accepted = False
             try:
                 result = self.host.service.cancel(handle, reason=reason)
-                value = asdict(result) if is_dataclass(result) else vars(result)
+                value = as_dict(result)
                 accepted = bool(value.get('accepted'))
             finally:
                 # A refused repeat leaves the intent an earlier accepted stop recorded.

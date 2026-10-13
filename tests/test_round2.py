@@ -173,7 +173,7 @@ def test_f9_toolsets_are_trimmed_and_unknown_suffix_is_honest(rig):
         raise ValueError('Unknown toolsets: typo')
     rig.lifecycle.launch = launch
     result = rig.service.assign('s', 'worker', 'goal')
-    assert 'check the spelling; plugin toolsets cannot be granted' in result['message']
+    assert 'check the spelling. Hermes builds before NousResearch/hermes-agent#137167 cannot grant plugin toolsets' in result['message']
 
 
 def test_f10_invalid_roster_names_are_bounded_strings(rig):
@@ -336,3 +336,36 @@ def test_sweep_revisits_foreign_live_rows(rig, monkeypatch):
     assert rig.service.roster('s')['ok']
     with rig.store() as store:
         assert store.get('old', 'elsewhere')['status'] == 'interrupted'
+
+
+class WireRecord(dict):
+    """The plugin-host wire decodes dataclasses into a dict subclass with attribute reads."""
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+
+def test_wire_records_store_handles_and_read_cancel_results(rig):
+    original = rig.lifecycle.launch
+    def launch(request):
+        handle = original(request)
+        return WireRecord(handle.to_dict())
+    rig.lifecycle.launch = launch
+    run_id = rig.service.assign('s', 'worker', 'goal')['run_id']
+    with rig.store() as store:
+        row = store.get(run_id, 's')
+    assert json.loads(row['handle_json'])['subagent_id'] == row['subagent_id']
+    rig.lifecycle.cancel = lambda *a, **k: WireRecord(accepted=True, state='CANCEL_REQUESTED')
+    assert rig.service.stop('s', run_id, 'wire stop')['ok']
+    with rig.store() as store:
+        assert store.get(run_id, 's')['stop_reason'] == 'wire stop'
+
+
+def test_isolation_message_names_the_real_blockers(rig):
+    from hermes_teammates.teammates_service import ISOLATION_MESSAGE
+    rig.host.isolated = True
+    result = rig.service.assign('s', 'worker', 'goal')
+    assert result['error'] == 'unsupported_isolation'
+    assert 'in_process' in ISOLATION_MESSAGE and 'does not yet carry' not in ISOLATION_MESSAGE
