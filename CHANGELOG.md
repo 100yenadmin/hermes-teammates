@@ -2,7 +2,7 @@
 
 ## 0.2.2 (2026-10-14)
 
-- Successful run replies omit `error` when there is no error, so Hermes no longer mistakes that empty field for a tool failure. Actual tool errors keep their text and `ok: false`.
+- Successful `teammate_check` and `teammate_wait` calls are no longer counted as failed tool calls (#27). Run rows carried `"error": null`, and Hermes's generic failure check matches the text `"error"`, so every successful check or wait showed a failure marker and counted toward Hermes's repeated-failure guardrails. Rows now omit `error` when it is null. Real tool errors keep their text and `ok: false`. Remaining: a reply that lists a run with status `failed` near its start is still flagged by Hermes (upstream NousResearch/hermes-agent#91166).
 - `summary_clipped` stays true when a stop races with success and the added stop note hides that the result was cut.
 - Explaining one teammate keeps its definition even when many sibling definitions are invalid.
 - Explain replies show Hermes's delegation defaults for unset settings and add `delegation_sources` to distinguish defaults from configured values.
