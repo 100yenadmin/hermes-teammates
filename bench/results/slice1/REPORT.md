@@ -48,11 +48,11 @@ Every scalar metric below is mean [min–max], explicitly labelled. Missing data
 | total_tokens | 135079 [114208–175393] (OBSERVED; n=3) | 170595.667 [163466–176030] (OBSERVED; n=3) | 194697 [143748–237643] (OBSERVED; n=3) |
 | wall_s | 86.656 [65.242–103.369] (MODELED/OBSERVED; n=3) | 81.334 [80.271–83.440] (OBSERVED; n=3) | 86.048 [74.274–102.358] (OBSERVED; n=3) |
 
-Wall and token medians/IQR (inclusive quartiles; OBSERVED, successful executions only):
+Wall and token medians/IQR (inclusive quartiles; source metric labels, successful executions only):
 
 | Arm | Metric | Median | IQR | n |
 |---|---|---:|---:|---:|
-| A | wall_s | 91.357 OBSERVED | 19.063 OBSERVED | 3 OBSERVED |
+| A | wall_s | 91.357 MODELED/OBSERVED | 19.063 MODELED/OBSERVED | 3 OBSERVED |
 | A | parent_tokens | 115636 OBSERVED | 30592.500 OBSERVED | 3 OBSERVED |
 | A | total_tokens | 115636 OBSERVED | 30592.500 OBSERVED | 3 OBSERVED |
 | B | wall_s | 80.293 OBSERVED | 1.585 OBSERVED | 3 OBSERVED |
@@ -84,13 +84,13 @@ A1 model execution succeeded. Evidence JSON serialization failed on a binary ide
 
 ## Interpretation
 
+**Integrity: A1=CLEAN, B1=CLEAN, C1=CLEAN, A2=CLEAN, B2=CLEAN, C2=CLEAN, A3=CLEAN, B3=CLEAN, C3=CLEAN.** Verdicts cover preserved parent/child tool records, not filesystem syscall isolation; the original sandbox allowed worktree reads. No cells were rerun.
+
 The table describes this fixture and this model/build only. Equal scores are ties on this task; a small score or timing difference is descriptive, not proof of equivalence or superiority. Child-session overlap is measured separately from the requested parallelism. Ledger status is reported alongside state.db lineage, rather than treated as the sole child-completion oracle.
 
-Open-item evidence: CLI cells exercise in-process plugin tool registration; they do not qualify a separate embedded-AIAgent entry point. B uses foreground core fan-out, so -Q delivery of background delegate_task completions remains untested. The probe captures child API calls with child session IDs. All three requested models returned HTTP 200 in preflight; quota-window capacity remains unknown. Current Hermes defers teammate schemas through tool_search/tool_describe/tool_call: C wire-schema bytes exclude descriptions delivered as tool results, which remain in parent token accounting.
+Open-item evidence: CLI cells exercise in-process plugin tool registration; they do not qualify a separate embedded-AIAgent entry point. B uses foreground core fan-out, so -Q delivery of background delegate_task completions remains untested. The probe captures child API calls with child session IDs. Recorded preflight: glm-5.3 status=200; glm-5.2 status=200; glm-5.1 status=200; quota-window capacity remains unknown. Current Hermes defers teammate schemas through tool_search/tool_describe/tool_call: C wire-schema bytes exclude descriptions delivered as tool results, which remain in parent token accounting.
 
 ## DEVIATIONS
-
-- Declaration JSON-key order and trailing whitespace were normalized for checkpoint comparison and Git validation; no declared model, prompt, configuration, fixture or budget changed. The pre-normalization declaration is preserved in private evidence.
 
 - The spec's nine-cell ceiling supersedes the design's contested-cell n=6 extension and significance tests. We report means/min–max and medians/IQR; n=3 cannot establish parity or statistical significance.
 - The GLM key is staged only in each owned RUN's mode-0600 .env, as the spec's mandatory 0.1.3 recipe requires; the older design's environment-only key rule is superseded.
@@ -102,16 +102,4 @@ Open-item evidence: CLI cells exercise in-process plugin tool registration; they
 - A1 model execution succeeded. Evidence JSON serialization failed on a binary identity field; recovered from preserved DB/transcript without another call. failures=1 records this harness failure. wall_s is MODELED from evidence-directory birth time to preserved-transcript write time; precise driver timer and post-run workspace copy were lost during teardown.
 ## Reproduction and proof
 
-Run `python -m bench.orchestrate --evidence <absolute-evidence-dir>` using the existing Hermes venv from this worktree. The runner checks both pinned identities, writes DECLARED before cells, runs A1/B1/C1/A2/B2/C2/A3/B3/C3, checkpoints each cell, retries a quota error once after 60 seconds, and deletes every RUN after extraction. Results are synthetic benchmark evidence, not release, runtime, customer, or cross-harness readiness.
-
-## Acceptance receipts
-
-- Pinned Hermes plugin suite: 156 passed, 0 failed (39 upstream warnings), 30.64s OBSERVED.
-- Main Hermes plugin suite: 156 passed, 0 failed (38 upstream warnings), 32.29s OBSERVED.
-- Initial focused grader/extractor/report tests: 14 passed, 0 failed OBSERVED; binary-field recovery regression: 5 extractor tests passed, 0 failed OBSERVED.
-- Sandbox: isolated-home write, outside-RUN write denial, security execution denial and RUN teardown all passed (4 assertions OBSERVED). Sandboxed CLI accepts all five required flags OBSERVED.
-- Live evidence/fairness audit: 9 cells passed, 0 failed OBSERVED; all model/provider identities matched, B/C had four overlapping workers, C ledgers were fully terminal; zero RUN directories remained OBSERVED.
-- Runtime fetch/subprocess grep: zero matching runtime Python files OBSERVED (grep exit 1 is the expected clean result).
-- Git whitespace check: passed, zero errors OBSERVED.
-
-These are local validation and synthetic live-benchmark receipts. Remote PR CI/review, merge and release are separate gates.
+Run `python -m bench.orchestrate --evidence <fresh-absolute-evidence-dir> --results bench/results/repeat` using the existing Hermes venv from this worktree. The runner checks both pinned identities, writes DECLARED before cells, runs A1/B1/C1/A2/B2/C2/A3/B3/C3, checkpoints each cell, retries a quota error once after 60 seconds, and deletes every RUN after extraction. Results are synthetic benchmark evidence, not release, runtime, customer, or cross-harness readiness.

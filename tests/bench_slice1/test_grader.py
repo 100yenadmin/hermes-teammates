@@ -39,6 +39,14 @@ def test_duplicates_do_not_inflate_score():
     assert result['precision'] == 1
 
 
+def test_reworded_decoy_does_not_inflate_false_positives():
+    decoy = ORACLE['decoys'][0]
+    text = '\n'.join(f"{decoy['file']}:{decoy['line']} — {word} — change it"
+                     for word in ('range wrong', 'endpoint wrong'))
+    result = grade(text, ORACLE)
+    assert result['false_positives'] == 1 and result['duplicates'] == 1
+
+
 def test_empty_and_failed_outputs_score_zero():
     assert grade('', ORACLE)['f1'] == 0
     result = grade('\n'.join(finding(b) for b in ORACLE['bugs']), ORACLE, failed=True)

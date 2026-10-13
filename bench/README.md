@@ -3,7 +3,7 @@
 Run from the assigned plugin worktree with the existing pinned Hermes venv:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 /Users/m1/repos/worktrees/hermes-main-venv/.venv/bin/python -m bench.orchestrate --evidence /absolute/session-notes/artifacts/bench1
+PYTHONDONTWRITEBYTECODE=1 /Users/m1/repos/worktrees/hermes-main-venv/.venv/bin/python -m bench.orchestrate --evidence /absolute/session-notes/artifacts/bench1 --results bench/results/repeat
 ```
 
 The macOS driver requires `sandbox-exec` and `env -i`. It never installs dependencies,
@@ -13,7 +13,9 @@ in `finally`. The host ~/.hermes is read only through the authorized key-line gr
 The benchmark observer adds no tools and persists only scalar accounting metadata.
 
 `tasks/t1/fixture_gen.py` deterministically recreates the committed four-module corpus
-and oracle. Only `fixture/src` is staged into a cell; the model cannot see the oracle.
+and oracle. Only `fixture/src` and runtime-only plugin/probe copies are staged into a cell.
+Reads default to denied outside RUN and allowlisted Hermes/Python/OS runtime paths;
+the plugin worktree, task source, oracle and published results are unreadable.
 The grader accepts file:line with an em dash, en dash, hyphen or colon separator.
 Only final parent findings are scored, so worker findings omitted by synthesis are misses.
 Line ±3 and a declared keyword are necessary to match a planted bug. This is an automatic
@@ -29,7 +31,7 @@ identities, configs, fixture hash, metric definitions and quota rules. Execution
 A1/B1/C1/A2/B2/C2/A3/B3/C3. Checkpoints prevent completed cells from being rerun.
 A quota signal triggers one retry after 60 seconds; a persistent signal freezes the run.
 An interrupted, uncheckpointed attempt is preserved and requires manual disposition.
-For a separately authorized rerun, select a fresh evidence directory and pass
+For a separately authorized rerun, select a fresh evidence directory and explicitly pass
 `--results bench/results/repeat`; the published slice is never overwritten. The runner
 checks the pinned plugin runtime bytes, so committing the bench does not invalidate it.
 

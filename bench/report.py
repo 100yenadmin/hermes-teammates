@@ -27,7 +27,15 @@ def summary(rows, key, efficiency=False):
     return f'{number(statistics.mean(values))} [{number(min(values))}–{number(max(values))}] ({label}; n={len(values)})'
 
 
-def generate(results, output, preflight_rows, stop=None):
+def total_requests(rows, key):
+    metrics = [r['metrics'].get(key, {}) for r in rows]
+    if not metrics or any(m.get('value') is None for m in metrics):
+        return 'N/A (missing evidence)'
+    label = '/'.join(sorted({m.get('label', 'OBSERVED') for m in metrics}))
+    return f"{sum(m['value'] for m in metrics)} {label}"
+
+
+def generate(results, output, preflight_rows, stop=None, integrity=None):
     rows = [json.loads(line) for line in Path(results).read_text().splitlines()] if Path(results).exists() else []
     arms = {arm: [row for row in rows if row['arm'] == arm] for arm in 'ABC'}
     lines = ['# Slice 1: live T1 review', '',
@@ -47,29 +55,39 @@ def generate(results, output, preflight_rows, stop=None):
     for key in keys:
         efficiency = key in efficiency_keys or 'tokens' in key or 'api_calls' in key
         lines.append('| ' + key + ' | ' + ' | '.join(summary(arms[a], key, efficiency) for a in 'ABC') + ' |')
-    lines += ['', 'Wall and token medians/IQR (inclusive quartiles; OBSERVED, successful executions only):', '',
+    lines += ['', 'Wall and token medians/IQR (inclusive quartiles; source metric labels, successful executions only):', '',
               '| Arm | Metric | Median | IQR | n |', '|---|---|---:|---:|---:|']
     for arm, cells in arms.items():
         for key in ('wall_s', 'parent_tokens', 'total_tokens'):
-            values = [r['metrics'][key]['value'] for r in cells if r['status'] == 'COMPLETE' and r['metrics'][key]['value'] is not None]
+            metrics = [r['metrics'].get(key, {}) for r in cells if r['status'] == 'COMPLETE']
+            metrics = [m for m in metrics if m.get('value') is not None]
+            values = [m['value'] for m in metrics]
+            label = '/'.join(sorted({m.get('label', 'OBSERVED') for m in metrics}))
             if values:
                 quartiles = statistics.quantiles(values, n=4, method='inclusive') if len(values) > 1 else [values[0]] * 3
-                lines.append(f'| {arm} | {key} | {number(statistics.median(values))} OBSERVED | {number(quartiles[2] - quartiles[0])} OBSERVED | {len(values)} OBSERVED |')
-    calls = sum(r['metrics']['api_calls']['value'] or 0 for r in rows)
-    attempts = sum(r['metrics']['request_attempts']['value'] or 0 for r in rows)
+                lines.append(f'| {arm} | {key} | {number(statistics.median(values))} {label} | {number(quartiles[2] - quartiles[0])} {label} | {len(values)} OBSERVED |')
+    calls = total_requests(rows, 'api_calls')
+    attempts = total_requests(rows, 'request_attempts')
     lines += ['', '## Quota and failures', '',
-              f'Preflight: {len(preflight_rows)} request attempts OBSERVED. Cell API calls recorded by state.db: {calls} OBSERVED. Cell request attempts captured by the probe: {attempts} OBSERVED. Subscription-window quota remaining is unknown. Marginal spend: $0 MODELED from the existing Coding Plan grant; allocated subscription cost is not measured.', '',
+              f'Preflight: {len(preflight_rows)} request attempts OBSERVED. Cell API calls recorded by state.db: {calls}. Cell request attempts captured by the probe: {attempts}. Subscription-window quota remaining is unknown. Marginal spend: $0 MODELED from the existing Coding Plan grant; allocated subscription cost is not measured.', '',
               f'Stop: {stop or "none; the nine-cell ceiling was reached"}.', '',
               '| Cell | Status | Reason | Attempts | Workspace unchanged |', '|---|---|---|---:|---|']
     for row in rows:
-        unchanged = 'N/A' if row['workspace_unchanged'] is None else f'{row["workspace_unchanged"]} OBSERVED'
+        unchanged = 'N/A' if row.get('workspace_unchanged') is None else f'{row["workspace_unchanged"]} OBSERVED'
         lines.append(f'| {row["cell"]} | {row["status"]} | {row["reason"] or "none"} | {row.get("attempts", 1)} OBSERVED | {unchanged} |')
     lines += ['', *[row['recovery_note'] for row in rows if row.get('recovery_note')]]
+    integrity = integrity or {}
+    audit = ', '.join(f"{r['cell']}={integrity.get(r['cell'], 'UNKNOWN')}" for r in rows)
+    compromised = [r['cell'] for r in rows if integrity.get(r['cell']) != 'CLEAN']
+    preflight_text = '; '.join(f"{r['model']} status={r['status']}" for r in preflight_rows) or 'no recorded probes'
     lines += ['', '## Interpretation', '',
+              f'**Integrity: {audit or "no cells"}.** ' +
+              (f'Answer isolation is unproven for: {", ".join(compromised)}; do not treat these scores as clean benchmark evidence. ' if compromised else '') +
+              'Verdicts cover preserved parent/child tool records, not filesystem syscall isolation; the original sandbox allowed worktree reads. No cells were rerun.', '',
               'The table describes this fixture and this model/build only. Equal scores are ties on this task; a small score or timing difference is descriptive, not proof of equivalence or superiority. Child-session overlap is measured separately from the requested parallelism. Ledger status is reported alongside state.db lineage, rather than treated as the sole child-completion oracle.', '',
-              'Open-item evidence: CLI cells exercise in-process plugin tool registration; they do not qualify a separate embedded-AIAgent entry point. B uses foreground core fan-out, so -Q delivery of background delegate_task completions remains untested. The probe captures child API calls with child session IDs. All three requested models returned HTTP 200 in preflight; quota-window capacity remains unknown. Current Hermes defers teammate schemas through tool_search/tool_describe/tool_call: C wire-schema bytes exclude descriptions delivered as tool results, which remain in parent token accounting.', '',
+              f'Open-item evidence: CLI cells exercise in-process plugin tool registration; they do not qualify a separate embedded-AIAgent entry point. B uses foreground core fan-out, so -Q delivery of background delegate_task completions remains untested. The probe captures child API calls with child session IDs. Recorded preflight: {preflight_text}; quota-window capacity remains unknown. Current Hermes defers teammate schemas through tool_search/tool_describe/tool_call: C wire-schema bytes exclude descriptions delivered as tool results, which remain in parent token accounting.', '',
               '## DEVIATIONS', '', DEVIATIONS + '\n' + '\n'.join('- ' + row['recovery_note'] for row in rows if row.get('recovery_note')), '## Reproduction and proof', '',
-              'Run `python -m bench.orchestrate --evidence <absolute-evidence-dir>` using the existing Hermes venv from this worktree. The runner checks both pinned identities, writes DECLARED before cells, runs A1/B1/C1/A2/B2/C2/A3/B3/C3, checkpoints each cell, retries a quota error once after 60 seconds, and deletes every RUN after extraction. Results are synthetic benchmark evidence, not release, runtime, customer, or cross-harness readiness.', '']
+              'Run `python -m bench.orchestrate --evidence <fresh-absolute-evidence-dir> --results bench/results/repeat` using the existing Hermes venv from this worktree. The runner checks both pinned identities, writes DECLARED before cells, runs A1/B1/C1/A2/B2/C2/A3/B3/C3, checkpoints each cell, retries a quota error once after 60 seconds, and deletes every RUN after extraction. Results are synthetic benchmark evidence, not release, runtime, customer, or cross-harness readiness.', '']
     Path(output).write_text('\n'.join(lines))
 
 
@@ -79,4 +97,5 @@ if __name__ == '__main__':
     parser.add_argument('--evidence', type=Path, required=True)
     args = parser.parse_args()
     root = Path(__file__).resolve().parent / 'results/slice1'
-    generate(root / 'results.jsonl', root / 'REPORT.md', json.loads((args.evidence / 'preflight.json').read_text()))
+    generate(root / 'results.jsonl', root / 'REPORT.md', json.loads((args.evidence / 'preflight.json').read_text()),
+             integrity=json.loads((args.evidence / 'INTEGRITY.json').read_text()) if (args.evidence / 'INTEGRITY.json').exists() else None)

@@ -65,6 +65,33 @@ def prompt(arm):
     return text + '\n' + mechanism + '\nGoals (copy exactly):\n' + '\n'.join(briefs) + '\n'
 
 
+def sandbox_profile(run):
+    # Deny reads by default; no plugin checkout or published benchmark access.
+    python_home = subprocess.check_output(
+        [str(HERMES / '.venv/bin/python'), '-c', 'import sys; print(sys.base_prefix)'],
+        text=True, env={'HERMES_DISABLE_LAZY_INSTALLS': '1'}).strip()
+    directories = [run, python_home, HERMES / '.venv', '/System', '/usr/lib',
+                   '/usr/share', '/bin', '/sbin', '/usr/bin', '/usr/sbin', '/dev']
+    directories += [HERMES / name for name in
+                    ('agent', 'hermes_cli', 'tools', 'hermes_platform', 'providers',
+                     'gateway', 'cron', 'pm', 'assets', 'locales', 'hermes_agent.egg-info')]
+    files = list(HERMES.glob('*.py')) + [Path('/'), HERMES / 'pyproject.toml',
+             Path('/private/etc/resolv.conf'), Path('/private/etc/hosts'),
+             Path('/private/etc/localtime'), Path('/private/etc/services')]
+    reads = ' '.join(f'(subpath {json.dumps(str(Path(p).resolve()))})' for p in directories)
+    reads += ' ' + ' '.join(f'(literal {json.dumps(str(p.resolve()))})' for p in files)
+    parents = {str(parent) for p in directories + files + [Path(os.readlink(HERMES / '.venv/bin/python'))]
+               for parent in Path(p).parents}
+    metadata = ' '.join(f'(literal {json.dumps(p)})' for p in sorted(parents))
+    return ('(version 1)\n(allow default)\n(deny file-read*)\n'
+            f'(allow file-read* {reads})\n(allow file-read-metadata {metadata})\n'
+            '(deny file-write*)\n'
+            f'(allow file-write* (subpath {json.dumps(str(run.resolve()))}) '
+            '(literal "/dev/null") (literal "/dev/zero") (literal "/dev/dtracehelper") '
+            '(regex #"^/dev/tty") (regex #"^/dev/fd/"))\n'
+            '(deny process-exec (literal "/usr/bin/security"))\n')
+
+
 @contextmanager
 def isolated(model, arm='A'):
     base = Path(os.environ.get('TMPDIR', tempfile.gettempdir())).resolve()
@@ -80,21 +107,21 @@ def isolated(model, arm='A'):
             out.write(f'GLM_BASE_URL={ENDPOINT}\n'.encode())
         # JSON is valid YAML, and avoids requiring a separate YAML writer.
         (run / 'hermes/config.yaml').write_text(json.dumps(config(arm, model)))
-        (run / 'hermes/plugins/hermes-teammates').symlink_to(ROOT, target_is_directory=True)
+        plugin = run / 'hermes/plugins/hermes-teammates'
+        plugin.mkdir()
+        for name in ('__init__.py', 'plugin.yaml', 'teammates_config.py', 'teammates_host.py',
+                     'teammates_service.py', 'teammates_store.py', 'teammates_tools.py'):
+            shutil.copy2(ROOT / name, plugin / name)
+        shutil.copytree(ROOT / 'bench/probe', run / 'probe', ignore=shutil.ignore_patterns('__pycache__'))
+        shutil.copy2(ROOT / 'bench/preflight.py', run / 'preflight.py')
         shutil.copytree(TASK / 'fixture/src', run / 'work/src')
-        (run / 'sb.sb').write_text('''(version 1)
-(allow default)
-(deny file-write*)
-(allow file-write* (subpath "''' + str(run) + '''") (literal "/dev/null") (literal "/dev/zero") (literal "/dev/dtracehelper") (regex #"^/dev/tty") (regex #"^/dev/fd/"))
-(deny file-read* (subpath "/Users/m1/.hermes"))
-(deny process-exec (literal "/usr/bin/security"))
-''')
+        (run / 'sb.sb').write_text(sandbox_profile(run))
         env = {'HOME': str(run / 'home'), 'USER': 'm1', 'LOGNAME': 'm1', 'LANG': 'en_US.UTF-8',
                'TMPDIR': str(run / 'tmp'), 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
                'HERMES_HOME': str(run / 'hermes'), 'HERMES_DISABLE_LAZY_INSTALLS': '1',
                'PYTHONPYCACHEPREFIX': str(run / 'pycache'), 'TERMINAL_HOME_MODE': 'profile',
                'TERMINAL_CWD': str(run / 'work'), 'HERMES_PLUGIN_PAYLOAD_MAX_CHARS': '2000000',
-               'PYTHONPATH': f'{ROOT / "bench/probe"}:{HERMES}:{ROOT}',
+               'PYTHONPATH': f'{run / "probe"}:{HERMES}',
                'TMBENCH_PROBE': str(run / 'probe.jsonl')}
         launcher = ['/usr/bin/env', '-i', *[f'{k}={v}' for k, v in env.items()],
                     '/usr/bin/sandbox-exec', '-f', str(run / 'sb.sb'), str(HERMES / '.venv/bin/python')]
@@ -116,7 +143,7 @@ def redact(data, run):
 def preflight(evidence):
     """Three same-endpoint 1-token probes; one quota retry after 60s, no alternate key."""
     with isolated('glm-5.3') as (run, launcher, _):
-        completed = subprocess.run(launcher + ['-m', 'bench.preflight'], cwd=run / 'work',
+        completed = subprocess.run(launcher + [str(run / 'preflight.py')], cwd=run / 'work',
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=260, text=True)
         rows = json.loads(completed.stdout)
         write_json(evidence / 'preflight.json', rows)
@@ -133,6 +160,28 @@ def copy_db(source, target):
             src.backup(dst)
 
 
+def checkpoint_errors(function):
+    def checked(arm, rep, model, evidence, attempt=1):
+        destination = evidence / f'{arm}{rep}' / f'attempt{attempt}'
+        receipt = destination / 'cell.json'
+        if receipt.exists():
+            return json.loads(receipt.read_text())
+        try:
+            return function(arm, rep, model, evidence, attempt)
+        except Exception as error:
+            if not destination.is_dir():
+                raise
+            row = {'cell': f'{arm}{rep}', 'arm': arm, 'rep': rep, 'model': model,
+                   'attempt': attempt, 'status': 'FAILED', 'reason': 'harness_error',
+                   'error_type': type(error).__name__, 'pass': False, 'workspace_unchanged': None,
+                   'metrics': {k: observed(v) for k, v in
+                               {'recall': 0, 'precision': 0, 'f1': 0, 'failures': 1}.items()}}
+            write_json(receipt, row)
+            return row
+    return checked
+
+
+@checkpoint_errors
 def run_attempt(arm, rep, model, evidence, attempt=1):
     destination = evidence / f'{arm}{rep}' / f'attempt{attempt}'
     destination.mkdir(parents=True, exist_ok=False)
@@ -175,6 +224,12 @@ def run_attempt(arm, rep, model, evidence, attempt=1):
         (destination / 'stderr.log').write_text(errors)
         if (run / 'probe.jsonl').exists():
             shutil.copy2(run / 'probe.jsonl', destination / 'probe.jsonl')
+        # Preserve synthetic source before any extraction/grading can fail.
+        source = run / 'work/src'
+        source_present = source.is_dir() and not source.is_symlink()
+        if source_present:
+            shutil.copytree(source, destination / 'workspace/src', symlinks=True)
+        write_json(destination / 'workspace-state.json', {'source_present': source_present})
         events = []
         for line in stream.splitlines():
             try:
@@ -192,6 +247,7 @@ def run_attempt(arm, rep, model, evidence, attempt=1):
         text = final.get('text', '')
         reason = ('quota' if quota else 'timeout' if timeout else
                   'process_error' if process.returncode or final.get('exit_code') else
+                  'workspace_missing' if not source_present else
                   'missing_final' if not text else 'missing_state' if not extracted['sessions'] else None)
         score = grade(text, json.loads((TASK / 'oracle.json').read_text()), failed=bool(reason))
         write_json(destination / 'grade.json', score)
@@ -206,6 +262,4 @@ def run_attempt(arm, rep, model, evidence, attempt=1):
                'hermes_sha': HERMES_SHA, 'plugin_sha': PLUGIN_SHA, 'env_names': env_names,
                'config_hash': hashlib.sha256(json.dumps(config(arm, model), sort_keys=True).encode()).hexdigest()}
         write_json(destination / 'cell.json', row)
-        # Workspace source is synthetic. Credentials/config homes are never copied.
-        shutil.copytree(run / 'work/src', destination / 'workspace/src')
         return row

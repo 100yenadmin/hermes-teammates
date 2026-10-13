@@ -6,7 +6,7 @@ FINDING = re.compile(r'(?:src/)?([\w-]+\.py)[` ]*:\s*(\d+)(?:[-–]\d+)?[` ]*\s*
 
 def grade(text, oracle, failed=False):
     found, false, duplicates, parsed = set(), [], 0, []
-    seen = set()
+    seen, false_locations = set(), set()
     for match in FINDING.finditer(text):
         file, line, description = match.groups()
         item = {'file': file, 'line': int(line), 'description': description.strip()}
@@ -28,7 +28,10 @@ def grade(text, oracle, failed=False):
                 found.add(fresh['id'])
             else:
                 duplicates += 1
+        elif (file, int(line)) in false_locations:
+            duplicates += 1
         else:
+            false_locations.add((file, int(line)))
             false.append(item)
     tp = len(found) if not failed else 0
     fp = len(false)

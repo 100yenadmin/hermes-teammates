@@ -27,7 +27,7 @@ def declaration(model, probes):
                 '## Metrics and grader', '',
                 'Grader v1: parse file:line — description — fix; match file basename, line ±3 and any declared bug-class keyword. Eight planted bugs; four correct decoys. One finding matches at most one bug; repeated findings do not increase TP or FP. Any unmatched parsed finding is a false positive. Precision=TP/(TP+FP), recall=TP/8, F1=harmonic mean; empty output scores zero. Execution failure scores zero and remains in quality denominators. Perfect pass requires all eight bugs and zero FP.',
                 'OBSERVED: grade counts/rates; process wall time; parent/child/total input, output, cache read/write and reasoning buckets, API calls, session count and interval-overlap peak from state.db; ledger run count and terminal coverage; compact UTF-8 JSON tool-schema bytes, parent prompt-token peak and request attempts from the bench observer; failure/timeout counts. Tokens total sums input+output+cache_read+cache_write; reasoning is already in output and is not added twice. Missing data is null. MODELED: quota estimate and $0 subscription marginal spend. No notional USD conversion without a verified price table.',
-                'No memory/rules adoption; --ignore-rules, fresh empty homes, no MCP or auth files. Every process uses env -i, disabled lazy installs, RUN-local Python caches, and sandbox-exec. The sandbox denies host ~/.hermes reads, all writes outside RUN (except device sinks), and /usr/bin/security execution. Only the GLM_API_KEY line is copied into a mode-0600 cell .env and destroyed with RUN.', '',
+                'No memory/rules adoption; --ignore-rules, fresh empty homes, no MCP or auth files. Every process uses env -i, disabled lazy installs, RUN-local Python caches, and sandbox-exec. The sandbox denies reads outside RUN and allowlisted runtime paths, and all writes outside RUN (except device sinks), and /usr/bin/security execution. Only the GLM_API_KEY line is copied into a mode-0600 cell .env and destroyed with RUN.', '',
                 '## Prompts and arm configs (secrets omitted)']
     for arm in 'ABC':
         sections += ['', f'### Arm {arm}', '', '```text', prompt(arm), '```', '```json', json.dumps(config(arm, model), indent=2), '```']
@@ -40,10 +40,10 @@ def combine(attempts):
     final['attempts'] = len(attempts)
     final['metrics'] = dict(final['metrics'])
     # Account for quota-retry usage/wall, preserving the final quality grade.
-    additive = {'wall_s', 'api_calls', 'parent_api_calls', 'child_api_calls', 'request_attempts', 'children_n'}
+    additive = {'wall_s', 'api_calls', 'parent_api_calls', 'child_api_calls', 'request_attempts', 'probe_child_calls', 'children_n'}
     additive |= {key for key in final['metrics'] if 'tokens' in key and key != 'parent_peak_prompt_tokens'}
     for key in additive:
-        values = [r['metrics'][key]['value'] for r in attempts]
+        values = [r['metrics'].get(key, {}).get('value') for r in attempts]
         final['metrics'][key] = {'value': sum(values) if all(v is not None for v in values) else None, 'label': 'OBSERVED'}
     final['metrics']['failure_attempts'] = {'value': sum(r['status'] == 'FAILED' for r in attempts), 'label': 'OBSERVED'}
     return final
@@ -52,7 +52,7 @@ def combine(attempts):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--evidence', type=Path, required=True)
-    parser.add_argument('--results', type=Path, default=ROOT / 'bench/results/slice1')
+    parser.add_argument('--results', type=Path, required=True)
     args = parser.parse_args()
     if Path.cwd().resolve() != ROOT:
         raise SystemExit('Run from the assigned plugin worktree')
@@ -72,6 +72,8 @@ def main():
     output = args.results.resolve()
     if not output.is_relative_to(ROOT / 'bench/results'):
         raise SystemExit('Results must stay under the worktree bench/results directory')
+    if output == ROOT / 'bench/results/slice1':
+        raise SystemExit('Published slice is immutable; choose a fresh results directory')
     output.mkdir(parents=True, exist_ok=True)
     probes_file = evidence / 'preflight.json'
     if probes_file.exists():
