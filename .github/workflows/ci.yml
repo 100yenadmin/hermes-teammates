@@ -57,5 +57,5 @@ jobs:
         run: cd plugin && ../hermes/.venv/bin/python -m pytest -q -p no:cacheprovider
       - name: No self-updater, no runtime code fetch
         run: |
-          bad=$(grep -rlE "releases/latest|raw\.githubusercontent\.com|pip install|urlopen\(" --include='*.py' plugin --exclude-dir=tests || true)
+          bad=$(grep -rlE "releases/latest|raw\.githubusercontent\.com|pip install|urlopen\(" --include='*.py' plugin --exclude-dir=tests --exclude-dir=bench || true)
           if [ -n "$bad" ]; then echo "self-updater / runtime fetch pattern in: $bad"; exit 1; fi

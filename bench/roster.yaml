@@ -1,0 +1,4 @@
+reviewer:
+  description: Review one Python module for concrete bugs
+  instructions: "Review only the assigned module. Report each concrete bug as file:line — bug — fix. Do not edit files. Do not report style issues or speculative problems."
+  toolsets: [file, terminal]
