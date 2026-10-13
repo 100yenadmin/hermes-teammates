@@ -17,6 +17,7 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
   - A teammate's `toolsets` are passed to Hermes as `allowed_toolsets`.
   - Hermes rejects any set that would widen the parent's tools, and it keeps its own unsafe-tool block for every
     subagent.
+  - By default Hermes adds the parent's MCP toolsets back to a teammate with narrowed `toolsets` (`delegation.inherit_mcp_toolsets: true`); set it to `false` for a strict intersection.
   - Absent or null `toolsets` inherit. Unknown keys, wrong field types or invalid/empty `toolsets` refuse launch.
 - **Credentials.** Hermes supplies the parent's credentials, or the operator-configured provider's when route is
   supported. The model cannot choose credentials. The plugin never reads, stores or logs API keys or tokens.
@@ -44,8 +45,9 @@ through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`).
 
 ## Known limits
 
-- Steering goes through Hermes's `delegate_task` steer with the parent agent bound to the current turn, so it is
-  available only when the plugin runs in-process. Under `plugins.isolation: host`, every tool except the roster
+- Steering uses Hermes's lifecycle `steer` on builds with NousResearch/hermes-agent#137167, and otherwise
+  `delegate_task`'s steer with the parent agent bound to the current turn. Either way it is available only when the
+  plugin runs in-process. Under `plugins.isolation: host`, every tool except the roster
   refuses with `unsupported_isolation`.
 - Plugin reloads in the same process preserve live runs. After a Hermes restart, first plugin use marks unfinished
   runs from dead processes `interrupted`; they are never re-run. A lane card claimed by

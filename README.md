@@ -80,9 +80,9 @@ The **Teammates** field takes JSON like this:
     "toolsets": ["file", "terminal"]
   },
   "scout": {
-    "description": "Fast read-only researcher.",
-    "instructions": "Find the facts asked for. Quote sources. Do not edit files.",
-    "toolsets": ["web", "file"]
+    "description": "Fast web researcher.",
+    "instructions": "Find the facts asked for. Quote sources.",
+    "toolsets": ["web"]
   }
 }
 ```
@@ -109,9 +109,9 @@ plugins:
             instructions: "Review the change you are given. Report findings with file:line and a fix."
             toolsets: [file, terminal]
           scout:
-            description: "Fast read-only researcher."
-            instructions: "Find the facts asked for. Quote sources. Do not edit files."
-            toolsets: [web, file]
+            description: "Fast web researcher."
+            instructions: "Find the facts asked for. Quote sources."
+            toolsets: [web]
             model: null            # same provider as the parent; see Compatibility
         lane: teammates            # Kanban assignee for the teammates lane (must not be a profile name)
         max_live_runs: 4           # per conversation
@@ -154,7 +154,7 @@ Ask in plain language:
 |---|---|---|
 | `model` | any supported version | Must be served by the child's selected provider (normally inherited from the parent) |
 | `delegation:` config (provider, model, reasoning effort) | provider and model: builds with #137167; reasoning effort: any supported version | Teammates use the parent's provider and model; `delegation.reasoning_effort` still applies to every teammate |
-| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; not yet in a tagged release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
+| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; first in the v0.21.7 canary of 2026-10-13; not yet in a stable release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
@@ -175,7 +175,7 @@ The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://g
   card is blocked when its monitor detects the lost handle (also after `/new`); the child may continue without a recoverable result.
 - **Toolsets narrow, but they are Hermes toolsets.** `file` includes write tools, so a teammate with `file` can
   edit files even if its instructions say not to. Pick toolsets for what the teammate may do, not what it should
-  do.
+  do. By default Hermes adds the parent's MCP toolsets back to a teammate with narrowed `toolsets` (`delegation.inherit_mcp_toolsets: true`); set it to `false` for a strict intersection.
 - The plugin refuses nested teammates, checks Hermes's spawn-pause flag, and caps live runs per conversation.
 - Hermes builds before #137167 cannot grant plugin toolsets (for example Spotify) to teammates; launch returns
   `launch_failed`. Newer builds accept them.
