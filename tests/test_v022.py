@@ -147,3 +147,34 @@ def test_explain_missing_hermes_default_stays_unknown(rig, monkeypatch):
     assert teammate['delegation'] == {key: 'unknown' for key in
         ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds')}
     assert teammate['delegation_sources'] == {key: 'unknown' for key in teammate['delegation']}
+
+
+@pytest.mark.parametrize('field,value', [
+    ('model', 'm' * 101), ('route', 'r' * 101), ('reasoning_effort', 'e' * 101),
+    ('toolsets', ['t' * 20000]), ('toolsets', ['t' * 49]), ('toolsets', ['file system']),
+    ('toolsets', [f'set{i}' for i in range(25)]), ('toolsets', ['ファイル']),
+])
+def test_unbounded_definition_fields_are_config_errors(rig, field, value):
+    rig.raw['teammates']['worker'][field] = value
+    reply = rig.service.roster('owner', teammate='worker')
+    assert reply['ok'] is False and reply['error'] == 'config_error', reply
+    assert len(json.dumps(reply)) <= 16000
+
+
+def test_largest_valid_definition_fits_with_flagged_instructions(rig):
+    rig.raw['teammates']['worker'].update(
+        description='説' * 300, instructions='指示' * 2000, model='m' * 100, route='r' * 100,
+        reasoning_effort='e' * 100, toolsets=[f'{i:02d}' + 'x' * 46 for i in range(24)])
+    reply = rig.service.roster('owner', teammate='worker')
+    assert reply['ok'], reply
+    assert [t['name'] for t in reply['teammates']] == ['worker']
+    definition = reply['teammates'][0]['definition']
+    assert definition['instructions_clipped'] is True
+    assert 0 < len(definition['instructions']) < 4000
+    assert definition['toolsets'] == rig.raw['teammates']['worker']['toolsets']
+    assert len(json.dumps(reply)) <= 16000
+
+
+def test_ordinary_explain_is_not_flagged_clipped(rig):
+    definition = rig.service.roster('owner', teammate='worker')['teammates'][0]['definition']
+    assert 'instructions_clipped' not in definition and definition['instructions'] == 'Be careful'

@@ -730,6 +730,12 @@ class TeammatesService:
                     entries.pop()
                     break
             else:
+                # Last resort for an explained teammate: halve its instructions, flagged, before overflowing.
+                definition = teammates[0].get('definition') if selected is not None and teammates else None
+                if definition and definition.get('instructions'):
+                    teammates[0]['definition'] = dict(definition, instructions_clipped=True,
+                                                      instructions=definition['instructions'][:len(definition['instructions']) // 2])
+                    continue
                 lane['name'] = clip(lane['name'], 300)
                 break
         return value
