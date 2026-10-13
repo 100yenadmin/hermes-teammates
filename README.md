@@ -198,7 +198,7 @@ The first live slice ran one code-review task three ways on the same model (GLM 
 | C, teammates (0.1.3) | 8 | 52k | 195k | 6.3 | 86 s |
 
 All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating cut the parent's cumulative token use 2.6–4.2× (its peak prompt about 1.6×), cost 26–44% more tokens in total, and was not faster here. Teammates made about twice
-as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` and completion notices in 0.2.0 are meant to remove.
+as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` in 0.2.0 is meant to cut (not yet re-measured).
 An audit of every recorded tool call found no run read the answer key. These are means of 3 runs, without significance tests.
 
 Full report, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md). The `$0` mechanics benchmarks
@@ -213,9 +213,10 @@ Full report, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/r
   recovered or re-run. Plugin reloads within the same process preserve live runs. A lane card's claim expires through Kanban's normal TTL.
 - **Runs belong to the conversation that started them.** Another chat on the same profile cannot see, steer or
   stop them.
-- **A context compression starts a new conversation segment.** Hermes gives the conversation a new session id when
-  it compresses, and runs belong to the segment that started them. Earlier runs then answer `unknown_run`. A lane
-  card is blocked when its monitor detects the lost handle (also after `/new`); the child may continue without a recoverable result.
+- **Runs belong to the conversation that started them.** Hermes' default in-place compression (`compression.in_place: true`)
+  keeps the session id, so runs survive it. In rotation mode (`in_place: false`) and after `/new`, the conversation gets a new
+  session id and earlier runs answer `unknown_run`. A lane card is blocked when its monitor detects the lost handle; the child
+  may continue without a recoverable result.
 - **Toolsets narrow, but they are Hermes toolsets.** `file` includes write tools, so a teammate with `file` can
   edit files even if its instructions say not to. Pick toolsets for what the teammate may do, not what it should
   do. By default Hermes adds the parent's MCP toolsets back to a teammate with narrowed `toolsets` (`delegation.inherit_mcp_toolsets: true`); set it to `false` for a strict intersection.
