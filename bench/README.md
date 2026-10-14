@@ -44,7 +44,9 @@ For a separately authorized rerun, select a fresh evidence directory and explici
 `--results bench/results/repeat`; the published slice is never overwritten. The runner
 checks the pinned plugin runtime bytes, so committing the bench does not invalidate it.
 
-Only `results.jsonl`, `DECLARED.md` and `REPORT.md` under `results/slice1` enter Git.
+Only `results.jsonl`, `DECLARED.md` and `REPORT.md` under `results/slice1` enter Git. Under `results/slice2` only
+`REPORT.md`, `results.jsonl`, `report.json` and `exploratory.json` do. The slice-2 hidden oracles, answers and judge findings
+stay unpublished while later slices reuse the T1 cases; the manifest keeps the oracle hash.
 Transcripts, synthetic workspace copies, database backups, extracted accounting and
 grades stay in the evidence directory. The results establish neither statistical
 significance nor Claude Code/Codex parity. There is no release or customer claim.
