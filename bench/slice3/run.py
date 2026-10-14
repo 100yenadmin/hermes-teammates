@@ -394,7 +394,9 @@ def main(argv=None):
         from bench.slice3.cases import SCORED
         write_json(args.output, analyze(value, cases=SCORED, dropped_cases=args.drop_case))
     else:
-        args.output.write_text(report(value))
+        calibration = args.directory.parent / 'calibration.json'
+        ceiling_roles = json.loads(calibration.read_text()).get('ceiling_roles', ()) if calibration.exists() else ()
+        args.output.write_text(report(value, ceiling_roles=ceiling_roles))
     return 0
 
 

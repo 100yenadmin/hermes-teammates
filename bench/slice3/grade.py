@@ -82,7 +82,10 @@ def _content(text):
                 else:
                     lines.extend(obj.splitlines())
 
-        leaves(value)
+        try:
+            leaves(value)
+        except RecursionError:
+            return dict(lines=text.splitlines(), envelope=False)
         return dict(lines=lines, envelope=True)
     return dict(lines=text.splitlines(), envelope=False)
 
@@ -105,10 +108,10 @@ def _citations(text):
 def _findings(text):
     rows = []
     for line in text.splitlines():
-        line = _plain(line, keep_bullet=True)
+        line = _plain(re.sub(r'^\d+[.)]\s+', '', line.strip()), keep_bullet=True)
         candidate = (re.match(r'^- [^\s:|]+:[0-9]', line)
                      or re.search(r'\|\s*P[123]\s*\|', line)
-                     or re.match(r'^\[?P[123]\]?\s*[:|)\]—-]', _plain(line)))
+                     or re.match(r'^\[?P[123]\]?(?:\s*[:|)\]—–-]|\s+(?!(?:and|or)\b)[^\s/,])', _plain(line)))
         if candidate:
             match = _FINDING.fullmatch(line)
             start = _line_number(match[2]) if match else 0
@@ -164,6 +167,8 @@ def _red_receipt(receipts, filename):
 def _invokes_pytest(command):
     if not isinstance(command, str):
         return False
+    if '\n' in command:
+        return any(_invokes_pytest(line) for line in command.splitlines())
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=';&|')
         lexer.whitespace_split = True
@@ -196,7 +201,7 @@ def _invokes_pytest(command):
 
 def _node_receipt(receipts, node):
     for receipt in receipts:
-        if (receipt.get('tool') != 'terminal' or receipt.get('exit_code') not in (None, 1)
+        if (receipt.get('tool') != 'terminal'
                 or not _invokes_pytest(receipt.get('args', {}).get('command', ''))):
             continue
         result = receipt.get('result_text', '')
@@ -217,7 +222,7 @@ def _node_receipt(receipts, node):
                for line in lines):
             continue
         for line in lines:
-            match = re.fullmatch(r'(?:FAILED (\S+)|(\S+) FAILED)(?: - .*)?', line)
+            match = re.fullmatch(r'(?:FAILED (\S+)|(\S+) FAILED(?:\s+\[\s*\d+%\])?)(?: - .*)?', line)
             failed = (match[1] or match[2]) if match else ''
             if failed == node or failed.endswith('/' + node):
                 return True
@@ -289,7 +294,7 @@ def _mechanism_patterns(terms):
 
 
 def _names_mechanism(text, terms):
-    text = text.casefold().replace('*', '').replace('`', '')
+    text = text.casefold().replace('’', "'").replace('*', '').replace('`', '')
     return any(pattern.search(text) for pattern in _mechanism_patterns(tuple(terms)))
 
 
@@ -404,7 +409,7 @@ def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, rece
         citation = oracle_turn['citation']
         valid_cite = any(file == citation['file'] and abs(line - citation['line']) <= 2
                          and _safe_file(workspace, file) is not None for file, line in _citations('\n'.join(lines)))
-        success = len(answers) == 1 and answers.pop() in _accepted_answers(oracle_turn) and valid_cite
+        success = bool(answers) and all(answer in _accepted_answers(oracle_turn) for answer in answers) and valid_cite
         return {'success': bool(success), 'fp': None, 'detail': 'answer and planted citation' if success else 'answer or citation mismatch'}
     if role == 'reviewer':
         lines = _content(text)['lines']
@@ -417,8 +422,8 @@ def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, rece
                 findings.append(None)
                 continue
             path = bug['file'] if bug and _matches_path(finding['file'], bug['file']) else finding['file']
-            named = bool(bug and _names_mechanism(finding['problem'] + ' ' + finding['fix'], bug['terms']))
-            key = (path, finding['line_from'], finding['line_to'], finding['priority'], named)
+            content = ' '.join((finding['problem'] + ' ' + finding['fix']).casefold().split())
+            key = (path, finding['line_from'], finding['line_to'], finding['priority'], content)
             if key not in seen:
                 seen.add(key)
                 findings.append(finding)
@@ -445,18 +450,18 @@ _NEGATIONS = {"not", "no", "never", "don't", "dont", "cannot", "can't", "won't",
 
 
 def _negated(text, start):
-    sentence = re.split(r'[.!?\n]', text[:start])[-1]
-    words = re.findall(r"\b[\w']+\b", sentence)
+    clause = re.split(r'[.!?;:,\n—–]|\bbut\b', text[:start])[-1]
+    words = re.findall(r"\b[\w']+\b", clause)
     return any(word in _NEGATIONS for word in words[-3:])
 
 
 def delivered(role, oracle_turn, parent_reply: str, workspace: Path) -> bool:
-    reply = parent_reply.casefold().replace('*', '').replace('`', '')
+    reply = parent_reply.casefold().replace('’', "'").replace('*', '').replace('`', '')
     if role == 'scout':
         answers = [_normal(_plain(line).removeprefix('answer: ')) for line in reply.splitlines()
                    if re.fullmatch(r'answer: .+', _plain(line))]
         if answers:
-            return answers[-1] in _accepted_answers(oracle_turn)
+            reply = answers[-1]
         # Token boundaries prevent 14 from being delivered by 142 (or an identifier suffix).
         reply = re.sub(r'[^\S\n]+', ' ', reply)
         return any(not _negated(reply, match.start()) for answer in _accepted_answers(oracle_turn)
@@ -467,9 +472,9 @@ def delivered(role, oracle_turn, parent_reply: str, workspace: Path) -> bool:
                     if (match := re.fullmatch(r'verdict\s*[:—-]\s*(approve|request-changes|request changes)\s*', _plain(line)))]
         stance = explicit[-1] if explicit else None
         if not explicit:
-            for match in re.finditer(r'(?<!\w)(request-changes|request changes|requests changes|changes requested|approve|approved)(?!\w)', reply):
+            for match in re.finditer(r'(?<!\w)(request-changes|request changes|requests changes|requested changes|requesting changes|changes requested|approve|approved|approves)(?!\w)', reply):
                 if not _negated(reply, match.start()):
-                    stance = 'approve' if match[1] in ('approve', 'approved') else 'request-changes'
+                    stance = 'approve' if match[1] in ('approve', 'approved', 'approves') else 'request-changes'
                     break
         if stance != verdict:
             return False

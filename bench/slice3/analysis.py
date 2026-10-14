@@ -22,7 +22,7 @@ def token_total(parent):
 
 
 def score_turn(row, oracle, workspace, pristine):
-    from bench.slice3.grade import _content, _findings, _on_locus, check_rules, child_success, delivered, route
+    from bench.slice3.grade import _content, _findings, _names_mechanism, _on_locus, check_rules, child_success, delivered, route
     child = next((c for c in row['children'] if c['order'] == row['graded_child']), None)
     rules, success, fp, routing = [False] * 4, False, None, 'unspecified'
     envelope, output_schema, on_locus = None, None, None
@@ -31,7 +31,9 @@ def score_turn(row, oracle, workspace, pristine):
         envelope = content['envelope']
         output_schema = bool(child['output_schema']) if 'output_schema' in child else None
         if oracle['role'] == 'reviewer' and oracle.get('verdict') == 'request-changes':
-            on_locus = any(_on_locus(f, oracle['bug']) for f in _findings('\n'.join(content['lines'])))
+            on_locus = any(_on_locus(f, oracle['bug'])
+                           and not _names_mechanism(f['problem'] + ' ' + f['fix'], oracle['bug']['terms'])
+                           for f in _findings('\n'.join(content['lines'])))
         routing = route(row['arm'], {k: child[k] for k in ('mechanism', 'teammate', 'goal', 'context')}, oracle['role'])
         if row['status'] != 'timeout':
             rules = check_rules(oracle['role'], oracle, child['final_text'], row['delta'], child['receipts'], workspace)
@@ -200,7 +202,7 @@ def analyze(rows, *, cases=None, dropped_cases=()):
     return result
 
 
-def report(analysis):
+def report(analysis, *, ceiling_roles=()):
     scheduled, dropped = analysis['scheduled_cases'], analysis['dropped_cases']
     lines = ['# Slice 3', '', analysis['verdict'],
              f"Paired cases analyzed: {len(scheduled)-len(dropped)} of {len(scheduled)}; dropped: {', '.join(dropped) or 'none'}", '',
@@ -219,6 +221,8 @@ def report(analysis):
         for key, stat in c['statistics'].items():
             for p in stat['pairs']:
                 lines.append(f"| {p['case']} | {key} | {p['baseline']} | {p['treatment']} |")
+    for role in ceiling_roles:
+        lines += ['', f'{role}: calibration ceiling (1.0 in every arm) — no task-quality claim for this role.']
     lines += ['', '## Sensitivity and exploratory metrics', '',
               f"Strict-unique verdict: {analysis['strict_unique']['verdict']}", '',
               '| Arm | Role | N | Adherence | Success | Unsupported findings |', '|---|---|---|---|---|---|']
