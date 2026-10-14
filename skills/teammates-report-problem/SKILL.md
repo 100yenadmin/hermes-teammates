@@ -28,7 +28,7 @@ If your deployment's instructions explicitly route this plugin's problems, or al
 
 Safe reproduction for this plugin:
 - Inspect existing runs and roster information first, in the conversation that owns the run.
-- Ask the user before starting any new teammate run or follow-up: each run makes model calls that cost money.
+- Do not call `teammate_assign` or `teammate_message` while preparing a report. A new run or follow-up makes model calls that cost money: ask the user first, and wait for their yes in a later message.
 - Do not change tool permissions, switch profiles or claim Kanban cards merely to reproduce a report.
 
 Never edit or patch the installed plugin's files to work around the problem.
