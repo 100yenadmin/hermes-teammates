@@ -160,11 +160,11 @@ class JudgeHarness:
         return result
 
 
-def grade_answers(rows, judge, oracles, dispositions=None, verified_unplanted=None):
-    """Private mapping stays separate; no arm/metric metadata crosses the judge interface.
+def judge_answers(rows, judge, oracles):
+    """Judge every blinded answer once and return the raw verdicts. No scoring here.
 
-    Dispositions are release-manager decisions keyed by case + causal meaning,
-    applied identically across arms. New bugs need independent execution receipts.
+    The judge is stochastic, so release-manager dispositions are written against these stored
+    verdicts; scoring must never call the judge again.
     """
     if not rows or len({r['cell'] for r in rows}) != len(rows) or any(not valid_cell(r) for r in rows):
         raise ValueError('Invalid cells cannot be graded as their arm')
@@ -173,26 +173,53 @@ def grade_answers(rows, judge, oracles, dispositions=None, verified_unplanted=No
     if not control_receipt['pass']: raise ValueError('Judge qualification failed')
     answers,mapping=blind(rows)
     by_cell={r['cell']:r for r in rows}
-    grades=[]
+    verdicts=[]
     for answer in answers:
         row=by_cell[mapping[answer['answer_id']]['cell']]
         material=public_material(row['case'])
         result=harness.grade(answer['answer'],oracles[row['case']],material['public_spec'],material['public_source'])
+        verdicts.append(dict(answer_id=answer['answer_id'],case=row['case'],answer=answer['answer'],
+                             findings=result['findings']))
+    return dict(controls=control_receipt,verdicts=verdicts),mapping
+
+
+def score_verdicts(packet, rows, mapping, oracles, dispositions=None, verified_unplanted=None):
+    """Score stored verdicts with arm-blind release-manager dispositions keyed by (case, cause).
+
+    Ambiguous findings, and new-bug ('unplanted') findings without an independent execution
+    receipt, need a disposition; a missing one stops scoring.
+    """
+    by_cell={r['cell']:r for r in rows}
+    grades=[]
+    for verdict in packet['verdicts']:
+        row=by_cell[mapping[verdict['answer_id']]['cell']]
+        proofs=(verified_unplanted or {}).get(row['case'],{})
         findings=[]
-        for finding in result['findings']:
-            if finding['status']=='ambiguous':
+        for finding in verdict['findings']:
+            unproven=finding['status']=='unplanted' and not proofs.get(finding['cause'])
+            if finding['status']=='ambiguous' or unproven:
                 replacement=(dispositions or {}).get((row['case'],finding['cause']))
-                if not replacement: raise ValueError('Blinded release-manager tie-break missing')
+                if not replacement: raise ValueError('Blinded release-manager disposition missing')
                 finding=replacement
             findings.append(finding)
-        grades.append(dict(answer_id=answer['answer_id'],score=score(findings,oracles[row['case']],
-                           failed=row.get('status')=='FAILED',
-                           verified_unplanted=(verified_unplanted or {}).get(row['case'],{}))))
-    sample=random.Random(SEED).sample([a['answer_id'] for a in answers],max(1,(len(answers)+9)//10))
+        grades.append(dict(answer_id=verdict['answer_id'],score=score(findings,oracles[row['case']],
+                           failed=row.get('status')=='FAILED',verified_unplanted=proofs)))
+    answer_ids=[v['answer_id'] for v in packet['verdicts']]
+    sample=random.Random(SEED).sample(answer_ids,max(1,(len(answer_ids)+9)//10))
     scores={mapping[g['answer_id']]['cell']:g['score'] for g in grades}
     scored=[r | {'metrics':r.get('metrics',{}) | scores[r['cell']]} for r in rows]
-    return dict(grades=grades,controls=control_receipt,human_sample=sample,frozen=False,
-                scored_rows_sha256=scored_rows_digest(scored)),mapping
+    return dict(grades=grades,controls=packet['controls'],human_sample=sample,frozen=False,
+                scored_rows_sha256=scored_rows_digest(scored))
+
+
+def grade_answers(rows, judge, oracles, dispositions=None, verified_unplanted=None):
+    """Private mapping stays separate; no arm/metric metadata crosses the judge interface.
+
+    Dispositions are release-manager decisions keyed by case + causal meaning,
+    applied identically across arms. New bugs need independent execution receipts.
+    """
+    packet,mapping=judge_answers(rows,judge,oracles)
+    return score_verdicts(packet,rows,mapping,oracles,dispositions,verified_unplanted),mapping
 
 
 def freeze_grades(packet, checked_ids):
