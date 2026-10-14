@@ -25,7 +25,7 @@
     "bench/declared/slice2/DECLARED.md": "890ba14e3cca5a444383e647d5235b6aac10f3f9e30bf4f7ed3c4cc5f3cb45cc",
     "bench/declared/slice2/configs.json": "c6b9ea5e1dc38a986d7043c80b1ad486d80154290addb604199452eab1ad752c",
     "bench/declared/slice2/judge-controls.json": "55d2d74d2859194fd3aaeb06d6f62575f4ac02b36f66b690fce3738706eef3d9",
-    "bench/declared/slice2/recipes.json": "b76e43178d6a8ca61b9ab7765a6471af115d9031569bfb6038939fe57189a6a3",
+    "bench/declared/slice2/recipes.json": "d1ec50fb368bf6789d6cbbe34a4204d4bf57ff9c8dbc5ee7876a6bbfdc18dc77",
     "bench/declared/slice2/schedule.json": "16b6ae54c9286833c98a35e74a0611c2189ce31fbd66d98d23e78f0a889d5d5d",
     "bench/slice2/__init__.py": "8bd0f8eb7d56bd4252d6aa82d5a5c6de8bfe161ea98e933dc20d2818d4e2c97f",
     "bench/slice2/accounting.py": "1c461807b40e0bf7ccad2be9d135378acecf5a79cf5083f851383378ed2427f5",
