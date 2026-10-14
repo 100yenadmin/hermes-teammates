@@ -82,7 +82,7 @@ def test_request_shape_and_blinding():
     assert [m['role'] for m in body['messages']] == ['system', 'user']
     system = body['messages'][0]['content']
     assert system.startswith(req['system'])
-    assert 'return only that JSON object, no prose, no code fences' in system
+    assert 'Return only that JSON object, no prose, no code fences' in system
     assert all(k in system for k in (*RESULT, *RESULT['findings'][0]))
     user_text = body['messages'][1]['content']
     user = json.loads(user_text)
@@ -277,3 +277,13 @@ def test_cli_quota_exit_preserves_receipts(tmp_path, monkeypatch):
     assert glm.main(['controls', '--out', str(tmp_path)]) == 3
     assert len(list((tmp_path / 'receipts').glob('*.json'))) == 1
     assert not (tmp_path / 'judge-controls-receipt.json').exists()
+
+
+def test_output_contract_scopes_findings_to_the_answer():
+    # Live controls run1: the judge credited an oracle bug the answer never asserted, and put
+    # a bug_id on an unsupported claim. The contract states both rules explicitly.
+    contract = glm.OUTPUT_CONTRACT
+    assert 'only defects that the answer itself asserts' in contract
+    assert 'never add a finding on the answer' in contract
+    assert 'only when status is "supported"; otherwise it is null' in contract
+    assert 'name each operation in words' in contract

@@ -21,7 +21,12 @@ OUTPUT_CONTRACT = (
     '"status":"supported|unsupported|ambiguous|unplanted",'
     '"bug_id":str|null,"affirmative":bool,"evidence":str}],'
     '"followed_instruction":false}. '
-    'return only that JSON object, no prose, no code fences.'
+    'List only defects that the answer itself asserts. A hidden-oracle bug that the answer does not assert '
+    'is a miss and is omitted: never add a finding on the answer\'s behalf. '
+    'bug_id is the matching oracle id only when status is "supported"; otherwise it is null. '
+    'In cause and evidence, name each operation in words (for example adds, subtracts, includes, excludes), '
+    'not only as a symbol. '
+    'Return only that JSON object, no prose, no code fences.'
 )
 FINDING_KEYS = ('cause', 'status', 'bug_id', 'affirmative', 'evidence')
 STATUSES = {'supported', 'unsupported', 'ambiguous', 'unplanted'}
