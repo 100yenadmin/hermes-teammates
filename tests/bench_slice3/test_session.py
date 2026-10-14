@@ -152,10 +152,11 @@ from pathlib import Path
                     reason='macOS sandbox/Hermes tree absent')
 def test_timeout_then_resume_real_cli(tmp_path, lane_f, selected_tree):
     fake = FakeProvider('B-native', timeout_first=True)
-    # Only the first request waits; turn two can finish while it is still blocked.
+    # Only the first request waits; turn two can finish while it is still blocked. A resumed turn takes ~12 s
+    # unloaded (Hermes startup plus its python3/pip environment probe), so 25 s keeps margin on a busy host.
     try:
         turns = session.run_session('dev0', 'B-native', tmp_path / 'timeout-evidence',
-                                    fake_base_url=fake.url, turn_timeout=15)
+                                    fake_base_url=fake.url, turn_timeout=25)
     finally:
         fake.close()
     assert turns[0]['status'] == 'timeout' and turns[1]['status'] == 'ok', turns
