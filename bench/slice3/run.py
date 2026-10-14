@@ -131,6 +131,8 @@ def calibrate(rows):
 def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, executor=None,
               reruns=(), retry_reason=None):
     from bench.slice3.cases import DEV, SCORED, load_case, load_oracle
+    from bench.slice3 import identity as frozen_identity
+    ident = frozen_identity.verify() if fake_base_url is None else None
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
@@ -140,6 +142,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             gate = json.loads((directory.parent / name).read_text())
             if gate.get('status') != 'PASS':
                 raise ValueError('Scored admission incomplete: ' + name)
+            if gate.get('identity') != ident:
+                raise ValueError('Gate from a different identity: ' + name)
         if not (DECLARED / 'DECLARED.md').exists():
             raise ValueError('DECLARED missing')
         frozen = json.loads((DECLARED / 'schedule.json').read_text())
@@ -213,12 +217,14 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         for scores in attempts for r in scores])
     if phase == 'qualify':
         result = qualification(sessions)
+        result['identity'] = ident
         write_json(directory.parent / 'qualification.json', result)
     elif phase == 'calibrate':
         result = calibrate(graded)
+        result['identity'] = ident
         write_json(directory.parent / 'calibration.json', result)
     else:
-        result = dict(status='PAUSED' if quota_stop else 'COMPLETE', turns=len(graded))
+        result = dict(status='PAUSED' if quota_stop else 'COMPLETE', turns=len(graded), identity=ident)
     return result
 
 

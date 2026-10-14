@@ -1,0 +1,212 @@
+[
+  {
+    "case": "05-orbit",
+    "arm": "C",
+    "batch": 1,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "06-cinder",
+    "arm": "B-native",
+    "batch": 1,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "09-ripple",
+    "arm": "C-eager",
+    "batch": 2,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "10-summit",
+    "arm": "C",
+    "batch": 2,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "08-tundra",
+    "arm": "B-native",
+    "batch": 3,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "08-tundra",
+    "arm": "C-eager",
+    "batch": 3,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "01-lantern",
+    "arm": "C-eager",
+    "batch": 4,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "03-harbor",
+    "arm": "B-native",
+    "batch": 4,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "09-ripple",
+    "arm": "C",
+    "batch": 5,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "05-orbit",
+    "arm": "C-eager",
+    "batch": 5,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "05-orbit",
+    "arm": "B-native",
+    "batch": 6,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "06-cinder",
+    "arm": "C",
+    "batch": 6,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "04-meadow",
+    "arm": "C",
+    "batch": 7,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "10-summit",
+    "arm": "C-eager",
+    "batch": 7,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "10-summit",
+    "arm": "B-native",
+    "batch": 8,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "07-fern",
+    "arm": "C",
+    "batch": 8,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "03-harbor",
+    "arm": "C-eager",
+    "batch": 9,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "02-beacon",
+    "arm": "B-native",
+    "batch": 9,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "04-meadow",
+    "arm": "B-native",
+    "batch": 10,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "07-fern",
+    "arm": "C-eager",
+    "batch": 10,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "02-beacon",
+    "arm": "C",
+    "batch": 11,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "07-fern",
+    "arm": "B-native",
+    "batch": 11,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "04-meadow",
+    "arm": "C-eager",
+    "batch": 12,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "03-harbor",
+    "arm": "C",
+    "batch": 12,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "01-lantern",
+    "arm": "C",
+    "batch": 13,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "06-cinder",
+    "arm": "C-eager",
+    "batch": 13,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "09-ripple",
+    "arm": "B-native",
+    "batch": 14,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "08-tundra",
+    "arm": "C",
+    "batch": 14,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "case": "02-beacon",
+    "arm": "C-eager",
+    "batch": 15,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "case": "01-lantern",
+    "arm": "B-native",
+    "batch": 15,
+    "start_order": 2,
+    "seed": 1403
+  }
+]
