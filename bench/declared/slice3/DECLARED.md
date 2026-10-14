@@ -318,3 +318,20 @@ amendment governs.
   - `envelope`;
   - `output_schema`;
   - `on_locus` (an on-locus finding without the mechanism).
+
+## Harness fix H1 (2026-10-15, after calibration r2, before any scored session)
+
+- **Calibration r2** ran on identity `24d284b1` and passed every gate check: pooled 0.86, no role at 0 in every arm,
+  no checker errors, `ceiling_roles` = tester. One session was left pending a disposition.
+- **The pending session:** in dev02-copper:C turn 5, the parent's first request fired the pre-request hook twice
+  under one request identity. The model's malformed tool-call arguments had been repaired, and the request was sent
+  again with only one usage receipt. The observer raised, the accounting classified the turn as an infrastructure
+  fault "independent of model output", and the session needed a rerun.
+- **Why that premise was false:** the trigger was model output. A rerun would also preferentially wash out a
+  model-caused failure, here in the arm whose parent batches teammate tools.
+- **H1:** a duplicate request start is recorded instead of raising. The duplicate key makes that invocation's spend
+  UNKNOWN under the existing unknown-spend rule (never zero). The turn stays valid for intent-to-treat. Every other
+  observer fault is unchanged.
+- **Calibration rerun:** H1 changes the harness identity, so qualify and calibration run once more on the H1 identity
+  (r2b), with no grader, template or gate change. This is not a difficulty round. If r2b fails a gate check, A1's
+  failure disposition applies.

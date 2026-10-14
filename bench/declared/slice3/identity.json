@@ -1,6 +1,6 @@
 {
   "__init__.py": "99ac46e2d8271fd91a7b28f50b666266d20fc700e60f10f18a909b9430529feb",
-  "bench/declared/slice3/DECLARED.md": "32be0d390c556cc82a4f526e7154ed6664fc541b254ecbacb683592e46055040",
+  "bench/declared/slice3/DECLARED.md": "8979b21d9a80777bcacc0148a307fa4eae1e28c03feba27b13bf3bff341ae8e3",
   "bench/declared/slice3/configs.json": "14b686380c8c4219ab399ea17e3b972b1472c2e5c0dc749536ffb17cdb730d41",
   "bench/declared/slice3/schedule.json": "cf32b8404e436f4924fc7ae7fb6079e2d8cf72ae5ad2555c193630a3051a59ba",
   "bench/drivers/hermes_cell.py": "bc95ba2438e68d13e5c69f4b904977e90a5559659df5d65bdaedc530b720c610",
@@ -15,7 +15,7 @@
   "bench/slice3/generate.py": "ecba12bdb3be58307ec9fa896b8896d23d6eac41a02d93a60651d556b67b27bd",
   "bench/slice3/grade.py": "6a723657601221a31bceb53f72e7eff75784875b30402372529ec70e39e3da79",
   "bench/slice3/identity.py": "6c2cf47d41fa7f6c4532693ea9ad1ba3a68b642993b771c606b2367b0e046264",
-  "bench/slice3/observer.py": "1260d6a3bf058b63726828efdadd613ad9796d53b6554b2e4696fcf6c039ef5c",
+  "bench/slice3/observer.py": "387d54de577432bbc6bc221065b54c73cd36d84228debe80246b93970980fa61",
   "bench/slice3/run.py": "5251bd764ce9d0ebb5843267a9d097089e200225a28faf086d1564e53e2ae9d1",
   "bench/slice3/runtime_probe.py": "7657b2ec1ce134a15dcd5c94314edb855b48024607be2f0177eb231bd1c9ef4d",
   "bench/slice3/sandbox.py": "acc3018cfb004312672c3f0257b37be3ca017269542e80b7f3145be9419968ad",
