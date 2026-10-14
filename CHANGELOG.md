@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5 (2026-10-14)
+
+- `teammate_assign(wait_seconds=...)` starts a teammate and waits up to 0–300 seconds for its result in the same call. The default 0 still returns at once. Finished replies include the summary and receipts without the goal; a deadline returns `timed_out: true`, and an interrupt returns promptly without cancelling the run.
+
 ## 0.2.4 (2026-10-14)
 
 - `teammate_wait` accepts waits of 0–300 seconds; the default stays 30 seconds and `teammate_check` stays at 0–60 seconds (#40).

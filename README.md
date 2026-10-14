@@ -136,11 +136,13 @@ Ask in plain language:
 | Tool | What it does |
 |---|---|
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
-| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task` |
+| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task`, `wait_seconds` (0–300, default 0) |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
 | `teammate_stop` | Cancels a run |
+
+Use `teammate_assign(wait_seconds=...)` when you need one result now; use `teammate_wait` for several runs or when you have work to do meanwhile.
 
 `/teammates` prints the roster in any chat surface.
 
@@ -149,7 +151,7 @@ live-run cap.
 
 ### Results and receipts
 
-Finished runs report these fields through `teammate_check`, `teammate_wait` and the roster's recent runs:
+Finished runs report these fields through `teammate_assign(wait_seconds=...)`, `teammate_check`, `teammate_wait` and the roster's recent runs:
 
 | Field | Meaning |
 |---|---|

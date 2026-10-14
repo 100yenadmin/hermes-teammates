@@ -1,4 +1,4 @@
-"""hermes-teammates v0.2.4 registration; state opens only on first use."""
+"""hermes-teammates v0.2.5 registration; state opens only on first use."""
 import logging
 import os
 import threading

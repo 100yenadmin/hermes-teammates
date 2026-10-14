@@ -20,12 +20,17 @@ SPECS = {
          'teammate': _p('string', 'Explain only this named teammate.')}, []),
     'teammate_assign': (
         'Start a named teammate (a Hermes subagent with operator-set instructions and toolsets) on a goal. Returns a '
-        'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait.',
+        'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait. '
+        'Pass wait_seconds to get the result in the same call.',
         {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
          'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
          'follow_up': _p('boolean', "true when continuing earlier work: the teammate also gets a digest of its earlier "
                                     "results in this conversation."),
+         'wait_seconds': _p('number', 'Optional: wait up to this many seconds for the teammate to finish and return '
+                                     'its result in this reply (0 = return at once). If it is still running at '
+                                     'the deadline, the reply says timed_out and you can call teammate_wait later.',
+                            minimum=0, maximum=300, default=0),
          'kanban_task': _p('string', 'Id of a Kanban card on the teammates lane (for example t_1234abcd). Pass the id '
                                      'HERE, not only in the goal: the card is claimed while the teammate works and '
                                      'moved to review (or blocked) when the run ends.')},
@@ -75,7 +80,8 @@ def handler(name, get_service):
             elif name == 'teammate_assign':
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
-                                       kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'))
+                                       kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'),
+                                       wait_seconds=args.get('wait_seconds', 0))
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0))
             elif name == 'teammate_wait':
