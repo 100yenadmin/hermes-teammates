@@ -724,7 +724,7 @@ class TeammatesService:
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
                       (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))
-        while len(json.dumps(value)) > 16000:
+        while len(json.dumps(value, ensure_ascii=False)) > 16000:
             for entries in trim_lists:
                 if entries:
                     entries.pop()

@@ -70,8 +70,10 @@ def parse(raw):
                 errors.append(f'{name}.{key}: expected string')
         for key in ('model', 'route', 'reasoning_effort'):
             value = values.get(key)
+            if isinstance(value, str) and not value.strip():
+                value = None
             if value is None or isinstance(value, str) and len(value) <= MAX_LABEL:
-                teammate[key] = value if value is None or value.strip() else None
+                teammate[key] = value
             elif isinstance(value, str):
                 errors.append(f'{name}.{key}: longer than {MAX_LABEL} characters')
             else:

@@ -59,6 +59,7 @@ class HermesHost:
     @staticmethod
     def delegation_settings():
         values, defaults, explicit = {}, {}, None
+        managed, managed_read, managed_active = {}, False, False
         try:
             from hermes_cli import config
             defaults = dict(config.DEFAULT_CONFIG.get('delegation', {}))
@@ -71,6 +72,18 @@ class HermesHost:
         except Exception:
             pass
         try:
+            from hermes_cli import managed_scope
+            managed = managed_scope.load_managed_config().get('delegation') or {}
+            managed_read = isinstance(managed, dict)
+        except Exception:
+            pass
+        if not managed_read:
+            try:
+                # The managed-scope directory, not config.is_managed() (that names a package-manager install).
+                managed_active = bool(managed_scope.get_managed_dir())
+            except Exception:
+                pass
+        try:
             # Not in DEFAULT_CONFIG; with the key unset, Hermes's own getter returns its default.
             if 'worktree_isolation' not in values:
                 from tools.delegate_tool_config import _get_worktree_isolation
@@ -80,7 +93,11 @@ class HermesHost:
         settings, sources = {}, {}
         for key in ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds'):
             settings[key] = values.get(key, defaults.get(key, 'unknown'))
-            sources[key] = ('config' if key in values and
+            # Hermes merges managed values last, so a managed key wins over config.yaml; an active
+            # managed scope that cannot be read could override any merged value.
+            sources[key] = ('managed' if managed_read and key in values and key in managed else
+                            'unknown' if not managed_read and managed_active and key in values else
+                            'config' if key in values and
                             (explicit is None or key in explicit or values[key] != defaults.get(key, 'unknown')) else
                             'default' if key in defaults else 'unknown')
         return settings, sources

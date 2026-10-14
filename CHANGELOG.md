@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 (2026-10-14)
+
+- Blank model, route and reasoning settings count as unset before checking their length, so long whitespace-only values no longer invalidate a teammate.
+- `delegation_sources` reports `managed` for a value set by the managed config scope (/etc/hermes or `HERMES_MANAGED_DIR`), including one equal to Hermes's default or also named in config.yaml, since managed values win. If that scope exists but Hermes's managed-config reader is missing or raises, merged values are reported as `unknown`. A malformed managed file is ignored by Hermes itself, so its values never reach the merged config and keep their `config` or `default` source.
+- Tool replies leave non-ASCII text unescaped, and the roster measures its reply budget on that same JSON form. Japanese summaries take less space and explained definitions avoid clipping caused by escape expansion.
+
 ## 0.2.2 (2026-10-14)
 
 - Successful `teammate_check` and `teammate_wait` calls are no longer counted as failed tool calls (#27). Run rows carried `"error": null`, and Hermes's generic failure check matches the text `"error"`, so every successful check or wait showed a failure marker and counted toward Hermes's repeated-failure guardrails. Rows now omit `error` when it is null. Real tool errors keep their text and `ok: false`. Remaining: a reply that lists a run with status `failed` near its start is still flagged by Hermes (upstream NousResearch/hermes-agent#91166).

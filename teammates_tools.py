@@ -85,9 +85,9 @@ def handler(name, get_service):
                                         parent_agent=kwargs.get('parent_agent'))
             else:
                 value = service.stop(session_id, args.get('run_id'), args.get('reason', ''))
-            return json.dumps(value)
+            return json.dumps(value, ensure_ascii=False)
         except Exception as exc:
-            return json.dumps(error('internal_error', str(exc)[:2000]))
+            return json.dumps(error('internal_error', str(exc)[:2000]), ensure_ascii=False)
     return h
 
 
