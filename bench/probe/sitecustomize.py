@@ -1,11 +1,14 @@
 """Bench-only observer bootstrap. No registered tools or enabled-plugin changes."""
 import json
 import os
+import sys
 import threading
 import time
 from pathlib import Path
 
-if os.environ.get('TMBENCH_PROBE'):
+# Only Hermes's own interpreter is observed; a python3 that Hermes or the model spawns cannot import Hermes.
+if (os.environ.get('TMBENCH_PROBE') and os.environ.get('TMBENCH_HERMES_PREFIX')
+        and os.path.realpath(sys.prefix) == os.path.realpath(os.environ['TMBENCH_HERMES_PREFIX'])):
     from hermes_cli import lifecycle
     original_has, original_invoke = lifecycle.has_hook, lifecycle.invoke_hook
     hooks = {'pre_api_request', 'post_api_request', 'api_request_error'}

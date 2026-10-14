@@ -318,7 +318,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         env = {'HOME': str(run / 'home'), 'HERMES_HOME': str(run / 'hermes'), 'TMPDIR': str(run / 'tmp'),
                'PATH': str(venv / 'bin') + ':/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'en_US.UTF-8',
                'HERMES_DISABLE_LAZY_INSTALLS': '1', 'PYTHONDONTWRITEBYTECODE': '1',
-               'PYTHONPATH': str(run / 'probe') + ':' + str(driver.HERMES),
+               'PYTHONPATH': str(run / 'probe') + ':' + str(driver.HERMES), 'GIT_CONFIG_NOSYSTEM': '1',
                'TERMINAL_CWD': str(run / 'work'), 'TERMINAL_HOME_MODE': 'profile', 'GLM_API_KEY': key,
                'GLM_BASE_URL': fake_base_url or driver.ENDPOINT,
                'SLICE3_USAGE': str(invocation / 'usage.jsonl'), 'SLICE3_EVENTS': str(invocation / 'events.jsonl'),

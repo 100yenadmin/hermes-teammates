@@ -91,8 +91,9 @@ def developer_tool_reads():
 
 
 def xcrun_cache_rules():
-    """xcrun (behind /usr/bin/git) keeps its tool-lookup cache in the per-user temp dir whatever TMPDIR says;
-    allow exactly those cache files so every git call does not print a cache error."""
+    """xcrun (behind /usr/bin/git) keeps its tool-lookup cache in the per-user temp dir whatever TMPDIR says.
+    Allow only that cache file and its atomic-write temporaries (xcrun_db-XXXXXXXX), so every git call does
+    not print a cache error and nothing else in that persistent directory is reachable."""
     try:
         temp = subprocess.check_output(['/usr/bin/getconf', 'DARWIN_USER_TEMP_DIR'], text=True, timeout=10).strip()
     except (OSError, subprocess.SubprocessError):
@@ -101,7 +102,9 @@ def xcrun_cache_rules():
         return ''
     real = str(Path(temp).resolve())
     forms = sorted({real.rstrip('/'), real.rstrip('/').removeprefix('/private')})
-    files = ' '.join(f'(regex #"^{re.escape(f)}/xcrun_db")' for f in forms)
+    char = '[A-Za-z0-9]'  # SBPL regex has no {n} quantifier
+    files = ' '.join(f'(literal {json.dumps(f + "/xcrun_db")}) (regex #"^{re.escape(f)}/xcrun_db-{char * 8}$")'
+                     for f in forms)
     dirs = sorted({str(d) for f in forms for d in [Path(f), *Path(f).parents]})
     return (f'(allow file-read* file-write* {files})\n'
             f'(allow file-read-metadata {" ".join(f"(literal {json.dumps(d)})" for d in dirs)})\n')
@@ -180,8 +183,8 @@ def isolated(model, arm='A'):
                'HERMES_HOME': str(run / 'hermes'), 'HERMES_DISABLE_LAZY_INSTALLS': '1',
                'PYTHONPYCACHEPREFIX': str(run / 'pycache'), 'TERMINAL_HOME_MODE': 'profile',
                'TERMINAL_CWD': str(run / 'work'), 'HERMES_PLUGIN_PAYLOAD_MAX_CHARS': '2000000',
-               'PYTHONPATH': f'{run / "probe"}:{HERMES}',
-               'TMBENCH_PROBE': str(run / 'probe.jsonl')}
+               'PYTHONPATH': f'{run / "probe"}:{HERMES}', 'GIT_CONFIG_NOSYSTEM': '1',
+               'TMBENCH_PROBE': str(run / 'probe.jsonl'), 'TMBENCH_HERMES_PREFIX': str(HERMES / '.venv')}
         launcher = ['/usr/bin/env', '-i', *[f'{k}={v}' for k, v in env.items()],
                     '/usr/bin/sandbox-exec', '-f', str(run / 'sb.sb'), str(HERMES / '.venv/bin/python')]
         yield run, launcher, sorted(env)

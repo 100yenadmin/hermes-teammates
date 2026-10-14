@@ -136,3 +136,28 @@ def test_sandboxed_developer_shims_run_without_install_requests(tmp_path):
     denied = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), '/bin/cat', str(secret)],
                             env=env, capture_output=True, text=True, timeout=60)
     assert denied.returncode != 0 and 'x' not in denied.stdout
+
+
+def test_slice1_observer_ignores_foreign_interpreters(tmp_path):
+    import subprocess
+    from bench.drivers.hermes_cell import ROOT
+    env = {'PATH': '/usr/bin:/bin', 'PYTHONPATH': str(ROOT / 'bench/probe'), 'TMBENCH_PROBE': str(tmp_path / 'probe.jsonl')}
+    check = [sys.executable, '-c', 'import sys; print("hermes_cli" in sys.modules)']
+    for prefix, expected in [('/elsewhere/venv', 'False'), (sys.prefix, None)]:
+        result = subprocess.run(check, env=env | {'TMBENCH_HERMES_PREFIX': prefix}, capture_output=True, text=True, timeout=60)
+        if expected:
+            assert result.returncode == 0 and result.stdout.strip() == expected and 'sitecustomize' not in result.stderr
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='xcrun cache lives in the macOS per-user temp dir')
+def test_xcrun_cache_rules_name_only_the_cache_files():
+    import re
+    from bench.drivers.hermes_cell import xcrun_cache_rules
+    rules = xcrun_cache_rules()
+    temp = re.search(r'\(literal "([^"]+)/xcrun_db"\)', rules).group(1)
+    patterns = re.findall(r'\(regex #"([^"]+)"\)', rules)
+    def allowed(path):
+        return f'(literal "{path}")' in rules or any(re.search(p, path) for p in patterns)
+    assert allowed(temp + '/xcrun_db') and allowed(temp + '/xcrun_db-AbCd1234')
+    for other in ('/xcrun_db.backup', '/xcrun_db-AbCd12345', '/xcrun_db-AbCd1234/payload', '/xcrun_dbx', '/other'):
+        assert not allowed(temp + other), other
