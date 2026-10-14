@@ -3,6 +3,16 @@
 Slice 2 is a separate harness: see [the frozen declaration](declared/slice2/DECLARED.md).
 Use `python -m bench.slice2.run` with an explicit executor and phase; importing or
 testing the harness never calls a model. Tests use fakes and isolated Python proofs.
+
+Scored grading runs from `python -m bench.slice2.grading`: `judge EV G [--valid-only]
+[--accepted-prefix 938b9ec62265]`, `score EV G dispositions.json [--valid-only]
+[--normalizations normalizations.json]`, `report EV G checked_ids.json [--valid-only]`,
+and `export EV G out.jsonl`. `judge` requires an empty G and the adapter's live opt-in;
+`score` uses stored verdicts and optional G/normalizations.json, while `report` requires
+the checked human sample. Outputs are never overwritten. `judge` and `score` accept
+`--oracles PATH` for a private oracle copy; export publishes only metrics and scores.
+The exploratory valid-only path leaves the declared incomplete-matrix report INCONCLUSIVE.
+
 No slice2 result is written to slice1. The source-based live executor is disabled
 unless `SLICE2_LIVE=1` is explicitly set after owner review and authorization.
 It does not read ~/.hermes or call the system Hermes executable.
