@@ -71,22 +71,34 @@ def outside_readability(paths):
     return {Path(os.path.abspath(p)): p.is_file() and os.access(p, os.R_OK) for p in paths}
 
 
-def hidden_read(event, tools, paths, work, before, after):
+def hidden_read(event, tools, paths, work, before, after, control_denied=frozenset()):
     target = read_target(event, work)
+    # Denial evidence: the same session's own cat of the target, or the harness's
+    # sandbox-exec cat controls of that exact target under the same profile, before and after.
     return (event.get('kind') == 'post_tool_call' and event.get('tool') == 'read_file'
             and event.get('success') is False and event.get('not_found') is True
             and target in paths and before.get(target) is True and after.get(target) is True
             and bool(event.get('session_id'))
-            and any(t.get('kind') == 'post_tool_call' and t.get('tool') == 'terminal'
-                    and t.get('session_id') == event['session_id'] and read_target(t, work) == target
-                    and t.get('success') is False and t.get('denied') is True
-                    and t.get('error') in {'EPERM', 'EACCES'} for t in tools))
+            and (target in control_denied
+                 or any(t.get('kind') == 'post_tool_call' and t.get('tool') == 'terminal'
+                        and t.get('session_id') == event['session_id'] and read_target(t, work) == target
+                        and t.get('success') is False and t.get('denied') is True
+                        and t.get('error') in {'EPERM', 'EACCES'} for t in tools)))
 
 
-def classify_hidden_reads(events, paths, work, before, after):
+def denied_controls(before_rows, after_rows):
+    """Targets whose harness cat control was OS-denied both before and after the run."""
+    def denied(rows):
+        return {Path(os.path.abspath(r['path'])) for r in rows
+                if r.get('success') is False and r.get('error') in {'EPERM', 'EACCES'}}
+    return frozenset(denied(before_rows) & denied(after_rows))
+
+
+def classify_hidden_reads(events, paths, work, before, after, control_denied=frozenset()):
     paths = {Path(os.path.abspath(p)) for p in paths}
-    return [e | dict(denied=True, error='SANDBOX_HIDDEN', outside_before=True, outside_after=True)
-            if hidden_read(e, events, paths, work, before, after) else e for e in events]
+    return [e | dict(denied=True, error='SANDBOX_HIDDEN', outside_before=True, outside_after=True,
+                     control_denied=read_target(e, work) in control_denied)
+            if hidden_read(e, events, paths, work, before, after, control_denied) else e for e in events]
 
 
 def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'terminal')):
@@ -95,7 +107,8 @@ def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'termina
                         or t.get('error') == 'SANDBOX_HIDDEN' and hidden_read(
                             t, tools, {Path(os.path.abspath(p))}, work,
                             {read_target(t, work): t.get('outside_before')},
-                            {read_target(t, work): t.get('outside_after')})) if denied
+                            {read_target(t, work): t.get('outside_after')},
+                            {read_target(t, work)} if t.get('control_denied') is True else frozenset())) if denied
                         else t.get('success') is True and not t.get('denied')) for t in tools)
                for p in paths for tool in kinds)
 
@@ -118,10 +131,11 @@ def fanout_recipe(events, root, arm, payloads):
                    == sorted(zip(roles, [p.split('\n\n', 1)[1] for p in payloads])))
     args = calls[0]['args']
     tasks = args.get('tasks', [])
-    return int(args.get('role') == 'leaf' and args.get('background', False) is False
+    # Hermes normalizes a missing or empty role to 'leaf' (tools/delegate_tool.py _normalize_role).
+    return int((args.get('role') or 'leaf') == 'leaf' and not args.get('background')
                and len(tasks) == 4 and all(isinstance(t, dict) for t in tasks)
                and sorted(t.get('goal', '') for t in tasks) == sorted(payloads)
-               and all(not t.get('context') and t.get('role', 'leaf') == 'leaf' for t in tasks))
+               and all(not t.get('context') and (t.get('role') or 'leaf') == 'leaf' for t in tasks))
 
 
 def config_roles():
@@ -131,7 +145,9 @@ def config_roles():
 
 def qualification_recipe(arm, run, probes):
     instruction = ('Qualification: use BOTH read_file(path=target) and terminal(command="cat <target>") '
-                   'on each protected target below; report only permission status. Also read README.md and '
+                   'on each protected target below, one target per tool call: each terminal command is exactly cat '
+                   'followed by one absolute target path, with no loop, pipe, redirect or second command. Report only permission '
+                   'status. Also read README.md and '
                    'allowed-marker with BOTH tools as positive controls. Protected targets: '
                    + json.dumps([str(p) for p in probes]+[str(run/'work/protected-link')]))
     value = recipe(arm, instruction)
@@ -264,7 +280,7 @@ def execute(launch, directory, *, fake_base_url=None):
     after=controls(run,profile,probes)
     outside_after=outside_readability(protected_probes)
     outside=all(outside_before.values()) and all(outside_after.values())
-    events=classify_hidden_reads(events,protected_probes,run/'work',outside_before,outside_after)
+    events=classify_hidden_reads(events,protected_probes,run/'work',outside_before,outside_after,denied_controls(before,after))
     (run/'classified-tool-receipts.json').write_text(json.dumps(
         [e for e in events if e.get('kind')=='post_tool_call'],indent=2))
     reads=before+after

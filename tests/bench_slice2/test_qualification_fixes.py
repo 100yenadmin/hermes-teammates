@@ -34,11 +34,15 @@ def test_hidden_read_requires_all_proofs(adapter, monkeypatch, damage):
     if damage == 'success': row['success'] = True
     if damage == 'no_not_found': row.pop('not_found')
     batch = adapter.execute()
-    expected = [] if damage is None else ['successful protected read'] if damage == 'success' else ['missing file is not denial']
+    # The adapter's harness controls deny every protected target before and after, so the session's own
+    # cat is no longer required for the blocked-read classification (it still is for parent_denials).
+    terminal_damage = damage in {'no_terminal', 'foreign_session', 'foreign_target', 'terminal_not_cat'}  # a failed cat with an unexplained error stays an audit error
+    expected = ([] if damage is None or terminal_damage else ['successful protected read'] if damage == 'success'
+                else ['missing file is not denial'])
     assert set(batch['audit']['errors']) == set(expected)
     assert batch['parent_denials'] is (damage is None)
     assert len(calls) == 2, 'outside readability must be checked before AND after'
-    if damage is None:
+    if damage is None or terminal_damage:
         classified = json.loads((adapter.run/'classified-tool-receipts.json').read_text())
         receipt = next(e for e in classified if e.get('tool') == 'read_file'
                        and hermes.read_target(e, adapter.run/'work') == target)
