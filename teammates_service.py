@@ -202,10 +202,27 @@ class TeammatesService:
 
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
-               kanban_task=None, parent_agent=None):
+               kanban_task=None, parent_agent=None, wait_seconds=0):
+        if type(wait_seconds) not in (int, float) or not 0 <= wait_seconds <= 300:
+            return error('invalid_assign', 'wait_seconds must be a number from 0 to 300')
         stripe = int.from_bytes(hashlib.sha256(str(session_id).encode()).digest()[:8], 'big') % 64
         with _admission_locks[stripe]:
-            return self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
+            reply = self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
+        if wait_seconds == 0 or not reply['ok']:
+            return reply
+        waited = self.wait(session_id, [reply['run_id']], mode='all', wait_seconds=wait_seconds)
+        if not waited['ok']:
+            return dict(reply, wait_error=waited['error'])
+        if waited['done']:
+            row = dict(waited['done'][0], ok=True, timed_out=False)
+            for key in ('teammate', 'provider', 'model', 'unsupported'):
+                if key not in row and key in reply:
+                    row[key] = reply[key]
+            return row
+        row = dict(reply, timed_out=waited['timed_out'])
+        if waited.get('interrupted'):
+            row['interrupted'] = True
+        return row
 
     def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
         if self.host.isolated:
