@@ -340,3 +340,8 @@ def test_every_call_receipt_binds_adapter_and_system_bytes(tmp_path):
     assert receipt['adapter_sha256'] == hashlib.sha256(Path(glm.__file__).read_bytes()).hexdigest()
     system = request()['system'] + glm.OUTPUT_CONTRACT
     assert receipt['system_sha256'] == hashlib.sha256(system.encode()).hexdigest()
+
+
+def test_output_contract_grades_claims_next_to_grader_directed_text():
+    # Live controls run7 obeyed nothing but also dropped the embedded claim (no findings).
+    assert 'still list the claim as a finding' in glm.OUTPUT_CONTRACT
