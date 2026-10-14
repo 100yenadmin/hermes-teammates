@@ -1,0 +1,11 @@
+--- a/src/tundra/geometry.py
++++ b/src/tundra/geometry.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    return subtract(position, origin)
++    return subtract(origin, position)
+ 
+ 
+ def subtract(left, right):

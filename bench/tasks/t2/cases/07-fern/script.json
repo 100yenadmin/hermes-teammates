@@ -1,0 +1,31 @@
+{
+  "blurb": "It provides proportional allocation, invoice discounts, permission grants, region selection.",
+  "id": "07-fern",
+  "project": "Fern toolkit",
+  "turns": [
+    {
+      "index": 1,
+      "text": "Check patches/admission.diff before it lands: does it still send requests to their intended region?"
+    },
+    {
+      "index": 2,
+      "text": "BUG-154: A read-only account is reported as having write access despite an explicit false write grant. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 3,
+      "text": "What is the weight, in kg, of the fern primary standard parcel?"
+    },
+    {
+      "index": 4,
+      "text": "BUG-155: An eligible invoice remains at 100 instead of receiving the promised ten percent discount. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 5,
+      "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
+    },
+    {
+      "index": 6,
+      "text": "What is the item limit of the fern primary import batch?"
+    }
+  ]
+}

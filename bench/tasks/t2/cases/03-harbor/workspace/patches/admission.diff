@@ -1,0 +1,11 @@
+--- a/src/harbor/messages.py
++++ b/src/harbor/messages.py
+@@ -11,8 +11,6 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    if text is None:
+-        return ''
+     return text.strip()
+ 
+ 

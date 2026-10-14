@@ -1,0 +1,31 @@
+{
+  "blurb": "It provides notification batches, job admission quotas, request budget, retry backoff policy.",
+  "id": "dev01-marble",
+  "project": "Marble toolkit",
+  "turns": [
+    {
+      "index": 1,
+      "text": "Does patches/admission.diff preserve rejection once the job quota is full? Please check the proposed change."
+    },
+    {
+      "index": 2,
+      "text": "After how many seconds does the marble primary outbound request time out?"
+    },
+    {
+      "index": 3,
+      "text": "BUG-162: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 4,
+      "text": "Which currency does the marble primary settlement ledger use?"
+    },
+    {
+      "index": 5,
+      "text": "BUG-163: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 6,
+      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
+    }
+  ]
+}

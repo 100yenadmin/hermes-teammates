@@ -1,0 +1,18 @@
+--- a/src/lantern/notifications.py
++++ b/src/lantern/notifications.py
+@@ -5,13 +5,13 @@
+ Validation belongs to the public entry points below.
+ """
+ 
+-def queue(item, pending=None):
++def queue(item, pending=[]):
+     """Return a new queue with one item without leaking across calls.
+ 
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    items = [] if pending is None else list(pending)
++    items = pending
+     items.append(item)
+     return items
+ 

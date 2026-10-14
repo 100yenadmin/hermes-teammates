@@ -1,0 +1,11 @@
+--- a/src/beacon/profiles.py
++++ b/src/beacon/profiles.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    return profile['display_name']
++    return profile['login']
+ 
+ 
+ def locale(profile):

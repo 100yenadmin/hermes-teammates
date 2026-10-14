@@ -1,1 +1,1 @@
-"""Repeated-role benchmark; imports never launch providers."""
+"""Bench slice 3: repeated-role routing (T2)."""

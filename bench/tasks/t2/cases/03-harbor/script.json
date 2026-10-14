@@ -1,0 +1,31 @@
+{
+  "blurb": "It provides position offsets, optional message bodies, request budget, half-open booking windows.",
+  "id": "03-harbor",
+  "project": "Harbor toolkit",
+  "turns": [
+    {
+      "index": 1,
+      "text": "BUG-146: A booking is still active at its end tick; the end tick should already be outside the booking. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 2,
+      "text": "Can patches/admission.diff safely simplify message previews, including absent messages?"
+    },
+    {
+      "index": 3,
+      "text": "Which code identifies the harbor primary foreground display?"
+    },
+    {
+      "index": 4,
+      "text": "BUG-147: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 5,
+      "text": "Please evaluate the new intermediate local in patches/serialization.diff and decide whether it is safe to land."
+    },
+    {
+      "index": 6,
+      "text": "Which version is used by the harbor primary event schema?"
+    }
+  ]
+}
