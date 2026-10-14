@@ -87,5 +87,25 @@ def test_stored_verdicts_are_bound_to_the_rows(change):
         rows = rows + rows_and_oracle(5)[0][4:]
     else:
         packet['verdicts'].pop()
-    with pytest.raises(ValueError, match='do not match the rows'):
+    with pytest.raises(ValueError, match='do not match the rows|Oracles differ'):
         score_verdicts(packet, rows, mapping, {**oracles, **{r['case']: oracles[rows[0]['case']] for r in rows}})
+
+
+def test_scoring_rejects_an_oracle_changed_after_judging():
+    rows, oracles = rows_and_oracle()
+    judge, _ = counting_judge([finding('supported', 'offset', 'control-offset')])
+    packet, mapping = judge_answers(rows, judge, oracles)
+    changed = copy.deepcopy(oracles)
+    changed[rows[0]['case']]['bugs'].append(dict(id='added-later', cause='x', cross_file=False))
+    with pytest.raises(ValueError, match='Oracles differ'):
+        score_verdicts(packet, rows, mapping, changed)
+    assert score_verdicts(packet, rows, mapping, oracles)['grades']
+
+
+def test_human_sample_ignores_packet_order():
+    rows, oracles = rows_and_oracle(len(scored_rows()))
+    judge, _ = counting_judge([finding('supported', 'offset', 'control-offset')])
+    packet, mapping = judge_answers(rows, judge, oracles)
+    first = score_verdicts(packet, rows, mapping, oracles)['human_sample']
+    packet['verdicts'].reverse()
+    assert score_verdicts(packet, rows, mapping, oracles)['human_sample'] == first

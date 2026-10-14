@@ -180,7 +180,9 @@ def judge_answers(rows, judge, oracles):
         result=harness.grade(answer['answer'],oracles[row['case']],material['public_spec'],material['public_source'])
         verdicts.append(dict(answer_id=answer['answer_id'],case=row['case'],answer=answer['answer'],
                              findings=result['findings']))
-    return dict(controls=control_receipt,verdicts=verdicts),mapping
+    # Scoring must use the exact oracles these verdicts were judged against.
+    oracle_sha256={case:digest(canonical(oracles[case])) for case in sorted({v['case'] for v in verdicts})}
+    return dict(controls=control_receipt,verdicts=verdicts,oracle_sha256=oracle_sha256),mapping
 
 
 def score_verdicts(packet, rows, mapping, oracles, dispositions=None, verified_unplanted=None):
@@ -194,6 +196,9 @@ def score_verdicts(packet, rows, mapping, oracles, dispositions=None, verified_u
     text={a['answer_id']:a['answer'] for a in answers}
     if fresh!=mapping or sorted(text)!=sorted(v['answer_id'] for v in packet['verdicts']):
         raise ValueError('Stored verdicts do not match the rows being scored')
+    if packet.get('oracle_sha256')!={case:digest(canonical(oracles[case])) for case in packet.get('oracle_sha256',{})} \
+            or set(packet.get('oracle_sha256',{}))!={v['case'] for v in packet['verdicts']}:
+        raise ValueError('Oracles differ from those the verdicts were judged against')
     by_cell={r['cell']:r for r in rows}
     grades=[]
     for verdict in packet['verdicts']:
@@ -211,7 +216,7 @@ def score_verdicts(packet, rows, mapping, oracles, dispositions=None, verified_u
             findings.append(finding)
         grades.append(dict(answer_id=verdict['answer_id'],score=score(findings,oracles[row['case']],
                            failed=row.get('status')=='FAILED',verified_unplanted=proofs)))
-    answer_ids=[v['answer_id'] for v in packet['verdicts']]
+    answer_ids=sorted(v['answer_id'] for v in packet['verdicts'])  # canonical order: packet order cannot steer the sample
     sample=random.Random(SEED).sample(answer_ids,max(1,(len(answer_ids)+9)//10))
     scores={mapping[g['answer_id']]['cell']:g['score'] for g in grades}
     scored=[r | {'metrics':r.get('metrics',{}) | scores[r['cell']]} for r in rows]
