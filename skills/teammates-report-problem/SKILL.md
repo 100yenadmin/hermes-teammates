@@ -15,6 +15,7 @@ Use the tools available in this session. If a command below cannot run here, ask
 Security problems include a teammate escaping its allowed tools or profile, one profile's teammates or results becoming visible to another, credentials exposed in run results, access to another conversation's runs, steering or follow-up context, and Kanban actions outside the configured lane or board.
 For any of these, or anything that exposes a secret, skip the public issue. Give the user the private reporting form and stop:
 https://github.com/100yenadmin/hermes-teammates/security/advisories/new
+If the diagnostics in step 3 clearly place it in Hermes itself rather than this plugin, give Hermes' private security route instead: https://github.com/NousResearch/hermes-agent/security
 
 ## 2. Use a designated support channel if the deployment has one
 
@@ -42,7 +43,7 @@ If they show the problem is in Hermes itself rather than this plugin, point the 
 - Where it happened (CLI, Desktop, dashboard or a messaging platform), the operating system, and the shortest steps that reproduce it.
 - Recent plugin log lines: `hermes logs -n 300 | grep -i teammate`
 
-Quote only short log excerpts that the user has seen. Leave out tokens, keys, email addresses and the text of private messages.
+Quote only short log excerpts and status lines that the user has seen. Leave out tokens, keys, email addresses, the text of private messages, and any message text or notes that the plugin's status output quotes (here: teammate goals and summaries); write `<redacted>` in their place.
 
 ## 5. Look for an existing report
 
@@ -85,7 +86,7 @@ An earlier "report it", "just fix it" or an ambiguous reply does not approve thi
   The shell reads the title from the file and passes it unchanged, quotes and all. Never type the title itself into the command.
   A maintainer of this repository also adds `--label bug,triage-pending,agent-drafted`.
 - Comment on a matching issue: `gh issue comment <number> -R 100yenadmin/hermes-teammates --body-file <draft file>`
-- No CLI, no file tools, or the command failed: give the user the draft and the form link so they can paste it themselves:
+- No CLI, no file tools, or the command failed: give the user the draft so they can paste it themselves, as a comment on the matching issue (give its link) or, for a new report, into the form:
   https://github.com/100yenadmin/hermes-teammates/issues/new?template=bug_report.yml
 
 Share the resulting link. If the user says no, keep the draft so they can file it later. Maintainers may ask follow-up questions on the issue.
