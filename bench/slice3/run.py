@@ -3,12 +3,13 @@ import argparse
 import hashlib
 import json
 import random
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from bench.slice2.hermes import records
 from bench.slice3.analysis import analyze, mean, report, score_turn
-from bench.slice3.session import ARMS, DECLARED, SandboxBreach, _run_session, write_json
+from bench.slice3.session import ARMS, DECLARED, IdentityStopped, SandboxBreach, _run_session, write_json
 
 SEED = 1403
 
@@ -141,9 +142,17 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         frozen_identity.verify_hermes()
     directory = Path(directory)
     # A verified sandbox breach stops this identity for every phase, resume and rerun (DECLARED).
+    # One evidence root ($EV) per identity: the marker lives beside the phase directories.
     breach = directory.parent / 'sandbox-breach.json'
     if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
         raise ValueError('Sandbox breach recorded for this identity; it stops (see ' + str(breach) + ')')
+    breach_lock = threading.Lock()
+
+    def admit():
+        # Every session start and model launch is admitted against the marker; publication holds the same lock.
+        with breach_lock:
+            if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
+                raise IdentityStopped('Sandbox breach recorded for this identity; see ' + str(breach))
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
                if phase == 'qualify' else schedule(DEV if phase == 'calibrate' else SCORED))
@@ -200,8 +209,9 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             return read_receipt(receipt)
         if dest.exists():
             raise ValueError('Incomplete attempt requires orchestrator disposition; no automatic rerun')
+        admit()  # queued siblings never start after a breach
         try:
-            turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
+            turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url, admit=admit,
                             turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
         except Exception as error:
             # A harness fault before the receipt: keep the evidence, record the fault so the orchestrator can
@@ -211,8 +221,9 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             write_json(receipt, dict(turns=[], scores=[], quota_stop=False, identity=ident, sandbox_breach=breached,
                                      harness_fault={'error_class': type(error).__name__}))
             if breached:
-                write_json(directory.parent / 'sandbox-breach.json',
-                           dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
+                with breach_lock:  # the first breach is the recorded one
+                    if not (breach.exists() and json.loads(breach.read_text()).get('identity') == ident):
+                        write_json(breach, dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
             raise
         scores = []
         oracle = load_oracle(item['case'])

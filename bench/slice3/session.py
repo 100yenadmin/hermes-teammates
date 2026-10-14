@@ -144,33 +144,21 @@ def extract_children(calls, events, rows, messages, ledger):
     for c in calls:
         if c['tool'] not in {'delegate_task', 'teammate_assign'}:
             continue
-        # Expanded Hermes IDs can differ from the provider bridge ID. Match the
-        # exact entry args within this invocation, consuming each receipt once.
-        matching = [e for e in posts if e.get('session_id') == c['session_id']
-                    and e.get('tool') == c['tool'] and e.get('args') == c['args'] and id(e) not in used]
-        post = next((e for e in matching if e.get('call_id') == c['call_id']),
-                    matching[0] if matching else {})
-        if post:
-            used.add(id(post))
         args = c['args'] if isinstance(c['args'], dict) else {}
+        unique_id = sum(x['call_id'] == c['call_id'] for x in calls) == 1
+        pre = _claim(events, 'pre_tool_call', c, args, used, unique_id) if c['tool'] == 'delegate_task' else None
+        end = _claim(events, 'post_tool_call', c, args, used, unique_id, after=-1 if pre is None else pre)
+        post = events[end] if end is not None else {}
         if c['tool'] == 'delegate_task':
             # Children are what Hermes actually launched: subagent_start lineage emitted inside this call's
             # pre/post tool window (Hermes builds children synchronously in the tool). A rejected call has no
             # lineage, so it never claims a child; requested goals only separate overlapping calls.
-            starts = [i for i, e in enumerate(events) if e.get('kind') == 'pre_tool_call' and id(e) not in used
-                      and e.get('session_id') == c['session_id'] and e.get('tool') == 'delegate_task'
-                      and e.get('args') == c['args']]
-            pre = next((i for i in starts if post and events[i].get('call_id') == post.get('call_id')),
-                       starts[0] if starts else None)
-            if pre is not None:
-                used.add(id(events[pre]))
             # A call cut off by a timeout has no post event; its window runs to the end of the invocation.
-            end = next((i for i, e in enumerate(events) if e is post), len(events))
             wanted = requested_goals(args)
-            launched = [e for e in (events[pre + 1:end] if pre is not None else [])
+            launched = [e for e in (events[pre + 1:len(events) if end is None else end] if pre is not None else [])
                         if e.get('kind') == 'child_lineage' and e.get('parent_session_id') == c['session_id']
                         and e.get('session_id') and e['session_id'] not in used
-                        and (not wanted or e.get('goal') in wanted)]
+                        and (not wanted or (isinstance(e.get('goal'), str) and e['goal'] in wanted))]
             tasks = [dict(goal=e.get('goal') or '', _lineage=e['session_id'],
                           context=next((t.get('context', '') for t in _task_dicts(args) if t.get('goal') == e.get('goal')), ''))
                      for e in launched]
@@ -217,6 +205,28 @@ def extract_children(calls, events, rows, messages, ledger):
 
 class SandboxBreach(RuntimeError):
     """The sandbox failed its own preflight; DECLARED: a verified breach stops this identity."""
+
+
+class IdentityStopped(RuntimeError):
+    """Another session of this identity recorded a sandbox breach; no further model launches."""
+
+
+def _claim(events, kind, c, args, used, unique_id, after=-1):
+    """Index of this call's next unclaimed hook event, consumed once. Hermes coerces arguments before its
+    hooks fire and renumbers expanded batch entries, so a unique physical call ID wins, then exact
+    arguments, then (delegate_task) the same requested goals."""
+    pool = [i for i, e in enumerate(events) if i > after and e.get('kind') == kind and id(e) not in used
+            and e.get('session_id') == c['session_id'] and e.get('tool') == c['tool']]
+    tests = [lambda e: e.get('args') == c['args']]
+    if unique_id:
+        tests.insert(0, lambda e: e.get('call_id') == c['call_id'])
+    goals = requested_goals(args) if c['tool'] == 'delegate_task' else set()
+    if goals:
+        tests.append(lambda e: requested_goals(e.get('args') if isinstance(e.get('args'), dict) else {}) == goals)
+    index = next((i for test in tests for i in pool if test(events[i])), None)
+    if index is not None:
+        used.add(id(events[index]))
+    return index
 
 
 def _task_dicts(args):
@@ -313,7 +323,8 @@ def setup(case, arm, run):
     return venv
 
 
-def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=1200, turn_limit=None, attempt=1):
+def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=1200, turn_limit=None, attempt=1,
+                 admit=None):
     from bench.slice3.cases import load_case
     if arm not in ARMS:
         raise ValueError('Unknown arm')
@@ -359,6 +370,8 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         raise SandboxBreach('Sandbox controls failed before any model call; see ' + str(run / 'controls.json'))
     all_usage, output, root, seen = [], [], None, set()
     for turn in case['turns'][:turn_limit]:
+        if admit:
+            admit()  # a breach published by a concurrent session stops every later model launch
         invocation = run / 'turns' / str(turn['index'])
         invocation.mkdir()
         query = invocation / 'query.txt'

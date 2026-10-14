@@ -150,28 +150,80 @@ def test_child_wait_arguments_are_normalized():
 LONG_A, LONG_B = 'Find the documented retry limit', 'Review the pending pagination patch'
 
 
-@pytest.mark.parametrize('args,goals', [
-    (dict(tasks=json.dumps([{'goal': LONG_A}, {'goal': LONG_B}])), [LONG_A, LONG_B]),   # JSON-encoded list
-    (dict(tasks={'goal': LONG_B}), [LONG_B]),                       # a bare object is wrapped, as Hermes coerces
-    (dict(tasks=[], goal=LONG_A), [LONG_A]),                        # empty batch falls back to the goal
-    (dict(tasks='[]', goal=LONG_A), [LONG_A]),                      # ... also when JSON-encoded
-    (dict(tasks=['not an object', {'goal': LONG_B}]), []),          # Hermes rejects the whole batch
-    (dict(tasks=[json.dumps({'goal': LONG_A})]), [LONG_A]),         # JSON-encoded element is decoded
-    (dict(tasks=5, goal=LONG_A), []), (dict(tasks='not json'), []),
-    (dict(tasks=[{'goal': 'a'}, {'goal': 'b'}]), []),               # multi-task batch with too-short goals
-    (dict(tasks=[{'goal': LONG_A + str(i)} for i in range(5)]), []),  # over max_concurrent_children
-    (dict(tasks='null', goal=LONG_A), []),                          # non-nullable array: wrapped, then rejected
-    (dict(tasks=None, goal=LONG_A), [LONG_A]),                      # native null: single-goal form
-    (dict(tasks=json.dumps([json.dumps({'goal': LONG_A})])), []),   # encoded array of encoded objects
-    (dict(tasks=(dict(goal=LONG_B),), goal=LONG_A), [LONG_A]),      # a tuple is not a batch
-    (dict(goal=42), []), (dict(tasks=[{'goal': 42}]), []),          # Hermes errors; the harness never raises
-    (dict(action='list', goal=LONG_A), []), (dict(action='spawn', goal=LONG_A), [LONG_A]),
-    (dict(goal=LONG_A, output_schema='not a schema'), []),          # schema failure precedes any spawn
+def _call(call_id, args, session='p', entry_index=0):
+    return dict(session_id=session, call_id=call_id, entry_index=entry_index, tool='delegate_task', args=args)
+
+
+def _hook(kind, call_id, args, session='p'):
+    return dict(kind=kind, session_id=session, call_id=call_id, tool='delegate_task', args=args,
+                result_text='', result=None)
+
+
+def _lineage(child, goal, parent='p'):
+    return dict(kind='child_lineage', session_id=child, parent_session_id=parent, subagent_id='s-' + child, goal=goal)
+
+
+def _children(calls, events):
+    return [(c['call_id'], c['goal'], c['child_session_id']) for c in extract_children(calls, events, [], [], [])]
+
+
+def test_rejected_call_claims_nothing_and_the_retry_keeps_its_child():
+    # Hermes rejected call 1 (no subagent_start inside its tool window); call 2 launched the child.
+    bad, good = dict(goal=LONG_B, images=[42]), dict(goal=LONG_B)
+    events = [_hook('pre_tool_call', '1', bad), _hook('post_tool_call', '1', bad),
+              _hook('pre_tool_call', '2', good), _lineage('c2', LONG_B), _hook('post_tool_call', '2', good)]
+    assert _children([_call('1', bad), _call('2', good)], events) == [('2', LONG_B, 'c2')]
+
+
+def test_every_child_launched_in_the_window_is_kept_in_order():
+    args = dict(tasks=[{'goal': LONG_A}, {'goal': LONG_B}])
+    events = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A), _lineage('cb', LONG_B),
+              _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == [('1', LONG_A, 'ca'), ('1', LONG_B, 'cb')]
+
+
+def test_overlapping_windows_are_split_by_requested_goal():
+    a, b = dict(goal=LONG_A), dict(goal=LONG_B)
+    events = [_hook('pre_tool_call', '1', a), _hook('pre_tool_call', '2', b), _lineage('cb', LONG_B),
+              _lineage('ca', LONG_A), _hook('post_tool_call', '1', a), _hook('post_tool_call', '2', b)]
+    assert _children([_call('1', a), _call('2', b)], events) == [('1', LONG_A, 'ca'), ('2', LONG_B, 'cb')]
+
+
+def test_a_timed_out_call_without_post_keeps_its_child():
+    args = dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A)]
+    assert _children([_call('1', args)], events) == [('1', LONG_A, 'ca')]
+
+
+def test_coerced_hook_arguments_still_match_the_call():
+    # The model sent tasks as a JSON string; Hermes coerced it to a list before its hooks fired.
+    raw, coerced = dict(tasks=json.dumps([{'goal': LONG_A}])), dict(tasks=[{'goal': LONG_A}])
+    events = [_hook('pre_tool_call', '1', coerced), _lineage('ca', LONG_A), _hook('post_tool_call', '1', coerced)]
+    assert _children([_call('1', raw)], events) == [('1', LONG_A, 'ca')]
+    # Expanded batch entries share the outer ID and get new physical IDs; requested goals pick the window.
+    calls = [_call('outer', raw, entry_index=0), _call('outer', dict(goal=LONG_B), entry_index=1)]
+    events = [_hook('pre_tool_call', 'x0', coerced), _lineage('ca', LONG_A), _hook('post_tool_call', 'x0', coerced),
+              _hook('pre_tool_call', 'x1', dict(goal=LONG_B)), _lineage('cb', LONG_B),
+              _hook('post_tool_call', 'x1', dict(goal=LONG_B))]
+    assert _children(calls, events) == [('outer', LONG_A, 'ca'), ('outer', LONG_B, 'cb')]
+
+
+def test_another_sessions_lineage_is_never_claimed():
+    args = dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', '1', args), _lineage('cx', LONG_A, parent='other'), _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == []
+
+
+@pytest.mark.parametrize('args', [
+    dict(tasks='null', goal=LONG_A), dict(tasks=5), dict(tasks='not json'), dict(goal=42), dict(tasks=[{'goal': 42}]),
+    dict(tasks=['not an object', {'goal': LONG_B}]), dict(tasks=(dict(goal=LONG_B),)), dict(tasks='['), dict(),
+    dict(tasks=json.dumps([json.dumps({'goal': LONG_A})])), dict(goal=LONG_A, output_schema='not a schema'),
 ])
-def test_extraction_launches_exactly_what_hermes_launches(args, goals):
-    calls = [dict(session_id='p', call_id='1', entry_index=0, tool='delegate_task', args=args)]
-    children = extract_children(calls, [], [], [], [])
-    assert [c['goal'] for c in children] == goals
+def test_odd_arguments_never_raise_and_claim_only_launched_children(args):
+    events = [_hook('pre_tool_call', '1', args), _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == []
+    launched = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A), _hook('post_tool_call', '1', args)]
+    assert [g for _, g, _ in _children([_call('1', args)], launched)] in ([], [LONG_A])
 
 
 def test_routed_around_quota_neither_stops_nor_reruns():

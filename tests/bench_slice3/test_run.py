@@ -422,15 +422,34 @@ def test_receiptless_harness_fault_keeps_evidence_and_allows_one_rerun(tmp_path,
 
 def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, lane_f):
     from bench.slice3.session import SandboxBreach
+    from bench.slice3.session import IdentityStopped
+    import time
     first = schedule(lane_f.DEV)[0]
-    def executor(case, arm, directory, **kw):
+    launched, stopped = [], []
+    def executor(case, arm, directory, admit, **kw):
+        launched.append(case + ':' + arm)
         directory.mkdir(parents=True)
-        raise SandboxBreach('Sandbox controls failed before any model call')
+        if (case, arm) == (first['case'], first['arm']):
+            raise SandboxBreach('Sandbox controls failed before any model call')
+        # The concurrent sibling reaches its next model launch only after the breach is published.
+        deadline = time.monotonic() + 10
+        while not (tmp_path / 'sandbox-breach.json').exists() and time.monotonic() < deadline:
+            time.sleep(.01)
+        try:
+            admit()
+        except IdentityStopped:
+            stopped.append(case + ':' + arm)
+            raise
+        raise AssertionError('admitted a launch after a recorded breach')
     evidence = tmp_path / 'calibrate'
     with pytest.raises(SandboxBreach):
         run_phase('calibrate', evidence, executor=executor)
     marker = json.loads((tmp_path / 'sandbox-breach.json').read_text())
     assert marker['phase'] == 'calibrate' and marker['session'] == first['case'] + ':' + first['arm']
+    # Only the breached session and its one running sibling ever started; the sibling was stopped and no
+    # queued session launched.
+    name = first['case'] + ':' + first['arm']
+    assert len(launched) == 2 and name in launched and stopped == [s for s in launched if s != name]
     receipt = json.loads((evidence / (first['case'] + '-' + first['arm']) / 'attempt1/session.json').read_text())
     assert receipt['sandbox_breach'] is True
     for phase, kwargs in (('calibrate', {}), ('qualify', {}),
