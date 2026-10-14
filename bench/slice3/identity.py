@@ -34,8 +34,11 @@ RUNTIME_TAG = '29d6b46571ef43ba3d753b76ff710e3c2d98d470'  # DECLARED: plugin run
 
 def verify_runtime(root=ROOT, tag=RUNTIME_TAG):
     """Every session copies these files from the checkout; a live run may only use the declared release's bytes."""
-    drift = [name for name in RUNTIME if (root / name).read_bytes() != subprocess.run(
-        ['git', '-C', str(root), 'show', f'{tag}:{name}'], capture_output=True, check=True).stdout]
+    try:
+        drift = [name for name in RUNTIME if (root / name).read_bytes() != subprocess.run(
+            ['git', '-C', str(root), 'show', f'{tag}:{name}'], capture_output=True, check=True).stdout]
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f'Declared plugin release {tag} is not available in this checkout') from error
     if drift:
         raise ValueError('Plugin runtime differs from the declared release: ' + ', '.join(drift))
 

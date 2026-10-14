@@ -205,6 +205,27 @@ def passing_controls(command, **kwargs):
     return SimpleNamespace(returncode=0, stdout='pytest 9.1.1', stderr='')
 
 
+def test_the_symlink_control_never_reaches_the_model_workspace(tmp_path, lane_f, monkeypatch):
+    # The preflight's protected-link points outside the run. It is gone before the first snapshot and launch.
+    def setup(case, arm, run):
+        for name in ('work', 'home', 'hermes', 'probe', 'tmp', 'turns'):
+            (run / name).mkdir(parents=True)
+        return tmp_path / 'synthetic-venv'
+    monkeypatch.setattr(session, 'setup', setup)
+    monkeypatch.setattr(session, 'sandbox_profile', lambda run, extra_read=(): '(version 1)\n')
+    monkeypatch.setattr(session.subprocess, 'run', passing_controls)
+    seen = []
+    def snapshot(work, target):
+        seen.append(sorted(p.name for p in work.iterdir()))
+        raise RuntimeError('stop before launch')
+    monkeypatch.setattr(session, 'snapshot', snapshot)
+    with pytest.raises(RuntimeError, match='stop before launch'):
+        session._run_session('dev0', 'C', tmp_path / 'clean', fake_base_url='http://127.0.0.1:1')
+    assert seen == [[]]
+    reads = json.loads((tmp_path / 'clean/run/controls.json').read_text())['reads']
+    assert any(r['path'].endswith('protected-link') and r['denied'] for r in reads)
+
+
 def test_rootless_first_turn_is_recorded_and_reconciled(tmp_path, lane_f, monkeypatch):
     from types import SimpleNamespace
     def setup(case, arm, run):

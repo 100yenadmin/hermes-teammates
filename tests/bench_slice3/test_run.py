@@ -206,6 +206,46 @@ def test_unknown_model_failure_never_authorizes_rerun(tmp_path, lane_f):
                   reruns=[item['case'] + ':' + item['arm']], retry_reason='confirmed-infra')
 
 
+def test_an_identity_stopped_receipt_is_never_rerun(tmp_path, lane_f):
+    # A sibling stopped by another session's breach is never rerun, even if the breach marker went missing.
+    item = schedule(lane_f.DEV)[0]
+    dest = tmp_path / 'phase' / (item['case'] + '-' + item['arm']) / 'attempt1'
+    dest.mkdir(parents=True)
+    from bench.slice3 import identity
+    (dest / 'session.json').write_text(json.dumps(dict(turns=[], scores=[], quota_stop=False, sandbox_breach=False,
+                                                       harness_fault={'error_class': 'IdentityStopped'},
+                                                       identity=identity.verify(require_hidden=False))))
+    with pytest.raises(ValueError, match='never rerun'):
+        run_phase('calibrate', tmp_path / 'phase', executor=lambda *a, **k: [],
+                  reruns=[item['case'] + ':' + item['arm']], retry_reason='confirmed-infra')
+
+
+def test_a_fault_after_completed_turns_keeps_their_spend_but_grades_nothing(tmp_path, lane_f):
+    first = schedule(lane_f.DEV)[0]
+    parent = dict(tokens=dict(input=100, output=20, cache_read=0, cache_write=0), api_calls=3, peak_prompt=10,
+                  discovery_calls=0, wait_calls=0, assign_wait_seconds=[])
+    def executor(case, arm, directory, **kw):
+        directory.mkdir(parents=True)
+        if (case, arm, kw['attempt']) == (first['case'], first['arm'], 1):
+            row = dict(case=case, arm=arm, turn=1, attempt=1, parent=parent,
+                       child_usage=dict(tokens=dict(input=40, output=5, cache_read=0, cache_write=0)))
+            (directory / 'turns.jsonl').write_text(json.dumps(row) + '\n')
+            raise RuntimeError('state extraction failed on turn two')
+        return []
+    evidence = tmp_path / 'phase'
+    with pytest.raises(RuntimeError, match='turn two'):
+        run_phase('calibrate', evidence, executor=executor)
+    case, arm = first['case'], first['arm']
+    fault = json.loads((evidence / f'{case}-{arm}/attempt1/session.json').read_text())
+    assert fault['turns'] == [] and fault['scores'] == []
+    assert fault['spend'] == [dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3,
+                                   child_tokens=45, total_tokens=165)]
+    run_phase('calibrate', evidence, executor=executor, reruns=[f'{case}:{arm}'], retry_reason='confirmed-infra')
+    spends = json.loads((evidence / 'attempt-spend.json').read_text())
+    assert dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3, child_tokens=45,
+                total_tokens=165) in spends
+
+
 @pytest.mark.parametrize('rerun', [False, True])
 def test_receipts_from_another_identity_are_never_reused(tmp_path, lane_f, rerun):
     item = schedule(lane_f.DEV)[0]

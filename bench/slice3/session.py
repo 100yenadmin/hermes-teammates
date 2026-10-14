@@ -382,6 +382,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=5)
         control_rows.append(dict(path=str(target), success=p.returncode == 0,
                                  denied=b'Operation not permitted' in p.stderr or b'Permission denied' in p.stderr))
+    (run / 'work/protected-link').unlink()  # a harness-only control: the model never sees it in its workspace
     check = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), str(venv / 'bin/python'),
                             '-m', 'pytest', '--version'], cwd=run / 'work', timeout=30,
                            env={'PATH': str(venv / 'bin') + ':/usr/bin:/bin', 'HOME': str(run / 'home'),

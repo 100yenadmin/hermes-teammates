@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from bench.slice2.hermes import records
-from bench.slice3.analysis import analyze, mean, report, score_turn
+from bench.slice3.analysis import analyze, mean, report, score_turn, token_total
 from bench.slice3.session import ARMS, DECLARED, IdentityStopped, SandboxBreach, _run_session, write_json
 
 SEED = 1403
@@ -134,6 +134,24 @@ def calibrate(rows):
     return dict(status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled, per_role=by_role, checks=checks)
 
 
+SPEND = ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')
+
+
+def partial_spend(dest):
+    """Spend of the turns an attempt completed before a harness fault (DECLARED: every attempt's spend is kept)."""
+    path, rows = dest / 'turns.jsonl', []
+    for line in path.read_text().splitlines() if path.exists() else []:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        parent, child = token_total(row['parent']), token_total(row.get('child_usage', {}))
+        rows.append(dict(case=row['case'], arm=row['arm'], attempt=row['attempt'], turn=row['turn'],
+                         parent_tokens=parent, parent_calls=row['parent']['api_calls'], child_tokens=child,
+                         total_tokens=parent + child if parent is not None and child is not None else None))
+    return rows
+
+
 def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, executor=None,
               reruns=(), retry_reason=None):
     from bench.slice3.cases import DEV, SCORED, load_case, load_oracle
@@ -206,7 +224,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             old = json.loads(prior.read_text())
             if old.get('identity') != ident:
                 raise ValueError('Rerun target comes from a different identity')
-            if old.get('sandbox_breach'):
+            if old.get('sandbox_breach') or (old.get('harness_fault') or {}).get('error_class') == 'IdentityStopped':
                 raise ValueError('A sandbox breach stops this identity; it is never rerun')
             eligible = old['quota_stop'] if retry_reason == 'quota' else (
                 bool(old.get('harness_fault')) or any(t['infra_invalid'] for t in old['turns']))
@@ -223,14 +241,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url, admit=admit,
                             turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
         except Exception as error:
-            # A harness fault before the receipt: keep the evidence, record the fault so the orchestrator can
-            # authorize the one rerun (confirmed-infra), and still stop the phase.
-            dest.mkdir(parents=True, exist_ok=True)
             breached = isinstance(error, SandboxBreach)
-            write_json(receipt, dict(turns=[], scores=[], quota_stop=False, identity=ident, sandbox_breach=breached,
-                                     harness_fault={'error_class': type(error).__name__}))
             if breached:
-                with breach_lock:  # the first breach is the recorded one; running siblings stop now
+                # Publish before any receipt work: from here no launch is admitted, and running siblings stop now.
+                with breach_lock:  # the first breach is the recorded one
                     if not (breach.exists() and json.loads(breach.read_text()).get('identity') == ident):
                         write_json(breach, dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
                     for process in launched:
@@ -239,6 +253,12 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
                                 os.killpg(process.pid, signal.SIGKILL)
                             except OSError:
                                 pass
+            # A harness fault before the receipt: keep the evidence and the spend of any completed turns, record
+            # the fault so the orchestrator can authorize the one rerun (confirmed-infra), and still stop the phase.
+            # Completed turns are never graded from a fault receipt.
+            dest.mkdir(parents=True, exist_ok=True)
+            write_json(receipt, dict(turns=[], scores=[], spend=partial_spend(dest), quota_stop=False, identity=ident,
+                                     sandbox_breach=breached, harness_fault={'error_class': type(error).__name__}))
             raise
         scores = []
         oracle = load_oracle(item['case'])
@@ -293,10 +313,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     pending, dropped_cases = sorted(pending), sorted(dropped_cases)
     write_json(directory / 'dispositions.json', dict(identity=ident, pending=pending, dropped_cases=dropped_cases))
     write_json(directory / 'metrics.json', graded)
-    attempts = [json.loads(p.read_text())['scores'] for p in sorted(directory.glob('*/attempt*/session.json'))]
+    attempts = [json.loads(p.read_text()) for p in sorted(directory.glob('*/attempt*/session.json'))]
     write_json(directory / 'attempt-spend.json', [
-        {k: r.get(k) for k in ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')}
-        for scores in attempts for r in scores])
+        {k: r.get(k) for k in SPEND}
+        for value in attempts for r in value['scores'] + value.get('spend', [])])
     if phase == 'qualify':
         result = qualification(sessions)
         result['identity'] = ident
