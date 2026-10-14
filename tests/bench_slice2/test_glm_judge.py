@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import re
+from pathlib import Path
 import socket
 from urllib.error import HTTPError, URLError
 
@@ -300,3 +301,42 @@ def test_prose_braces_before_the_verdict(content):
 def test_output_contract_states_the_contradiction_rule():
     # Live controls run2 credited a self-contradictory answer as supported.
     assert 'self-contradictory' in glm.OUTPUT_CONTRACT and 'is "unsupported"' in glm.OUTPUT_CONTRACT
+
+
+class Truncated(Response):
+    def read(self, *args):
+        import http.client
+        raise http.client.IncompleteRead(b'{"choi', 512)
+
+
+def test_incomplete_read_is_a_transient_failure(tmp_path):
+    fake, sleeps = Opener(Truncated(b''), response()), []
+    assert glm.make_glm_judge(tmp_path, opener=fake, sleep=sleeps.append)(request()) == RESULT
+    assert len(fake.calls) == 2 and sleeps == [5]
+
+
+@pytest.mark.parametrize('status', [429, 400, 200])
+def test_quota_stop_keeps_the_provider_error_fields(status, tmp_path):
+    body = {'error': {'code': 'usage_limit', 'message': 'quota exhausted ' + KEY, 'detail': 'dropped'}}
+    outcome = Response(json.dumps(body).encode()) if status == 200 else http_error(status, body)
+    with pytest.raises(glm.QuotaStop):
+        glm.make_glm_judge(tmp_path, opener=Opener(outcome))(request())
+    receipt = json.loads(next(tmp_path.glob('*.json')).read_text())
+    assert receipt['error_body'] == {'code': 'usage_limit', 'message': 'quota exhausted [REDACTED]'}
+
+
+def test_cli_refuses_a_receipts_directory_with_files(tmp_path, monkeypatch):
+    (tmp_path / 'receipts').mkdir()
+    (tmp_path / 'receipts' / '001-abandoned.json').write_text('{}')
+    monkeypatch.setattr(glm, 'make_glm_judge', lambda *a, **k: pytest.fail('must refuse before calls'))
+    with pytest.raises(SystemExit):
+        glm.main(['controls', '--out', str(tmp_path)])
+    assert not (tmp_path / 'judge-controls-receipt.json').exists()
+
+
+def test_every_call_receipt_binds_adapter_and_system_bytes(tmp_path):
+    glm.make_glm_judge(tmp_path, opener=Opener(response()))(request())
+    receipt = json.loads(next(tmp_path.glob('*.json')).read_text())
+    assert receipt['adapter_sha256'] == hashlib.sha256(Path(glm.__file__).read_bytes()).hexdigest()
+    system = request()['system'] + glm.OUTPUT_CONTRACT
+    assert receipt['system_sha256'] == hashlib.sha256(system.encode()).hexdigest()
