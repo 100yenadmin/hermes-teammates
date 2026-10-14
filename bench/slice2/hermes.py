@@ -28,6 +28,15 @@ def records(path):
     return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
 
 
+def normalize_args(events):
+    """Preserve rejected malformed calls while keeping consumer arguments object-shaped."""
+    for event in events:
+        if 'args' in event and not isinstance(event['args'], dict):
+            event['malformed_args'] = event['args']
+            event['args'] = {}
+    return events
+
+
 def controls(run, profile, targets):
     rows=[]
     for target in [run/'work/README.md',run/'work/allowed-marker',*targets,run/'work/protected-link']:
@@ -335,6 +344,7 @@ def execute(launch, directory, *, fake_base_url=None):
     final=next((r for r in reversed(stream) if r.get('type')=='result'),{})
     root=next((r.get('session_id') for r in stream if r.get('subtype')=='init'),final.get('session_id'))
     db=sessions(run/'hermes/state.db'); events=records(run/'events.jsonl'); usage=records(run/'usage.jsonl')
+    normalize_args(events + usage)
     receipts=[]
     ledger=run/'hermes/plugin-data/hermes-teammates/data.db'
     if ledger.exists():
