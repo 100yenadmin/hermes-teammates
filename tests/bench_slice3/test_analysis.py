@@ -1,4 +1,5 @@
 import copy
+import sys
 
 import pytest
 
@@ -71,6 +72,58 @@ def test_timeout_forces_zero(lane_f, tmp_path):
     result = analysis.score_turn(row, {'role': 'scout'}, tmp_path, tmp_path)
     assert result['adherence_all'] == result['success'] == 0
     assert result['parent_calls'] == 2 and result['parent_tokens'] is None
+
+
+def scoring_row(status='ok', reply='right answer'):
+    return dict(case='dev0', arm='B-native', turn=1, attempt=1, status=status, infra_invalid=None,
+                children=[dict(order=1, mechanism='delegate_task', teammate=None, goal='Find the value',
+                               context='', final_text='right answer', receipts=[])],
+                graded_child=1, delta={}, parent_reply=reply, wall_s=1,
+                parent=dict(tokens=None, api_calls=1, peak_prompt=5, discovery_calls=0, wait_calls=0,
+                            assign_wait_seconds=[]))
+
+
+def test_unspecified_routing_does_not_penalize_rules(lane_f, tmp_path, monkeypatch):
+    monkeypatch.setattr(sys.modules['bench.slice3.grade'], 'route', lambda *a: 'unspecified')
+    result = analysis.score_turn(scoring_row(), {'role': 'scout'}, tmp_path, tmp_path)
+    assert result['routing'] == 'unspecified'
+    assert result['rules'] == [True] * 4
+    assert result['adherence_all'] == 1
+
+
+@pytest.mark.parametrize('status,reply,adherence,success', [
+    ('error', '', 1, 0), ('error', 'right answer', 1, 1), ('timeout', 'right answer', 0, 0),
+])
+def test_only_timeout_overrides_child_grading(status, reply, adherence, success, lane_f, tmp_path, monkeypatch):
+    monkeypatch.setattr(sys.modules['bench.slice3.grade'], 'delivered', lambda role, oracle, text, work: bool(text))
+    result = analysis.score_turn(scoring_row(status, reply), {'role': 'scout'}, tmp_path, tmp_path)
+    assert result['adherence_all'] == adherence
+    assert result['success'] == success
+
+
+@pytest.mark.parametrize('status,expected', [('error', 1), ('timeout', 0)])
+def test_status_override_in_script_and_role_means(status, expected, monkeypatch):
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    rows = dataset(b=1, c=1, success=1)
+    for row in rows:
+        row['status'] = status
+    result = analysis.analyze(rows)
+    assert result['script_means']['case0']['B-native']['adherence_all'] == expected
+    assert result['script_means']['case0']['B-native']['success'] == expected
+    assert result['per_role']['B-native']['scout']['adherence_all'] == expected
+    assert result['per_role']['B-native']['scout']['success'] == expected
+
+
+def test_wait_arguments_normalized_and_unparseable_excluded(monkeypatch):
+    from bench.slice3.session import assign_wait_seconds
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    waits = assign_wait_seconds([dict(tool='teammate_assign', args={'wait_seconds': w})
+                                 for w in [None, '30', 5, 'x']])
+    assert waits == [0, 30.0, 5, None]
+    row = dataset()[6]  # C, turn one
+    row['assign_wait_seconds'] = waits
+    uptake = analysis.analyze([row])['d3_uptake']['C']
+    assert uptake == dict(assigns=4, positive=2, unparseable=1, share=2/3)
 
 
 def test_schedule_pair_and_start_balance():

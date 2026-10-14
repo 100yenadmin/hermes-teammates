@@ -109,3 +109,11 @@ def test_normalized_deferred_batch_keeps_outer_entry_identity():
     events = [dict(kind='batch', session_id='p', calls=[
         dict(call_id='outer', entry_index=i, tool='teammate_assign', args=a) for i, a in enumerate(args)])]
     assert [(c['call_id'], c['entry_index']) for c in canonical_calls(persisted, events)] == [('outer', 0), ('outer', 1)]
+
+
+def test_child_wait_arguments_are_normalized():
+    calls = [dict(session_id='p', call_id=str(i), entry_index=0, tool='teammate_assign',
+                  args=dict(teammate='scout', goal=str(i), wait_seconds=w))
+             for i, w in enumerate([None, '30', 5, 'x'])]
+    children = extract_children(calls, [], [], [], [])
+    assert [c['wait_seconds'] for c in children] == [0, 30.0, 5, None]

@@ -27,7 +27,7 @@ def score_turn(row, oracle, workspace, pristine):
     rules, success, fp, routing = [False] * 4, False, None, 'unspecified'
     if child:
         routing = route(row['arm'], {k: child[k] for k in ('mechanism', 'teammate', 'goal', 'context')}, oracle['role'])
-        if row['status'] == 'ok':
+        if row['status'] != 'timeout':
             rules = check_rules(oracle['role'], oracle, child['final_text'], row['delta'], child['receipts'], workspace)
             if len(rules) != 4:
                 raise ValueError('Rule checker must return exactly four values')
@@ -36,7 +36,7 @@ def score_turn(row, oracle, workspace, pristine):
             fp = result['fp']
     return dict(case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],
                 status=row['status'], infra_invalid=row['infra_invalid'], n_children=len(row['children']),
-                rules=rules, adherence_all=int(all(rules) and routing == 'correct'),
+                rules=rules, adherence_all=int(all(rules)),
                 adherence_rules=sum(rules) / 4, success=int(success), fp=fp, routing=routing,
                 parent_tokens=token_total(row['parent']), parent_calls=row['parent']['api_calls'],
                 parent_output=(row['parent']['tokens'] or {}).get('output'),
@@ -109,7 +109,7 @@ def script_means(rows, cases, strict_unique=False):
             normalized = []
             for index in range(1, 7):
                 r = dict(turns.get(index, {}))
-                if not r or r.get('status') != 'ok' or strict_unique and r.get('n_children') != 1:
+                if not r or r.get('status') == 'timeout' or strict_unique and r.get('n_children') != 1:
                     r.update(adherence_all=0, adherence_rules=0, success=0)
                 if not r.get('status'):
                     r.update(parent_calls=0, parent_tokens=None)
@@ -176,13 +176,16 @@ def analyze(rows, *, cases=None, dropped_cases=()):
         result['routing'][arm] = dict(Counter(r.get('routing', 'unspecified') for r in own))
         waits = [w for r in own for w in r.get('assign_wait_seconds', [])]
         if arm != 'B-native':
-            result['d3_uptake'][arm] = dict(assigns=len(waits), positive=sum(w > 0 for w in waits),
-                                           share=sum(w > 0 for w in waits) / len(waits) if waits else None)
+            known_waits = [w for w in waits if w is not None]
+            positive = sum(w > 0 for w in known_waits)
+            result['d3_uptake'][arm] = dict(assigns=len(waits), positive=positive,
+                                           unparseable=len(waits) - len(known_waits),
+                                           share=positive / len(known_waits) if known_waits else None)
         result['per_role'][arm] = {}
         for role in ('scout', 'reviewer', 'tester'):
             selected = [r for r in own if r.get('role') == role]
             result['per_role'][arm][role] = dict(n=len(selected), **{k: mean([
-                0 if r.get('status') != 'ok' else r.get(k) for r in selected]) for k in QUALITY},
+                0 if r.get('status') == 'timeout' else r.get(k) for r in selected]) for k in QUALITY},
                 unsupported_findings=sum(r.get('fp') or 0 for r in selected))
         result['descriptive'][arm] = {k: mean([r.get(k) for r in own]) for k in
                                      ('peak_prompt', 'parent_output', 'child_tokens', 'total_tokens', 'discovery_calls', 'wait_calls', 'wall_s', 'n_children')}

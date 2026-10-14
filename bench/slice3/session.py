@@ -5,6 +5,7 @@ all other network access. Hidden grading material is never copied into the run.
 """
 import hashlib
 import json
+import math
 import os
 import shutil
 import signal
@@ -117,6 +118,24 @@ def child_receipts(events, sid):
                                   and e.get('session_id') == sid), 1)]
 
 
+def wait_seconds(value):
+    """Normalize model arguments; an unparseable value stays visibly unknown."""
+    if value is None:
+        return 0
+    if type(value) not in (int, float, str):
+        return None
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (ValueError, OverflowError):
+        return None
+
+
+def assign_wait_seconds(calls):
+    return [wait_seconds(c['args'].get('wait_seconds', 0)) for c in calls
+            if c['tool'] == 'teammate_assign']
+
+
 def extract_children(calls, events, rows, messages, ledger):
     by_id = {r['id']: r for r in rows}
     lineage = [e for e in events if e.get('kind') == 'child_lineage']
@@ -170,7 +189,7 @@ def extract_children(calls, events, rows, messages, ledger):
             children.append(dict(order=len(children) + 1, call_id=c['call_id'], entry_index=c['entry_index'],
                                  mechanism=c['tool'], teammate=row.get('teammate', args.get('teammate')),
                                  goal=task.get('goal', ''), context=task.get('context', ''),
-                                 wait_seconds=args.get('wait_seconds', 0), child_session_id=sid,
+                                 wait_seconds=wait_seconds(args.get('wait_seconds', 0)), child_session_id=sid,
                                  terminal=terminal, final_text=final, receipts=child_receipts(events, sid),
                                  parent_received_text=received, summary_clipped=clipped))
     return children
@@ -330,8 +349,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         metrics = invocation_metrics(usage, parents)
         metrics.update(discovery_calls=sum(c['tool'] in {'tool_search', 'tool_describe'} for c in calls),
                        wait_calls=sum(c['tool'] == 'teammate_wait' for c in calls),
-                       assign_wait_seconds=[c['args'].get('wait_seconds', 0) for c in calls
-                                            if c['tool'] == 'teammate_assign'])
+                       assign_wait_seconds=assign_wait_seconds(calls))
         agents = [e for e in events if e.get('kind') == 'agent']
         status = 'timeout' if timeout else 'error' if code or final.get('is_error') or not final.get('text') else 'ok'
         record = dict(case=case_id, arm=arm, turn=turn['index'], attempt=attempt, session_id=root, status=status,

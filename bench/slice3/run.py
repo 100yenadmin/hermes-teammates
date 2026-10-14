@@ -6,6 +6,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from bench.slice2.hermes import records
 from bench.slice3.analysis import analyze, mean, report, score_turn
 from bench.slice3.session import ARMS, DECLARED, _run_session, write_json
 
@@ -47,7 +48,10 @@ def qualification(sessions):
         turns = sessions.get(arm, [])
         prefix = arm + ':'
         add(prefix + 'two_turns', len(turns) == 2, {'turns': len(turns)})
+        add(prefix + 'graded_children', bool(turns) and all(t.get('graded_child') is not None for t in turns),
+            {'graded_children': [t.get('graded_child') for t in turns]})
         if len(turns) != 2:
+            add(prefix + 'extraction_coverage', False, {'reason': 'qualification requires two turns'})
             continue
         add(prefix + 'completed', all(t['status'] == 'ok' for t in turns),
             {'statuses': [t['status'] for t in turns]})
@@ -60,6 +64,16 @@ def qualification(sessions):
         child_ids = {c['child_session_id'] for c in children}
         flags = [f for t in turns for f in t['inventories']['per_request_prompt_flags']]
         parents = set(reconciliation['parent_sessions'])
+        coverage = []
+        for turn in turns:
+            events_path = Path(turn['invocation']) / 'events.jsonl'
+            created = {e['session_id'] for e in records(events_path)
+                       if e.get('kind') == 'child_lineage' and e.get('session_id')
+                       and e['session_id'] not in parents}
+            extracted = [c['child_session_id'] for c in turn['children'] if c['child_session_id']]
+            coverage.append(dict(turn=turn['turn'], created=sorted(created), extracted=extracted,
+                pass_=events_path.exists() and len(extracted) == len(created) and set(extracted) == created))
+        add(prefix + 'extraction_coverage', all(c['pass_'] for c in coverage), {'turns': coverage})
         main_flags = [f for f in flags if not f.get('aux_task')]
         parent_flags = [f for f in main_flags if f['session_id'] in parents]
         child_flags = [f for f in main_flags if f['session_id'] in child_ids]
