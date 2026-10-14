@@ -335,3 +335,20 @@ amendment governs.
 - **Calibration rerun:** H1 changes the harness identity, so qualify and calibration run once more on the H1 identity
   (r2b), with no grader, template or gate change. This is not a difficulty round. If r2b fails a gate check, A1's
   failure disposition applies.
+
+## Harness fix H2 (2026-10-15, after a crashed scored attempt, before any scored analysis)
+
+- **Calibration r2b** ran on the H1 identity `2a8b0fe7` and passed every gate check: pooled 0.917, no role at 0 in
+  every arm, no checker errors, `ceiling_roles` = reviewer. Admission passed, and the scored phase started.
+- **The crash:** after 60 of 180 scored turns, a parent sent `teammate_assign` with a JSON list instead of an object
+  as its arguments. Hermes coerced the list before running the call, but the harness read the recorded list as an
+  object and raised (`assign_wait_seconds`). The scored phase stopped. The trigger was model output; the defect was
+  the harness's.
+- **That attempt is void.** All of its turns are discarded together, not analyzed, and kept only as crash evidence.
+  No scored outcome informed H2.
+- **H2:** every consumer of recorded call arguments treats a non-object as empty. Recorded arguments stay raw. A
+  malformed `teammate_assign` records its `wait_seconds` as unknown, which `d3_uptake` already counts as
+  unparseable. Children, receipts and grading are otherwise unchanged.
+- **Rerun:** H2 changes the harness identity, so qualify, calibration (r2c), admission and the full scored phase run
+  again on the H2 identity, with no grader, template or gate change. This is not a difficulty round. If r2c fails a
+  gate check, A1's failure disposition applies.
