@@ -201,6 +201,8 @@ def test_rootless_first_turn_is_recorded_and_reconciled(tmp_path, lane_f, monkey
             (run / name).mkdir(parents=True)
         return tmp_path / 'synthetic-venv'
     monkeypatch.setattr(session, 'setup', setup)
+    # The sandbox profile reads the machine-local Hermes interpreter, absent on CI.
+    monkeypatch.setattr(session, 'sandbox_profile', lambda run, extra_read=(): '(version 1)\n')
     monkeypatch.setattr(session.subprocess, 'run', lambda *a, **kw:
                         SimpleNamespace(returncode=0, stdout='pytest 9.1.1', stderr=b''))
     launches = []

@@ -154,6 +154,13 @@ def extract_children(calls, events, rows, messages, ledger):
             used.add(id(post))
         args = c['args'] if isinstance(c['args'], dict) else {}
         tasks = args.get('tasks') or [args] if c['tool'] == 'delegate_task' else [args]
+        # Model-written batches can be a JSON string, a single object or hold non-objects; extract what
+        # Hermes could have launched and never let malformed model output crash the harness.
+        if isinstance(tasks, str):
+            tasks = parsed(tasks, [])
+        if isinstance(tasks, dict):
+            tasks = [tasks]
+        tasks = [t for t in tasks if isinstance(t, dict)] if isinstance(tasks, list) else []
         for task in tasks:
             sid, row = None, {}
             received = post.get('result_text', '')
@@ -363,7 +370,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         status = 'timeout' if timeout else 'error' if code or final.get('is_error') or not final.get('text') else 'ok'
         record = dict(case=case_id, arm=arm, turn=turn['index'], attempt=attempt, session_id=root, status=status,
                       infra_invalid=infrastructure_invalid(status, usage, exception, bool(final.get('text')),
-                                                    parents=status_gated_sessions(usage, children)),
+                                                    parents=status_gated_sessions(usage, children), faults=events),
                       parent=metrics, children=children, graded_child=graded_child(children),
                       delta=workspace_delta(before, after), parent_reply=final.get('text', ''), wall_s=time.monotonic()-started,
                       inventories=dict(parent_tools=[e for e in agents if e.get('session_id') in parents],

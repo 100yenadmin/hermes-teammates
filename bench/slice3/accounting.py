@@ -117,9 +117,13 @@ def quota_exhausted(receipts):
                for e in unrecovered(receipts))
 
 
-def infrastructure_invalid(status, receipts, harness_exception=None, model_output=False, *, parents=None):
+def infrastructure_invalid(status, receipts, harness_exception=None, model_output=False, *, parents=None, faults=()):
     if harness_exception is not None and not model_output:
         return dict(reason='harness_exception', evidence={'error_class': type(harness_exception).__name__})
+    observer = [f for f in list(receipts) + list(faults) if f.get('kind') == 'observer_error']
+    if observer:
+        # Broken accounting is a harness fault independent of model output.
+        return dict(reason='observer_error', evidence={'where': sorted({str(f.get('where')) for f in observer})})
     # Recovery belongs to each session; another session's success cannot mask it.
     for e in unrecovered(receipts):
         code = e.get('http_status')

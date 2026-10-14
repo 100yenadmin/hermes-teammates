@@ -258,6 +258,12 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     elif phase == 'calibrate':
         result = calibrate(graded)
         result['identity'] = ident
+        if quota_stop:
+            result.update(status='PAUSED')
+        elif pending:
+            result.update(status='NEEDS_DISPOSITION', pending=pending)
+        elif dropped_cases:
+            result.update(status='FAIL', dropped_cases=dropped_cases)
         write_json(directory.parent / 'calibration.json', result)
     else:
         result = dict(status='PAUSED' if quota_stop else 'NEEDS_DISPOSITION' if pending else 'COMPLETE',

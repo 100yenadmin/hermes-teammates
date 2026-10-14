@@ -327,3 +327,19 @@ def test_qualification_rejects_incomplete_extraction(synthetic_qualification, ar
     check = ':graded_children' if failure == 'no_grade' else ':extraction_coverage'
     assert not result['checks'][arm + check]['pass_']
     assert result['status'] == 'FAIL'
+
+
+def test_calibration_never_passes_while_paused(tmp_path, lane_f, monkeypatch):
+    import bench.slice3.run as run_module
+    monkeypatch.setattr(run_module, 'calibrate', lambda rows: dict(status='PASS'))
+    def executor(case, arm, directory, **kw):
+        invocation = directory / 'run/turns/1'
+        (invocation / 'after').mkdir(parents=True)
+        return [dict(case=case, arm=arm, turn=1, attempt=kw['attempt'], status='error',
+                     infra_invalid={'reason': 'provider_retries_exhausted'}, session_id='p', children=[],
+                     graded_child=None, delta={}, parent_reply='', wall_s=1, invocation=str(invocation),
+                     quota_stop=True, parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0,
+                                                  wait_calls=0, assign_wait_seconds=[]))]
+    result = run_phase('calibrate', tmp_path / 'phase', executor=executor)
+    assert result['status'] == 'PAUSED'
+    assert json.loads((tmp_path / 'calibration.json').read_text())['status'] == 'PAUSED'

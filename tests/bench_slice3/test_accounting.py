@@ -145,3 +145,23 @@ def test_child_wait_arguments_are_normalized():
              for i, w in enumerate([None, '30', 5, 'x'])]
     children = extract_children(calls, [], [], [], [])
     assert [c['wait_seconds'] for c in children] == [0, 30.0, 5, None]
+
+
+@pytest.mark.parametrize('tasks,goals', [
+    ('[{"goal": "a"}, {"goal": "b"}]', ['a', 'b']),   # a JSON-encoded list
+    ({'goal': 'a'}, ['a']),                            # a single object
+    (['not an object', {'goal': 'b'}, 3], ['b']),      # non-object entries
+    (5, []), ('not json', []),
+])
+def test_malformed_delegation_batches_never_crash_extraction(tasks, goals):
+    calls = [dict(session_id='p', call_id='1', entry_index=0, tool='delegate_task', args=dict(tasks=tasks))]
+    children = extract_children(calls, [], [], [], [])
+    assert [c['goal'] for c in children] == goals
+
+
+def test_observer_error_is_a_harness_fault():
+    error = dict(kind='observer_error', where='accounting.post_api_request', type='KeyError')
+    usage = [dict(kind='usage', session_id='p', input_tokens=1)]
+    assert infrastructure_invalid('ok', usage + [error])['reason'] == 'observer_error'
+    assert infrastructure_invalid('ok', usage, faults=[error])['evidence'] == {'where': ['accounting.post_api_request']}
+    assert infrastructure_invalid('ok', usage, faults=[dict(kind='child_lineage')]) is None
