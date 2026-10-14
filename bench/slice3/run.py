@@ -77,6 +77,9 @@ def qualification(sessions):
         main_flags = [f for f in flags if not f.get('aux_task')]
         parent_flags = [f for f in main_flags if f['session_id'] in parents]
         child_flags = [f for f in main_flags if f['session_id'] in child_ids]
+        prompted_children = {f['session_id'] for f in child_flags}
+        add(prefix + 'child_prompt_coverage', child_ids <= prompted_children,
+            {'children': sorted(child_ids), 'missing': sorted(child_ids - prompted_children)})
         roles = {'scout', 'reviewer', 'tester'}
         add(prefix + 'project_prompts', bool(parent_flags and child_flags) and
             all(f['has_project_note'] for f in parent_flags + child_flags), {'requests': len(flags)})
@@ -158,6 +161,20 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     execute = executor or _run_session
     sessions, graded, quota_stop = {}, [], False
 
+    def latest_receipt(item):
+        root = directory / (item['case'] + '-' + item['arm'])
+        second = root / 'attempt2/session.json'
+        return (second, 2) if second.exists() else (root / 'attempt1/session.json', 1)
+
+    def read_receipt(receipt):
+        cached = json.loads(receipt.read_text())
+        if cached.get('identity') != ident:
+            raise ValueError('Cached session receipt comes from a different identity; use a fresh directory')
+        return cached
+
+    def final_invalid(value, attempt):
+        return attempt == 2 and (value['quota_stop'] or any(t.get('infra_invalid') for t in value['turns']))
+
     def cell(item):
         cell_root = directory / (item['case'] + '-' + item['arm'])
         prior = cell_root / 'attempt1/session.json'
@@ -169,17 +186,14 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             eligible = old['quota_stop'] if retry_reason == 'quota' else any(t['infra_invalid'] for t in old['turns'])
             if not eligible:
                 raise ValueError('No independent evidence supports the requested rerun')
-        dest = cell_root / ('attempt2' if retry else 'attempt1')
-        receipt = dest / 'session.json'
+        receipt, attempt = (cell_root / 'attempt2/session.json', 2) if retry else latest_receipt(item)
+        dest = receipt.parent
         if receipt.exists():
-            cached = json.loads(receipt.read_text())
-            if cached.get('identity') != ident:
-                raise ValueError('Cached session receipt comes from a different identity; use a fresh directory')
-            return cached
+            return read_receipt(receipt)
         if dest.exists():
             raise ValueError('Incomplete attempt requires orchestrator disposition; no automatic rerun')
         turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
-                        turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=2 if retry else 1)
+                        turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
         scores = []
         oracle = load_oracle(item['case'])
         pristine = load_case(item['case'])['workspace']
@@ -216,10 +230,22 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         for item, value in zip(items, values):
             sessions[item['arm']] = value['turns']
             graded.extend(value['scores'])
-            quota_stop |= value['quota_stop']
+            quota_stop |= value['quota_stop'] and not final_invalid(value, latest_receipt(item)[1])
         write_json(directory / 'phase-state.json', dict(phase=phase, completed=len(graded), quota_stop=quota_stop))
         if quota_stop:
             break
+    pending, dropped_cases = [], set()
+    for item in planned:
+        receipt, attempt = latest_receipt(item)
+        if not receipt.exists():
+            continue
+        value = read_receipt(receipt)
+        if attempt == 1 and any(t.get('infra_invalid') for t in value['turns']):
+            pending.append(item['case'] + ':' + item['arm'])
+        if final_invalid(value, attempt):
+            dropped_cases.add(item['case'])
+    pending, dropped_cases = sorted(pending), sorted(dropped_cases)
+    write_json(directory / 'dispositions.json', dict(identity=ident, pending=pending, dropped_cases=dropped_cases))
     write_json(directory / 'metrics.json', graded)
     attempts = [json.loads(p.read_text())['scores'] for p in sorted(directory.glob('*/attempt*/session.json'))]
     write_json(directory / 'attempt-spend.json', [
@@ -234,11 +260,14 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         result['identity'] = ident
         write_json(directory.parent / 'calibration.json', result)
     else:
-        result = dict(status='PAUSED' if quota_stop else 'COMPLETE', turns=len(graded), identity=ident)
+        result = dict(status='PAUSED' if quota_stop else 'NEEDS_DISPOSITION' if pending else 'COMPLETE',
+                      turns=len(graded), identity=ident, pending=pending, dropped_cases=dropped_cases)
         checker_errors = [{k: row[k] for k in ('case', 'arm', 'turn')}
                           for row in graded if 'checker_error' in row]
         if checker_errors:
-            result.update(status='CHECKER_ERROR', checker_errors=checker_errors)
+            result['checker_errors'] = checker_errors
+            if not quota_stop and not pending:
+                result['status'] = 'CHECKER_ERROR'
     return result
 
 
@@ -264,6 +293,14 @@ def main(argv=None):
     if args.phase == 'analyze' and len({row.get('identity') for row in value}) > 1:
         raise SystemExit('metrics mix rows from different identities')
     if args.phase == 'analyze':
+        dispositions_path = args.input.parent / 'dispositions.json'
+        if dispositions_path.exists():
+            dispositions = json.loads(dispositions_path.read_text())
+            if dispositions['pending']:
+                raise SystemExit('pending infrastructure dispositions: ' + ', '.join(dispositions['pending']))
+            missing = sorted(set(dispositions['dropped_cases']) - set(args.drop_case))
+            if missing:
+                raise SystemExit('dispositions require --drop-case for: ' + ', '.join(missing))
         checker_errors = sum('checker_error' in row for row in value)
         if checker_errors:
             raise SystemExit(f'{checker_errors} metrics rows carry checker_error')

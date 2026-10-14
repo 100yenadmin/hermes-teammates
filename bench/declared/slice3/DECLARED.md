@@ -197,6 +197,9 @@ EV=/Users/m1/Codex/session-notes/<date>/hermes-teammates-slice3/artifacts/live-r
 "$PY" -m bench.slice3.run report    --input "$EV/analysis.json" --output "$EV/REPORT.md" --directory "$EV/scored"
 ```
 
+Each phase writes `dispositions.json`; resolve `pending` through the single authorized `--retry-session CASE:ARM` rerun with `--retry-reason quota` or `confirmed-infra`.
+Before analysis, pass every recorded `dropped_cases` entry via `--drop-case CASE` (one flag per case).
+
 ## What this does not prove
 
 - **One model.** Results are for glm-5.3.

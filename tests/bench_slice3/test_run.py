@@ -91,6 +91,108 @@ def test_quota_pause_explicit_single_rerun_and_retained_spend(tmp_path, lane_f):
         run_phase('calibrate', evidence, executor=executor, reruns=[name])
 
 
+@pytest.fixture
+def injected_scored(tmp_path, lane_f, monkeypatch):
+    from bench.slice3 import identity, run
+    monkeypatch.setattr(identity, 'verify', lambda **kw: 'frozen')
+    declared = tmp_path / 'declared-scored'
+    declared.mkdir()
+    (declared / 'DECLARED.md').write_text('synthetic')
+    planned = schedule(lane_f.SCORED)
+    write_json(declared / 'schedule.json', planned)
+    monkeypatch.setattr(run, 'DECLARED', declared)
+    for name in ('qualification', 'calibration', 'admission'):
+        write_json(tmp_path / (name + '.json'), dict(status='PASS', identity='frozen'))
+    calls = []
+    target = planned[0]
+    name = target['case'] + ':' + target['arm']
+    def execute(faults):
+        def executor(case, arm, directory, **kw):
+            attempt = kw['attempt']
+            calls.append((case, arm, attempt))
+            fault = faults.get(attempt) if (case, arm) == (target['case'], target['arm']) else None
+            invocation = directory / 'run/turns/1'
+            (invocation / 'after').mkdir(parents=True)
+            return [dict(case=case, arm=arm, turn=1, attempt=attempt, status='error' if fault else 'ok',
+                infra_invalid={'reason': 'provider_retries_exhausted', 'status_code': 429 if fault == 'quota' else 503}
+                              if fault else None,
+                quota_stop=fault == 'quota', session_id='p', children=[], graded_child=None, delta={},
+                parent_reply='', wall_s=1, invocation=str(invocation),
+                parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0, wait_calls=0,
+                            assign_wait_seconds=[]))]
+        return executor
+    return tmp_path / 'scored', name, calls, execute
+
+
+@pytest.mark.parametrize('second_fault', ['quota', 'confirmed-infra'])
+def test_final_invalid_rerun_advances_without_third_attempt(injected_scored, second_fault):
+    evidence, name, calls, execute = injected_scored
+    executor = execute({1: 'quota', 2: second_fault})
+    assert run_phase('scored', evidence, executor=executor)['status'] == 'PAUSED'
+    assert len(calls) == 2
+    run_phase('scored', evidence, executor=executor, reruns=[name], retry_reason='quota')
+    result = run_phase('scored', evidence, executor=executor)
+    assert result['status'] == 'COMPLETE'
+    assert len(calls) == 31 and {c[2] for c in calls} == {1, 2}
+    assert result['dropped_cases'] == [name.split(':')[0]]
+    dispositions = json.loads((evidence / 'dispositions.json').read_text())
+    assert dispositions == dict(identity='frozen', pending=[], dropped_cases=result['dropped_cases'])
+    metrics = json.loads((evidence / 'metrics.json').read_text())
+    assert next(r for r in metrics if r['case'] + ':' + r['arm'] == name)['attempt'] == 2
+    run_phase('scored', evidence, executor=executor, reruns=[name], retry_reason='quota')
+    assert len(calls) == 31 and not list(evidence.glob('*/attempt3'))
+
+
+def test_scored_confirmed_infra_needs_disposition(injected_scored, monkeypatch):
+    from bench.slice3 import run
+    evidence, name, calls, execute = injected_scored
+    result = run_phase('scored', evidence, executor=execute({1: 'confirmed-infra'}))
+    assert result['status'] == 'NEEDS_DISPOSITION'
+    assert result['pending'] == [name] and len(calls) == 30
+    assert json.loads((evidence / 'dispositions.json').read_text()) == dict(
+        identity='frozen', pending=[name], dropped_cases=[])
+    monkeypatch.setattr(run, 'run_phase', lambda *a, **kw: result)
+    assert run.main(['scored', '--directory', str(evidence)]) == 1
+
+
+@pytest.mark.parametrize('disposition', ['pending', 'dropped_cases'])
+def test_analyze_requires_disposition_and_explicit_drop(tmp_path, monkeypatch, disposition):
+    from bench.slice3 import analysis, cases
+    from bench.slice3.run import main
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    metrics = tmp_path / 'metrics.json'
+    write_json(metrics, [])
+    case = cases.SCORED[0]
+    dispositions = dict(identity='frozen', pending=[], dropped_cases=[])
+    dispositions[disposition] = [case + ':C' if disposition == 'pending' else case]
+    write_json(tmp_path / 'dispositions.json', dispositions)
+    args = ['analyze', '--directory', str(tmp_path / 'other'), '--input', str(metrics),
+            '--output', str(tmp_path / 'analysis.json')]
+    with pytest.raises(SystemExit, match='pending|drop-case'):
+        main(args)
+    assert not (tmp_path / 'analysis.json').exists()
+    if disposition == 'pending':
+        with pytest.raises(SystemExit, match='pending'):
+            main(args + ['--drop-case', case])
+    else:
+        assert main(args + ['--drop-case', case]) == 0
+        assert json.loads((tmp_path / 'analysis.json').read_text())['dropped_cases'] == [case]
+
+
+def test_clean_scored_dispositions_allow_analysis(injected_scored, monkeypatch):
+    from bench.slice3 import analysis
+    from bench.slice3.run import main
+    evidence, _, calls, execute = injected_scored
+    result = run_phase('scored', evidence, executor=execute({}))
+    assert result['status'] == 'COMPLETE' and len(calls) == 30
+    assert result['dropped_cases'] == []
+    assert json.loads((evidence / 'dispositions.json').read_text()) == dict(
+        identity='frozen', pending=[], dropped_cases=[])
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    assert main(['analyze', '--directory', str(evidence), '--input', str(evidence / 'metrics.json'),
+                 '--output', str(evidence / 'analysis.json')]) == 0
+
+
 def test_unknown_model_failure_never_authorizes_rerun(tmp_path, lane_f):
     from bench.slice3.run import schedule
     item = schedule(lane_f.DEV)[0]
@@ -187,6 +289,24 @@ def test_qualification_proves_every_turn_extracted(synthetic_qualification):
     for arm in ARMS:
         assert result['checks'][arm + ':graded_children']['pass_']
         assert result['checks'][arm + ':extraction_coverage']['pass_']
+
+
+@pytest.mark.parametrize('arm', ARMS)
+@pytest.mark.parametrize('aux_only', [False, True])
+def test_qualification_requires_main_prompt_for_every_child(synthetic_qualification, arm, aux_only):
+    turn = synthetic_qualification[arm][1]
+    flags = turn['inventories']['per_request_prompt_flags']
+    child_flag = flags.pop()
+    if aux_only:
+        flags.append(dict(child_flag, aux_task=True))
+    result = qualification(synthetic_qualification)
+    assert result['status'] == 'FAIL'
+    assert not result['checks'][arm + ':child_prompt_coverage']['pass_']
+    flags[:] = [f for f in flags if not f.get('aux_task')]
+    flags.append(child_flag)
+    result = qualification(synthetic_qualification)
+    assert result['status'] == 'PASS', result
+    assert all(result['checks'][a + ':child_prompt_coverage']['pass_'] for a in ARMS)
 
 
 @pytest.mark.parametrize('arm', ARMS)
