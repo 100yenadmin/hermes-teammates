@@ -5,7 +5,7 @@ Thanks for helping improve Hermes Teammates, a plugin for [Hermes Agent](https:/
 ## Reporting a bug
 
 - Use the [bug report form](https://github.com/100yenadmin/hermes-teammates/issues/new?template=bug_report.yml). Include the plugin version and source from `hermes plugins list --json`, and `hermes --version`.
-- Your Hermes agent can draft the report for you: ask it to "report a problem with Hermes Teammates". It shows you the draft and files nothing without your yes.
+- Your Hermes agent can draft the report for you: ask it to "report a problem with Hermes Teammates". It shows you the draft and files nothing without your yes. On Hermes versions that do not list plugin skills in the system prompt, name it: "load the skill `hermes-teammates:teammates-report-problem`".
 - Search [existing issues](https://github.com/100yenadmin/hermes-teammates/issues?q=is%3Aissue) first, and add to a matching one instead of opening a new one.
 - Security problems: report them privately. See [SECURITY.md](SECURITY.md).
 - Problems in Hermes itself belong in [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/issues).
