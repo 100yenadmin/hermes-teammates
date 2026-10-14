@@ -24,6 +24,9 @@ OUTPUT_CONTRACT = (
     'List only defects that the answer itself asserts. A hidden-oracle bug that the answer does not assert '
     'is a miss and is omitted: never add a finding on the answer\'s behalf. '
     'bug_id is the matching oracle id only when status is "supported"; otherwise it is null. '
+    'A claim whose own explanation is wrong or self-contradictory (for example a wrong expected value, or a fix '
+    'that would not give the result it claims) is "unsupported", even when it names the right location or '
+    'operation. '
     'In cause and evidence, name each operation in words (for example adds, subtracts, includes, excludes), '
     'not only as a symbol. '
     'Return only that JSON object, no prose, no code fences.'
@@ -49,28 +52,22 @@ def _quota(body):
     return bool(QUOTA.search(str(body)))
 
 
-def _balanced_object(text):
-    start = text.find('{')
-    depth, quoted, escaped = 0, False, False
-    if start != -1:
-        for i in range(start, len(text)):
-            char = text[i]
-            if quoted:
-                if escaped:
-                    escaped = False
-                elif char == '\\':
-                    escaped = True
-                elif char == '"':
-                    quoted = False
-            elif char == '"':
-                quoted = True
-            elif char == '{':
-                depth += 1
-            elif char == '}':
-                depth -= 1
-                if depth == 0:
-                    return text[start:i + 1]
-    raise ValueError('Judge content has no balanced JSON object')
+def _embedded_object(text):
+    # Prose may hold braces before the verdict ("Verdict for {case}: {...}"): try every '{',
+    # prefer the first object carrying findings.
+    decoder, first = json.JSONDecoder(), None
+    for match in re.finditer(r'\{', text):
+        try:
+            value, _ = decoder.raw_decode(text, match.start())
+        except ValueError:
+            continue
+        if isinstance(value, dict):
+            if 'findings' in value:
+                return value
+            first = value if first is None else first
+    if first is None:
+        raise ValueError('Judge content has no JSON object')
+    return first
 
 
 def _parse(content):
@@ -84,7 +81,7 @@ def _parse(content):
         result = json.loads(text)
     except ValueError:
         try:
-            result = json.loads(_balanced_object(text))
+            result = _embedded_object(text)
         except ValueError:
             raise ValueError('Judge content is not a JSON object') from None
     if not isinstance(result, dict) or not isinstance(result.get('findings'), list):

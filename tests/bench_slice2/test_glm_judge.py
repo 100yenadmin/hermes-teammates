@@ -287,3 +287,16 @@ def test_output_contract_scopes_findings_to_the_answer():
     assert 'never add a finding on the answer' in contract
     assert 'only when status is "supported"; otherwise it is null' in contract
     assert 'name each operation in words' in contract
+
+
+@pytest.mark.parametrize('content', [
+    'Verdict for {case}: ' + json.dumps(RESULT),
+    'Scratch {"note": 1} then ' + json.dumps(RESULT),
+])
+def test_prose_braces_before_the_verdict(content):
+    assert glm._parse(content) == RESULT
+
+
+def test_output_contract_states_the_contradiction_rule():
+    # Live controls run2 credited a self-contradictory answer as supported.
+    assert 'self-contradictory' in glm.OUTPUT_CONTRACT and 'is "unsupported"' in glm.OUTPUT_CONTRACT
