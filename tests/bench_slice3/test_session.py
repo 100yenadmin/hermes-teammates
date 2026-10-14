@@ -175,3 +175,20 @@ def test_live_and_non_loopback_are_rejected(tmp_path, lane_f, monkeypatch):
         session.run_session('dev0', 'C', tmp_path / 'never')
     with pytest.raises(ValueError, match='loopback'):
         session.run_session('dev0', 'C', tmp_path / 'never', fake_base_url='https://example.com/v1')
+
+
+def test_setup_never_copies_bytecode_caches(tmp_path, lane_f, monkeypatch):
+    # Caches are outside the fixture identity, so they must never reach the agent's workspace.
+    import shutil
+    from bench.slice3 import venv as bench_venv
+    monkeypatch.setattr(bench_venv, 'ensure_bench_python', lambda: tmp_path / 'venv')
+    workspace = tmp_path / 'with-caches'
+    shutil.copytree(lane_f.load_case('dev0')['workspace'], workspace)
+    (workspace / 'src/__pycache__').mkdir()
+    (workspace / 'src/__pycache__/tiny.cpython-314.pyc').write_bytes(b'\x00')
+    (workspace / 'src/stray.pyc').write_bytes(b'\x00')
+    case = dict(lane_f.load_case('dev0'), workspace=workspace)
+    session.setup(case, 'C', tmp_path / 'run')
+    copied = {str(p.relative_to(tmp_path / 'run/work')) for p in (tmp_path / 'run/work').rglob('*')}
+    assert 'src/tiny.py' in copied
+    assert not any('__pycache__' in name or name.endswith('.pyc') for name in copied)

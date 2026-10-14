@@ -10,9 +10,14 @@ from .f_helpers import offline
 @pytest.fixture
 def tmp_path():
     # The bench venv must live outside the plugin checkout, and the repo conftest puts
-    # pytest's tmp_path inside it (.pytest_tmp); use the system temp root instead.
+    # pytest's tmp_path inside it (.pytest_tmp); use the system temp root instead. Earlier
+    # in-process Hermes tests can re-point tempfile's default into HERMES_HOME, which CI
+    # keeps inside the checkout, so fall back to the OS root in that case.
     import shutil, tempfile
-    path = Path(tempfile.mkdtemp(prefix='slice3-venv-')).resolve()
+    base = Path(tempfile.gettempdir()).resolve()
+    if base.is_relative_to(Path(venv.__file__).resolve().parents[2]):
+        base = Path('/tmp').resolve()
+    path = Path(tempfile.mkdtemp(prefix='slice3-venv-', dir=base)).resolve()
     yield path
     shutil.rmtree(path, ignore_errors=True)
 

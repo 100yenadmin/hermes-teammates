@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from bench.slice3.observer import Observer
 
 
@@ -27,6 +29,8 @@ def test_prompt_flags_each_request_and_sanitized_failure(tmp_path, monkeypatch):
 
 def test_sandbox_extension_default_is_unchanged(monkeypatch, tmp_path):
     from bench.drivers import hermes_cell
+    if not (hermes_cell.HERMES / '.venv/bin/python').exists():
+        pytest.skip('needs the local Hermes checkout the sandbox profile reads')
     monkeypatch.setattr(hermes_cell.subprocess, 'check_output', lambda *a, **k: '/python-home\n')
     from bench.slice3.sandbox import sandbox_profile
     original = hermes_cell.sandbox_profile(tmp_path)

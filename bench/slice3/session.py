@@ -224,7 +224,8 @@ def setup(case, arm, run):
     rendered = render(arm, case['project'], case['blurb'])
     for folder in ('home', 'hermes/plugins/hermes-teammates', 'probe', 'tmp', 'turns'):
         (run / folder).mkdir(parents=True, exist_ok=True)
-    shutil.copytree(case['workspace'], run / 'work')
+    # Caches are outside the fixture identity (and the grader ignores them); never copy them into live work.
+    shutil.copytree(case['workspace'], run / 'work', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     for name in ('AGENTS.md', 'pytest.ini'):
         (run / 'work' / name).write_text(rendered[name])
     if any((run / 'work' / name).exists() for name in ('AGENTS.override.md', '.hermes.md', 'HERMES.md')):
