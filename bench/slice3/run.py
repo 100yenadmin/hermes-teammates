@@ -140,6 +140,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     ident = frozen_identity.verify(require_hidden=executor is None) if fake_base_url is None else None
     if fake_base_url is None and executor is None:
         frozen_identity.verify_hermes()
+        frozen_identity.verify_runtime()
     directory = Path(directory)
     # A verified sandbox breach stops this identity for every phase, resume and rerun (DECLARED).
     # One evidence root ($EV) per identity: the marker lives beside the phase directories.

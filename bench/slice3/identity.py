@@ -29,6 +29,17 @@ def verify_hermes(hermes=HERMES, sha=HERMES_SHA):
         raise ValueError('Hermes tracked checkout is dirty')
 
 
+RUNTIME_TAG = '29d6b46571ef43ba3d753b76ff710e3c2d98d470'  # DECLARED: plugin runtime v0.2.5 (PR #44)
+
+
+def verify_runtime(root=ROOT, tag=RUNTIME_TAG):
+    """Every session copies these files from the checkout; a live run may only use the declared release's bytes."""
+    drift = [name for name in RUNTIME if (root / name).read_bytes() != subprocess.run(
+        ['git', '-C', str(root), 'show', f'{tag}:{name}'], capture_output=True, check=True).stdout]
+    if drift:
+        raise ValueError('Plugin runtime differs from the declared release: ' + ', '.join(drift))
+
+
 def covered(root=ROOT):
     names = list(RUNTIME) + list(HARNESS) + list(DECLARED)
     names += sorted(str(p.relative_to(root)) for p in (root / 'bench/slice3').glob('*.py'))

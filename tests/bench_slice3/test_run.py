@@ -423,14 +423,18 @@ def test_receiptless_harness_fault_keeps_evidence_and_allows_one_rerun(tmp_path,
 def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, lane_f):
     from bench.slice3.session import SandboxBreach
     from bench.slice3.session import IdentityStopped
+    import threading
     import time
     first = schedule(lane_f.DEV)[0]
-    launched, stopped = [], []
+    launched, stopped, sibling_started = [], [], threading.Event()
     def executor(case, arm, directory, admit, **kw):
         launched.append(case + ':' + arm)
         directory.mkdir(parents=True)
         if (case, arm) == (first['case'], first['arm']):
+            # Breach only once the concurrent sibling is inside its session, so its next launch is what stops.
+            sibling_started.wait(10)
             raise SandboxBreach('Sandbox controls failed before any model call')
+        sibling_started.set()
         # The concurrent sibling reaches its next model launch only after the breach is published.
         deadline = time.monotonic() + 10
         while not (tmp_path / 'sandbox-breach.json').exists() and time.monotonic() < deadline:

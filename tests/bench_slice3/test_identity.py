@@ -70,3 +70,22 @@ def test_fixture_drift_is_named(tmp_path):
         assert 'changed cases/' in str(error) and 'undeclared cases/extra.txt' in str(error)
     else:
         raise AssertionError('fixture drift not detected')
+
+
+def _has(tag):
+    import subprocess
+    return subprocess.run(['git', '-C', str(identity.ROOT), 'cat-file', '-e', tag + '^{commit}'],
+                          capture_output=True).returncode == 0
+
+
+def test_live_runtime_must_be_the_declared_release():
+    from bench.slice3.identity import RUNTIME_TAG, verify_runtime
+    assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3/DECLARED.md').read_text()
+    if not _has(RUNTIME_TAG) or not _has(RUNTIME_TAG + '~1'):
+        pytest.skip('shallow clone: declared release commit unavailable')
+    import subprocess
+    changed = subprocess.run(['git', '-C', str(identity.ROOT), 'diff', '--quiet', RUNTIME_TAG + '~1', RUNTIME_TAG,
+                              '--', '__init__.py', 'teammates_service.py', 'teammates_tools.py']).returncode
+    assert changed == 1
+    with pytest.raises(ValueError, match='differs from the declared release'):
+        verify_runtime(tag=RUNTIME_TAG + '~1')
