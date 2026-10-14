@@ -246,6 +246,8 @@ def test_optional_live_run007_replay(tmp_path):
     g = tmp_path / 'replay'
     g.mkdir()
     for name in ('verdicts.json', 'private-mapping.json', 'dispositions.json', 'normalizations.json'):
+        if name == 'normalizations.json' and not (source / name).exists():
+            continue  # optional in the CLI
         (g / name).write_bytes((source / name).read_bytes())
     grading.main(['score', str(ev), str(g), str(g / 'dispositions.json'), '--valid-only'])
     expected = grading.read_json(source / 'scores.json')['graded']['grades']
