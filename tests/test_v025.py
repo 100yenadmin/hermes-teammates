@@ -204,3 +204,11 @@ def test_inline_merges_only_missing_launch_metadata(rig, monkeypatch):
     row = rig.service.assign('owner', 'worker', 'goal', wait_seconds=5)
     assert row == dict(done, ok=True, timed_out=False, teammate='worker', model='fake-model')
     assert 'ok' not in done  # The wait row itself was not mutated.
+
+
+def test_inline_completion_keeps_racing_interrupt(rig, monkeypatch):
+    done = {'ok': True, 'run_id': 'tm_fake', 'status': 'succeeded', 'summary': 'done'}
+    monkeypatch.setattr(rig.service, 'wait', Mock(return_value={'ok': True, 'done': [done], 'pending': [],
+                                                                 'timed_out': False, 'interrupted': True}))
+    row = rig.service.assign('owner', 'worker', 'goal', wait_seconds=5)
+    assert row['status'] == 'succeeded' and row['timed_out'] is False and row['interrupted'] is True

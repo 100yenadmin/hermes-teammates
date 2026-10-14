@@ -220,6 +220,8 @@ class TeammatesService:
             for key in ('teammate', 'provider', 'model', 'unsupported'):
                 if key not in row and key in reply:
                     row[key] = reply[key]
+            if waited.get('interrupted'):
+                row['interrupted'] = True
             return row
         row = dict(reply, timed_out=waited['timed_out'])
         if waited.get('interrupted'):
