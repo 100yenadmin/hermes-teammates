@@ -99,7 +99,7 @@ def test_parent_recipe_requires_verbatim_payloads_without_context(arm):
     assert 'verbatim' in parent and 'no context' in parent and 'same working directory' in parent
     assert 'work/src' not in parent and 'work/README' not in parent  # children already run in work/
     if arm == 'C':
-        assert 'after its brief' in parent
+        assert 'never send it' in parent and 'first blank line' in parent
 
 
 @pytest.mark.parametrize('context', ['', None, 'Service root (cwd): /abs/work'])

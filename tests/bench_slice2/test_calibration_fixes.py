@@ -25,16 +25,17 @@ def fanout(calls, payloads, arm='C'):
     return hermes.fanout_recipe(events, 'p', arm, payloads, [calls])
 
 
-@pytest.mark.parametrize('full', [set(), {0, 1, 2, 3}, {0, 2}])
-def test_c_fanout_accepts_either_goal_per_call(payloads, full):
+@pytest.mark.parametrize('full,ok', [(set(), 1), ({0, 1, 2, 3}, 0), ({0, 2}, 0)])
+def test_c_fanout_accepts_only_after_brief_goals(payloads, full, ok):
+    # DECLARED: the same brief appears once per leaf; C roles already hold it (PR #38 review).
     calls = c_calls(payloads, full)
-    assert fanout(list(reversed(calls)), payloads) == 1
+    assert fanout(list(reversed(calls)), payloads) == ok
 
 
 @pytest.mark.parametrize('damage', ['paraphrase', 'brief_only', 'extra_sentence', 'wrong_role',
                                   'duplicate_pair', 'context'])
 def test_c_fanout_keeps_exact_pairs_and_context(payloads, damage):
-    calls = c_calls(payloads, {0, 2})
+    calls = c_calls(payloads, set())
     args = calls[0]['args']
     if damage == 'paraphrase':
         args['goal'] = 'Review the same thing in other words'
@@ -59,41 +60,11 @@ def test_b_fanout_requires_full_payload(payloads, drop_brief):
 
 
 @pytest.mark.parametrize('full', [False, True])
-def test_c_matches_after_brief_or_full_payload(payloads, full):
+def test_child_brief_must_appear_once(payloads, full):
     p = payloads[0]
     brief, remainder = p.split('\n\n', 1)
     messages = [dict(role='system', content=brief), dict(role='user', content=p if full else remainder)]
-    assert hermes.matched_payload(messages, p, payloads, repeated_brief_ok=True)
-
-
-def test_b_rejects_repeated_brief(payloads):
-    p = payloads[0]
-    messages = [dict(role='system', content=p.split('\n\n', 1)[0]), dict(role='user', content=p)]
-    assert not hermes.matched_payload(messages, p, payloads)
-
-
-@pytest.mark.parametrize('damage', ['not_contiguous', 'both_in_user', 'both_in_system',
-                                  'three_briefs', 'duplicate_goal', 'duplicate_scope', 'foreign_scope'])
-def test_c_repeated_brief_keeps_fragment_guards(payloads, damage):
-    p = payloads[0]
-    brief, remainder = p.split('\n\n', 1)
-    goal, scope = remainder.split('\nScope: ', 1)
-    messages = [dict(role='system', content=brief), dict(role='user', content=p)]
-    if damage == 'not_contiguous':
-        messages[1]['content'] = brief + '\nextra\n' + remainder
-    elif damage == 'both_in_user':
-        messages = [dict(role='user', content=brief + '\n' + p)]
-    elif damage == 'both_in_system':
-        messages = [dict(role='system', content=brief + '\n' + brief), dict(role='user', content=remainder)]
-    elif damage == 'three_briefs':
-        messages[0]['content'] += '\n' + brief
-    elif damage == 'duplicate_goal':
-        messages[1]['content'] += '\n' + goal
-    elif damage == 'duplicate_scope':
-        messages[1]['content'] += '\nScope: ' + scope
-    elif damage == 'foreign_scope':
-        messages[0]['content'] += '\nScope: ' + payloads[1].split('\nScope: ', 1)[1]
-    assert not hermes.matched_payload(messages, p, payloads, repeated_brief_ok=True)
+    assert hermes.matched_payload(messages, p, payloads) is (not full)
 
 
 def test_execute_all_consumers_survive_malformed_pair(adapter):
@@ -133,11 +104,11 @@ def test_malformed_args_never_supply_receipts(adapter, tool):
     assert hermes.fanout_recipe([event], 'p', 'C', adapter.launch['recipe']['children'], [[event]]) == 0
 
 
-@pytest.mark.parametrize('arm,matched', [('C', True), ('B-briefed', False)])
-def test_execute_only_c_allows_repeated_brief(adapter, arm, matched):
+@pytest.mark.parametrize('arm', ['C', 'B-briefed'])
+def test_execute_rejects_repeated_brief_for_both_arms(adapter, arm):
     adapter.launch['arm'] = arm
     for event in adapter.events:
         if event['kind'] == 'launch':
             brief = event['messages'][0]['content'].split('\n\n', 1)[0]
             event['messages'].insert(0, dict(role='system', content=brief))
-    assert all(c['matched_brief'] is matched for c in adapter.execute()['children'])
+    assert not any(c['matched_brief'] for c in adapter.execute()['children'])

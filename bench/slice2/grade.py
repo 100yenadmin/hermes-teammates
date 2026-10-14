@@ -189,10 +189,17 @@ def score_verdicts(packet, rows, mapping, oracles, dispositions=None, verified_u
     Ambiguous findings, and new-bug ('unplanted') findings without an independent execution
     receipt, need a disposition; a missing one stops scoring.
     """
+    # Bind stored verdicts to these rows: seeded blinding must reproduce every answer id, text and case.
+    answers,fresh=blind(rows)
+    text={a['answer_id']:a['answer'] for a in answers}
+    if fresh!=mapping or sorted(text)!=sorted(v['answer_id'] for v in packet['verdicts']):
+        raise ValueError('Stored verdicts do not match the rows being scored')
     by_cell={r['cell']:r for r in rows}
     grades=[]
     for verdict in packet['verdicts']:
         row=by_cell[mapping[verdict['answer_id']]['cell']]
+        if verdict['answer']!=text[verdict['answer_id']] or verdict['case']!=row['case']:
+            raise ValueError('Stored verdicts do not match the rows being scored')
         proofs=(verified_unplanted or {}).get(row['case'],{})
         findings=[]
         for finding in verdict['findings']:

@@ -71,3 +71,21 @@ def test_grade_answers_is_the_two_steps_composed():
     judge, _ = counting_judge([finding('supported', 'offset', 'control-offset')])
     packet, mapping = grade_answers(rows, judge, oracles)
     assert packet['frozen'] is False and len(packet['grades']) == len(rows) and packet['human_sample']
+
+
+@pytest.mark.parametrize('change', ['answer', 'case', 'extra_row', 'dropped_verdict'])
+def test_stored_verdicts_are_bound_to_the_rows(change):
+    rows, oracles = rows_and_oracle()
+    judge, _ = counting_judge([finding('supported', 'offset', 'control-offset')])
+    packet, mapping = judge_answers(rows, judge, oracles)
+    rows = copy.deepcopy(rows)
+    if change == 'answer':
+        rows[0]['answer'] = 'a different answer under the same cell id'
+    elif change == 'case':
+        packet['verdicts'][0]['case'] = 'another-case'
+    elif change == 'extra_row':
+        rows = rows + rows_and_oracle(5)[0][4:]
+    else:
+        packet['verdicts'].pop()
+    with pytest.raises(ValueError, match='do not match the rows'):
+        score_verdicts(packet, rows, mapping, {**oracles, **{r['case']: oracles[rows[0]['case']] for r in rows}})
