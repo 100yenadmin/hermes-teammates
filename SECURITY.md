@@ -2,8 +2,24 @@
 
 ## Reporting
 
+[Open a private security advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new).
+
+We aim to acknowledge reports within 3 business days and to share a decision or fix plan within 14 days.
+
 Please report vulnerabilities privately through GitHub's **Report a vulnerability** button on this repository.
 Do not open a public issue for them.
+
+## Scope
+
+- Teammates acting outside their allowed toolsets or profile.
+- Teammates or results from one profile becoming visible to another.
+- Run results or diagnostics exposing credentials.
+- Access to another conversation's runs, steering or follow-up context.
+- Kanban actions outside the configured lane or current board.
+
+## Out of scope
+
+- Hermes core delegation bugs: report them to [Hermes Agent security](https://github.com/NousResearch/hermes-agent/security).
 
 ## Model
 

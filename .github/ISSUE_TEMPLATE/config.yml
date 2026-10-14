@@ -1,0 +1,10 @@
+# Small plugin repos keep blank issues ON: there is no feature or question form and Discussions are off.
+# lcm-x keeps blank issues OFF (it has its own feature_or_design form).
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/100yenadmin/hermes-teammates/security/advisories/new
+    about: Please don't open a public issue for security problems.
+  - name: Problem in Hermes Agent itself
+    url: https://github.com/NousResearch/hermes-agent/issues
+    about: Bugs in Hermes core, not in this plugin, belong upstream.

@@ -1,0 +1,90 @@
+# Shared plugin bug form. Field ids and labels are FROZEN across our plugin repos: the
+# report-a-problem skill drafts issues with these same headings, so do not rename them.
+# Per repo: description, the security line, the diagnostics hint, and the surface options.
+name: Bug report
+description: Something in Hermes Teammates is broken or behaves unexpectedly.
+labels: ["bug", "triage-pending"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. From the next release, your Hermes agent can draft it for you: ask it to "report a problem with Hermes Teammates".
+        **Security problems** (toolset escapes, cross-profile access, or anything that exposes a secret) go to a [private advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new), not here.
+        **Problems in Hermes itself** belong in [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/issues).
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version
+      description: The hermes-teammates entry from `hermes plugins list --json` (version and source).
+    validations:
+      required: true
+  - type: input
+    id: hermes_version
+    attributes:
+      label: Hermes version
+      description: Output of `hermes --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where it happened
+      options:
+        - CLI/TUI
+        - Desktop app
+        - Telegram
+        - Discord
+        - Slack
+        - Other messaging platform
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 26, Ubuntu 24.04, Windows 11 ...
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Use teammates_roster for config problems and host features; teammate_check on an existing run for status, summary, api_calls and duration_seconds. Redact goals, summaries and private data. Inspect existing runs before requesting approval for any new paid run.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      description: Short excerpts only, for example from `hermes logs -n 300 | grep -i teammate`. Leave out tokens, keys and private message text.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This report contains no secrets, tokens or private messages.
+          required: true
+        - label: An AI agent helped draft this report, and I reviewed it.
