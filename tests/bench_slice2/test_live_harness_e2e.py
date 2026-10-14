@@ -215,8 +215,8 @@ def exercise_arm(arm, base, monkeypatch):
         assert waits[-1]['result']['pending'] == []
         assert len(waits[-1]['result']['done']) == 4
         assert all(r['status'] == 'succeeded' for r in waits[-1]['result']['done'])
-        # Main's generic string classifier flags the nullable child "error" key.
-        assert waits[-1]['status'] == 'error' and waits[-1]['error_type'] == 'tool_error'
+        # 0.2.2 (#27): rows omit a null "error", so Hermes's string classifier no longer flags the wait.
+        assert waits[-1]['status'] == 'ok' and not waits[-1]['error_type']
         assert waits[-1]['success'] is True and waits[-1]['denied'] is False
         assert result['full_wait_ids'] and result['wait_complete']
     assert recipe_errors(result) == []

@@ -96,8 +96,11 @@ def public_row(row, summary_budget=8000):
     original_chars = row.get('summary_chars')
     if original_chars is None:
         original_chars = len(row.get('summary') or '')
-    result['summary_clipped'] = len(result['summary'] or '') < original_chars
-    result['error'] = clip(result['error'], 2000)
+    result['summary_clipped'] = bool(row.get('summary_clipped')) or len(result['summary'] or '') < original_chars
+    if result['error'] is None:
+        del result['error']
+    else:
+        result['error'] = clip(result['error'], 2000)
     return result
 
 
@@ -454,6 +457,8 @@ class TeammatesService:
             if row is None:
                 return error('unknown_run')
             summary, failure = clip(result.summary, 8000), clip(result.error_message, 2000)
+            summary_chars = len(result.summary) if result.summary is not None else None
+            summary_clipped = len(summary or '') < (summary_chars or 0)
             fields = as_dict(result)
             usage, tools = fields.get('usage_metadata'), fields.get('tool_execution_summary')
             api_calls = usage.get('api_calls') if isinstance(usage, dict) else None
@@ -468,7 +473,9 @@ class TeammatesService:
             stopped = row.get('stop_requested_at')
             if stopped is not None and (result.completed_at is None or result.completed_at >= stopped):
                 if status == 'succeeded':
-                    summary = (clip(summary, 7950) or '') + '\ncompleted after stop was requested'
+                    summary = clip(summary, 7950) or ''
+                    summary_clipped = len(summary) < (summary_chars or 0)
+                    summary += '\ncompleted after stop was requested'
                 status, failure = 'cancelled', row['stop_reason'] or failure
             with self._token_lock, self.store_factory() as store:
                 child_session = next((sid for sid, subid in self._child_sessions.items()
@@ -478,7 +485,7 @@ class TeammatesService:
                                    result_hash=result.result_hash, provider=result.handle.provider,
                                    model=result.handle.model, completed_at=result.completed_at or self.clock(),
                                    api_calls=api_calls, duration_seconds=duration,
-                                   summary_chars=len(result.summary) if result.summary is not None else None,
+                                   summary_chars=summary_chars, summary_clipped=int(summary_clipped),
                                    **{key: receipt_int(tokens.get(key)) for key in TOKEN_KEYS})
                 self._child_sessions.pop(child_session, None)
                 self._token_usage.pop(child_session, None)
@@ -700,9 +707,10 @@ class TeammatesService:
                                   unsupported=[key for key in ('route', 'reasoning_effort')
                                                if teammate[key] is not None and not features[key]]))
             if selected is not None:
+                delegation, delegation_sources = self.host.delegation_settings()
                 teammates[-1].update(definition=teammate,
                                      launch_toolsets=teammate['toolsets'] or 'inherits parent',
-                                     delegation=self.host.delegation_settings())
+                                     delegation=delegation, delegation_sources=delegation_sources)
         with self.store_factory() as store:
             runs = [self._public_run(row, 300) for row in store.list(session_id, teammate=selected, limit=20)] if include_runs else []
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
@@ -714,12 +722,20 @@ class TeammatesService:
         value = dict(ok=True, teammates=teammates, invalid_teammates=invalid, features=features,
                      config_errors=config['config_errors'], runs=runs, lane=lane)
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
+        trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
+                      (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))
         while len(json.dumps(value)) > 16000:
-            for entries in (runs, lane['open_tasks'], value['config_errors'], teammates, invalid):
+            for entries in trim_lists:
                 if entries:
                     entries.pop()
                     break
             else:
+                # Last resort for an explained teammate: halve its instructions, flagged, before overflowing.
+                definition = teammates[0].get('definition') if selected is not None and teammates else None
+                if definition and definition.get('instructions'):
+                    teammates[0]['definition'] = dict(definition, instructions_clipped=True,
+                                                      instructions=definition['instructions'][:len(definition['instructions']) // 2])
+                    continue
                 lane['name'] = clip(lane['name'], 300)
                 break
         return value

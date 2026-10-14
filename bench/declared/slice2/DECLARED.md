@@ -10,7 +10,7 @@ calibration/admission, final audit; read source identities, hashes and receipts.
 
 Plugin worktree: `/Users/m1/repos/worktrees/hermes-teammates-bench2`, branch
 `bench/prequal`, from main `1b9a1c5e386429511de40cb7e1523af4f369934c` for #25.
-Runtime bytes remain v0.2.1 (ancestor `5f4f72e4789b8adde1217134e69b9d5ef06eeb01`).
+Runtime bytes are v0.2.2 (`30e598f91b3a00d77b42294ee93ec3475c8cecb6`), moved from v0.2.1 before qualification; see DECISIONS 2026-10-14 08:55.
 Hermes main: `3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065`; compatibility-test tree:
 `1078a4e5f363472c43a50c6738e47e54eab2940c`. Runtime-byte SHA256s, public and hidden
 assets, recipes, judge controls, harness and schedule are in

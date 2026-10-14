@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 (2026-10-14)
+
+- Successful `teammate_check` and `teammate_wait` calls are no longer counted as failed tool calls (#27). Run rows carried `"error": null`, and Hermes's generic failure check matches the text `"error"`, so every successful check or wait showed a failure marker and counted toward Hermes's repeated-failure guardrails. Rows now omit `error` when it is null. Real tool errors keep their text and `ok: false`. Remaining: a reply that lists a run with status `failed` near its start is still flagged by Hermes (upstream NousResearch/hermes-agent#91166).
+- `summary_clipped` stays true when a stop races with success and the added stop note hides that the result was cut.
+- Explaining one teammate keeps its definition even when many sibling definitions are invalid, and the reply stays within its 16,000-character budget: the definition's instructions are shortened and flagged `instructions_clipped` only when they would not fit.
+- Teammate `model`, `route` and `reasoning_effort` are limited to 100 characters, and `toolsets` to 24 names of 1–48 printable ASCII characters; longer values make the teammate invalid with a clear config error.
+- Explain replies show Hermes's delegation defaults for unset settings and add `delegation_sources` to distinguish defaults from configured values.
+
 ## 0.2.1 (2026-10-14)
 
 - Results report `summary_clipped` and the original `summary_chars`, including ledger clipping; old rows keep unknown lengths.

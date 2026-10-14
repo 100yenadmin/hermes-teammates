@@ -7,6 +7,9 @@ DEFAULTS = {'teammates': {}, 'lane': 'teammates', 'claim_ttl_seconds': 900,
             'max_live_runs': 4, 'followup_context_chars': 8000, 'notify_on_completion': False}
 FIELDS = {'description', 'instructions', 'toolsets', 'model', 'route', 'reasoning_effort'}
 NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
+# Bounded so that one explained teammate always fits the roster's reply budget.
+TOOLSET = re.compile(r'^[!-~]{1,48}$')
+MAX_TOOLSETS, MAX_LABEL = 24, 100
 logger = logging.getLogger(__name__)
 _logged_errors, _log_lock = set(), threading.Lock()
 
@@ -67,16 +70,18 @@ def parse(raw):
                 errors.append(f'{name}.{key}: expected string')
         for key in ('model', 'route', 'reasoning_effort'):
             value = values.get(key)
-            if value is None or isinstance(value, str):
+            if value is None or isinstance(value, str) and len(value) <= MAX_LABEL:
                 teammate[key] = value if value is None or value.strip() else None
+            elif isinstance(value, str):
+                errors.append(f'{name}.{key}: longer than {MAX_LABEL} characters')
             else:
                 errors.append(f'{name}.{key}: expected string or None')
         toolsets = values.get('toolsets')
-        if toolsets is None or (isinstance(toolsets, list) and toolsets and
-                               all(isinstance(t, str) and t.strip() for t in toolsets)):
+        if toolsets is None or (isinstance(toolsets, list) and 0 < len(toolsets) <= MAX_TOOLSETS and
+                               all(isinstance(t, str) and TOOLSET.fullmatch(t.strip()) for t in toolsets)):
             teammate['toolsets'] = [t.strip() for t in toolsets] if toolsets is not None else None
         else:
-            errors.append(f'{name}.toolsets: expected non-empty list of non-empty strings')
+            errors.append(f'{name}.toolsets: expected 1-{MAX_TOOLSETS} toolset names, each 1-48 printable ASCII characters without spaces')
         teammates[name] = teammate
         if len(errors) > start:
             invalid[name] = errors[start:]

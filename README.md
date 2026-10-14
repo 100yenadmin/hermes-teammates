@@ -92,7 +92,9 @@ Each teammate takes `description`, `instructions` and `toolsets`, plus optional 
 `reasoning_effort` (see [Compatibility](#compatibility)). The form checks types, not ranges. A value it accepts but
 the plugin can't use is listed under **Config problems** in `/teammates`. Invalid teammates refuse launch:
 unknown keys, wrong field types, and empty or invalid `toolsets` fail closed. Absent or null `toolsets` inherit.
-Long descriptions and instructions are clipped with warnings and remain launchable; toolset names are trimmed.
+Long descriptions (over 300 characters) and instructions (over 4,000) are clipped with warnings and remain launchable;
+toolset names are trimmed. `model`, `route` and `reasoning_effort` over 100 characters, more than 24 toolsets, or a
+toolset name that is not 1–48 printable ASCII characters without spaces make the teammate invalid.
 
 Launch context reserves operator instructions, then card text (up to 6,000 characters), the follow-up digest,
 and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
@@ -151,7 +153,7 @@ Finished runs report these fields through `teammate_check`, `teammate_wait` and 
 
 | Field | Meaning |
 |---|---|
-| `summary_clipped` | True when the returned summary is shorter than the original result |
+| `summary_clipped` | True when original summary content was cut, even if a stop note adds text afterward |
 | `summary_chars` | Original summary length before ledger/public clipping; `null` for old rows or no summary |
 | `role_hash` | First 12 SHA-256 hex characters of the canonical JSON of the parsed teammate definition used at launch; `null` for old rows |
 | `api_calls`, `duration_seconds` | Lifecycle request count and duration in seconds; `null` when unavailable |
@@ -161,6 +163,7 @@ Finished runs report these fields through `teammate_check`, `teammate_wait` and 
 Summaries retain at most 8,000 characters in the ledger; the roster returns at most 300 per run. For old rows,
 `summary_clipped` only detects clipping of the stored text because the original length is unknown.
 The roster's current `role_hash` can differ from a run's hash after you edit the definition.
+Run rows omit `error` when it is null; actual tool errors retain `error` and `ok: false`.
 
 Token receipts require both `subagent_start` and `post_api_request` hooks and in-process plugins; the roster
 reports `token_receipts` support. Only mapped child sessions contribute, never the parent's own requests or
@@ -171,7 +174,10 @@ most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes
 `teammates_roster(teammate="reviewer")` returns only that teammate and its parsed `definition`, current
 `role_hash`, `launch_toolsets` (or `inherits parent`), route support in `features`, ignored fields in
 `unsupported`, and read-only global `delegation` values: `inherit_mcp_toolsets`, `worktree_isolation` and
-`child_timeout_seconds`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
+`child_timeout_seconds`. Unset values use Hermes's defaults; `delegation_sources` marks each value as
+`config`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
+The reply stays within 16,000 characters; if an explained definition would not fit (for example 4,000 characters of
+non-ASCII instructions, which JSON escapes), its instructions are shortened and `instructions_clipped` is true.
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs

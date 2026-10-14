@@ -199,13 +199,17 @@ def test_explain_teammate_readonly_config_and_tool(rig, monkeypatch):
 
 def test_explain_missing_config_values(rig, monkeypatch):
     from hermes_cli import config as global_config
+    from tools import delegate_tool_config
     monkeypatch.setattr(global_config, 'load_config_readonly', lambda: {})
     value = rig.service.roster('owner', teammate='worker')
     assert value['ok'], value
     teammate = value['teammates'][0]
     assert teammate['launch_toolsets'] == 'inherits parent'
-    assert teammate['delegation'] == {key: 'unknown' for key in
-        ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds')}
+    monkeypatch.setattr(delegate_tool_config, '_cfg', lambda: {})
+    assert teammate['delegation'] == dict(
+        inherit_mcp_toolsets=global_config.DEFAULT_CONFIG['delegation']['inherit_mcp_toolsets'],
+        worktree_isolation=delegate_tool_config._get_worktree_isolation(),
+        child_timeout_seconds=global_config.DEFAULT_CONFIG['delegation']['child_timeout_seconds'])
     def unavailable():
         raise RuntimeError('synthetic config unavailability')
     monkeypatch.setattr(global_config, 'load_config_readonly', unavailable)

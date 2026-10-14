@@ -1,7 +1,7 @@
 {
   "slice": "slice2",
   "version": 1,
-  "base_sha": "5f4f72e4789b8adde1217134e69b9d5ef06eeb01",
+  "base_sha": "30e598f91b3a00d77b42294ee93ec3475c8cecb6",
   "scored": [
     "01-parcel",
     "02-stock",
@@ -22,7 +22,7 @@
   ],
   "files": {
     "__init__.py": "7defcbda216165ea5936f60b44fc7a900e415be1398641f7a47c8e935be54031",
-    "bench/declared/slice2/DECLARED.md": "1105db1e8cae18a9f52c21d5447d158a42a1393c3c5546f9ade945211233a6aa",
+    "bench/declared/slice2/DECLARED.md": "2fc9397f27c847d2c75524fdbc5446e963c34807508b91cda7d990a076b4f9cb",
     "bench/declared/slice2/configs.json": "c6b9ea5e1dc38a986d7043c80b1ad486d80154290addb604199452eab1ad752c",
     "bench/declared/slice2/judge-controls.json": "55d2d74d2859194fd3aaeb06d6f62575f4ac02b36f66b690fce3738706eef3d9",
     "bench/declared/slice2/recipes.json": "b76e43178d6a8ca61b9ab7765a6471af115d9031569bfb6038939fe57189a6a3",
@@ -123,11 +123,11 @@
     "bench/tasks/t1h/cases/dev04-timesheets/src/models.py": "69682b5f756be94da43a9f6ce7f6cb1efb5fb504378972729ce1218a0c3d5664",
     "bench/tasks/t1h/cases/dev04-timesheets/src/pricing.py": "f1d4b28d9f0dc8ea263f718490ed4391e2bd1f75b643d6cf772fbe90d21c0981",
     "bench/tasks/t1h/hidden/oracles.json": "ee4031a66b56b6f698f9067f0e4c57ebbc196915aa15c587c6217885f1226eab",
-    "plugin.yaml": "1bf67a42dc0648e75297f1fca06358fe71b9a19a738e18ecff75aee2ab45974a",
-    "teammates_config.py": "2d6a7d2356ae702d14e5575a9693efb43224e42a2399c8c877791af8fea28a09",
-    "teammates_host.py": "5a2f23e4aca467db7bc9895e6b97cb0987db92b8f88c54d7cb3067a5fff36973",
-    "teammates_service.py": "aa11460c90df72c5519b325662928572a62486a747487d1277e6e668f05e75b7",
-    "teammates_store.py": "8e58c6b41ea5dd83f03480a41c7e5f7039bf6c0b3d7c76eae88e36ccb1b8b88a",
+    "plugin.yaml": "4cfa69faaa099a92826b5b156846b6c88007575f29471f3c3131e18dc0a0f496",
+    "teammates_config.py": "bca582a5e3d63e802f3c93d7e2c3316e5927078405f0a5bce45456ed1c0a7641",
+    "teammates_host.py": "542f0b4cd49dc0d6ff456549047c81945d36af2800bebf95816c73dcbad39bf8",
+    "teammates_service.py": "fb3378832992b51db7463ff3e387233c18b59d9d8f90c040a6cb40249137be9a",
+    "teammates_store.py": "d98a750b3683281a7382a6be2bb642be3eac38696418d48e40d228ff11f1068c",
     "teammates_tools.py": "8e74ddce96842321a4cf025c9eb0299eedf441e80cefcf619d4ebfa65d8ea587"
   }
 }
