@@ -150,6 +150,7 @@ def _case(case_id, ordinal, rng, difficulty, selection):
     # Keep four docs with targets in the first two. Each sampled fact has its
     # own subject, profile lookup and value, plus a separate standby profile lure.
     fact_ids = selection['scout'] + rng.sample([key for key in FACTS if key not in selection['scout']], 2)
+    names = rng.sample(PROFILES, 8)
     for doc_index, doc in enumerate(('leases', 'identifiers', 'admission', 'serialization')):
         fact_id = fact_ids[doc_index]
         topic, answer, unit, distractor, _ = FACTS[fact_id]
@@ -159,7 +160,7 @@ def _case(case_id, ordinal, rng, difficulty, selection):
         lines += [f'{name}-channel-{doc_index}-{row:02d} has capacity {100 + row + doc_index} slots.'
                   for row in range(80)]
         position = 12 + rng.randrange(8)
-        p, q = rng.sample(PROFILES, 2)
+        p, q = names[2 * doc_index], names[2 * doc_index + 1]
         references = [f'{subject} uses the {p} profile.',
                       f'{name} standby {topic} uses the {q} profile.']
         lines[position:position] = references

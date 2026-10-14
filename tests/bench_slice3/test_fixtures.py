@@ -20,6 +20,16 @@ def inventory(root):
     return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
 
+def test_generated_profile_names_are_unique_within_each_case(tmp_path):
+    generate(root=tmp_path, backup=None)
+    for case_id in cases.SCORED + cases.DEV:
+        docs = tmp_path / 'cases' / case_id / 'workspace' / 'docs'
+        counts = Counter(name for path in docs.glob('*.md')
+                         for name in re.findall(r'^The (\S+) profile sets ', path.read_text(), re.MULTILINE))
+        assert sum(counts.values()) == 8, case_id
+        assert all(count == 1 for count in counts.values()), (case_id, counts)
+
+
 def test_generator_byte_determinism_and_backup(tmp_path):
     a, b, backup = (tmp_path / name for name in ('a', 'b', 'hidden-backup'))
     first = generate(a, backup=backup)
