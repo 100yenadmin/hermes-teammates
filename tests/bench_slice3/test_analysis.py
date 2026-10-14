@@ -91,6 +91,16 @@ def test_unspecified_routing_does_not_penalize_rules(lane_f, tmp_path, monkeypat
     assert result['adherence_all'] == 1
 
 
+@pytest.mark.parametrize('arm', ['B-native', 'C', 'C-eager'])
+def test_wrong_routing_fails_adherence_even_with_passing_rules(lane_f, tmp_path, monkeypatch, arm):
+    monkeypatch.setattr(sys.modules['bench.slice3.grade'], 'route', lambda *a: 'wrong')
+    row = scoring_row()
+    row['arm'] = arm
+    result = analysis.score_turn(row, {'role': 'scout'}, tmp_path, tmp_path)
+    assert result['rules'] == [True] * 4 and result['routing'] == 'wrong'
+    assert result['adherence_all'] == 0
+
+
 @pytest.mark.parametrize('status,reply,adherence,success', [
     ('error', '', 1, 0), ('error', 'right answer', 1, 1), ('timeout', 'right answer', 0, 0),
 ])

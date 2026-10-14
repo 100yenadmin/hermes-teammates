@@ -132,7 +132,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
               reruns=(), retry_reason=None):
     from bench.slice3.cases import DEV, SCORED, load_case, load_oracle
     from bench.slice3 import identity as frozen_identity
-    ident = frozen_identity.verify() if fake_base_url is None else None
+    # A live run (the real executor) also needs every hidden fixture file; injected executors never read them.
+    ident = frozen_identity.verify(require_hidden=executor is None) if fake_base_url is None else None
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
@@ -161,13 +162,18 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         retry = item['case'] + ':' + item['arm'] in reruns
         if retry:
             old = json.loads(prior.read_text())
+            if old.get('identity') != ident:
+                raise ValueError('Rerun target comes from a different identity')
             eligible = old['quota_stop'] if retry_reason == 'quota' else any(t['infra_invalid'] for t in old['turns'])
             if not eligible:
                 raise ValueError('No independent evidence supports the requested rerun')
         dest = cell_root / ('attempt2' if retry else 'attempt1')
         receipt = dest / 'session.json'
         if receipt.exists():
-            return json.loads(receipt.read_text())
+            cached = json.loads(receipt.read_text())
+            if cached.get('identity') != ident:
+                raise ValueError('Cached session receipt comes from a different identity; use a fresh directory')
+            return cached
         if dest.exists():
             raise ValueError('Incomplete attempt requires orchestrator disposition; no automatic rerun')
         turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
@@ -184,15 +190,17 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
                 score.update(adherence_all=0, adherence_rules=0, success=0, checker_error=type(error).__name__,
                              parent_calls=row['parent']['api_calls'], parent_tokens=None)
             scores.append(score)
-        value = dict(turns=turns, scores=scores, quota_stop=any(t.get('quota_stop') for t in turns))
+        for score in scores:
+            score['identity'] = ident
+        value = dict(turns=turns, scores=scores, quota_stop=any(t.get('quota_stop') for t in turns), identity=ident)
         write_json(receipt, value)
         return value
 
     for batch in sorted({r['batch'] for r in planned}):
-        items = [r for r in planned if r['batch'] == batch]
         # Submission order is the declared start order, with no more than two workers.
+        items = sorted((r for r in planned if r['batch'] == batch), key=lambda r: r['start_order'])
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(cell, item) for item in sorted(items, key=lambda r: r['start_order'])]
+            futures = [pool.submit(cell, item) for item in items]
             values, failures = [], []
             for f in futures:
                 try:
@@ -247,6 +255,8 @@ def main(argv=None):
     if not args.input or not args.output:
         p.error('analyze/report require --input and --output')
     value = json.loads(args.input.read_text())
+    if args.phase == 'analyze' and len({row.get('identity') for row in value}) > 1:
+        raise SystemExit('metrics mix rows from different identities')
     if args.phase == 'analyze':
         from bench.slice3.cases import SCORED
         write_json(args.output, analyze(value, cases=SCORED, dropped_cases=args.drop_case))

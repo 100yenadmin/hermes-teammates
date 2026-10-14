@@ -23,7 +23,7 @@ same roles in the workspace AGENTS.md — with no worse task success and no more
 | Plugin runtime | v0.2.5, tag `29d6b46571ef43ba3d753b76ff710e3c2d98d470` (PR #44) |
 | Hermes | main `3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065`, unmodified. Compatibility tree `1078a4e5f363472c43a50c6738e47e54eab2940c` |
 | Model | glm-5.3 on the z.ai coding plan, for the parent and all children |
-| Bench identity | The digest of `bench/declared/slice3/identity.json` (`python -m bench.slice3.identity` freezes it). It hashes the plugin runtime, the harness modules (`bench/slice3/*.py` and the reused slice-2 and driver modules), this declaration, the configs, the schedule and `bench/tasks/t2/manifest.json`, which in turn hashes the cases and hidden oracles. Every live phase verifies it first and records it. The scored phase refuses gates from another identity. Any byte change makes a new identity, and receipts from different identities never combine. |
+| Bench identity | The digest of `bench/declared/slice3/identity.json` (`python -m bench.slice3.identity` freezes it). It hashes the plugin runtime, the harness modules (`bench/slice3/*.py` and the reused slice-2 and driver modules), this declaration, the configs, the schedule and `bench/tasks/t2/manifest.json`, which in turn hashes the cases and hidden oracles. Every live phase verifies it and every manifest-listed fixture file first (rejecting missing, changed or undeclared case files) and records the digest on each session receipt, metrics row and gate. Cached receipts and reruns from another identity are refused. The scored phase refuses gates from another identity. Any byte change makes a new identity, and receipts from different identities never combine. |
 | Scored matrix | 10 cases × 3 arms × 1 session × 6 turns = 30 sessions, 180 requests |
 | Dev matrix | 2 cases × 3 arms = 6 calibration sessions (never scored) |
 | Qualification | 1 dev case × 3 arms × 2 turns |
@@ -188,6 +188,10 @@ PY=/Users/m1/repos/worktrees/hermes-main-venv/.venv/bin/python
 EV=/Users/m1/Codex/session-notes/<date>/hermes-teammates-slice3/artifacts/live-run<NNN>
 "$PY" -m bench.slice3.run qualify   --directory "$EV/qualify"
 "$PY" -m bench.slice3.run calibrate --directory "$EV/calibrate"
+# Admission (orchestrator, by hand): project the spend from calibration (see Admission above), then write
+# "$EV/admission.json" as {"status": "PASS", "identity": "<digest>", "projection": {...}}.
+# The digest is what qualification.json and calibration.json record; `"$PY" -m bench.slice3.identity --verify`
+# prints the same value. A DEFER writes no PASS file and the scored phase refuses to start.
 "$PY" -m bench.slice3.run scored    --directory "$EV/scored"
 "$PY" -m bench.slice3.run analyze   --input "$EV/scored/metrics.json" --output "$EV/analysis.json" --directory "$EV/scored"
 "$PY" -m bench.slice3.run report    --input "$EV/analysis.json" --output "$EV/REPORT.md" --directory "$EV/scored"

@@ -353,3 +353,18 @@ def test_tester_timeout_is_failure(oracles, work, case, proof_python, monkeypatc
     submit(work, oracle)
     monkeypatch.setattr(grade, '_run_node', lambda *args: {'exit': None, 'state': 'timeout'})
     assert not grade.child_success('tester', oracle, '', work, case['workspace'], [])['success']
+
+
+def test_node_run_ignores_config_and_conftest_above_the_work_dir(tmp_path, proof_python, monkeypatch):
+    # CI runs unsandboxed inside the repo checkout; nothing above the work dir may shape the run.
+    parent = tmp_path / 'outer'
+    (parent / 'nested/junit-work/tests').mkdir(parents=True)
+    (parent / 'pytest.ini').write_text('[pytest]\naddopts = --definitely-not-an-option\n')
+    (parent / 'conftest.py').write_text('raise RuntimeError("outer conftest loaded")\n')
+    (parent / '__init__.py').write_text('from . import missing\n')
+    work = parent / 'nested/junit-work'
+    (work / 'tests/test_control.py').write_text('import pytest\ndef test_control():\n'
+                                                '    with pytest.raises(ValueError):\n        pass\n')
+    monkeypatch.setattr(grade, 'sys', type('Linux', (), {'platform': 'linux'})())
+    outcome = grade._run_node(work, 'tests/test_control.py::test_control', proof_python, proof_python.parent.parent)
+    assert outcome == {'exit': 1, 'state': 'failure'}

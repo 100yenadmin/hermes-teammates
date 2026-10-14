@@ -37,8 +37,29 @@ def freeze(root=ROOT, path=None):
     return digest(files)
 
 
-def verify(root=ROOT, path=None):
+def verify_fixtures(root=ROOT, require_hidden=True):
+    """Every manifest-listed T2 file matches, and no undeclared public fixture file exists."""
+    task = root / 'bench/tasks/t2'
+    listed = json.loads((task / 'manifest.json').read_text())['files']
+    problems = []
+    for name, sha in sorted(listed.items()):
+        target = task / name
+        if name.startswith('hidden/') and not require_hidden:
+            continue
+        if not target.is_file():
+            problems.append('missing ' + name)
+        elif hashlib.sha256(target.read_bytes()).hexdigest() != sha:
+            problems.append('changed ' + name)
+    public = {str(p.relative_to(task)) for p in (task / 'cases').rglob('*') if p.is_file()
+              and '__pycache__' not in p.parts and p.suffix != '.pyc'}
+    problems += ['undeclared ' + name for name in sorted(public - set(listed))]
+    if problems:
+        raise ValueError('Slice 3 fixture drift: ' + ', '.join(problems))
+
+
+def verify(root=ROOT, path=None, require_hidden=True):
     """Return the identity digest, or raise naming every drifted file."""
+    verify_fixtures(root, require_hidden)
     frozen = json.loads((path or root / 'bench/declared/slice3/identity.json').read_text())
     current = compute(root)
     drift = sorted(set(frozen) ^ set(current)) + sorted(k for k in set(frozen) & set(current) if frozen[k] != current[k])
@@ -48,4 +69,5 @@ def verify(root=ROOT, path=None):
 
 
 if __name__ == '__main__':
-    print(freeze())
+    import sys
+    print(verify() if sys.argv[1:] == ['--verify'] else freeze())

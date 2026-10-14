@@ -41,10 +41,49 @@ def test_unknown_model_failure_never_authorizes_rerun(tmp_path, lane_f):
     item = schedule(lane_f.DEV)[0]
     dest = tmp_path / 'phase' / (item['case'] + '-' + item['arm']) / 'attempt1'
     dest.mkdir(parents=True)
-    (dest / 'session.json').write_text(json.dumps(dict(turns=[dict(infra_invalid=None)], scores=[], quota_stop=False)))
+    from bench.slice3 import identity
+    (dest / 'session.json').write_text(json.dumps(dict(turns=[dict(infra_invalid=None)], scores=[], quota_stop=False,
+                                                       identity=identity.verify(require_hidden=False))))
     with pytest.raises(ValueError, match='independent evidence'):
         run_phase('calibrate', tmp_path / 'phase', executor=lambda *a, **k: [],
                   reruns=[item['case'] + ':' + item['arm']], retry_reason='confirmed-infra')
+
+
+@pytest.mark.parametrize('rerun', [False, True])
+def test_receipts_from_another_identity_are_never_reused(tmp_path, lane_f, rerun):
+    item = schedule(lane_f.DEV)[0]
+    dest = tmp_path / 'phase' / (item['case'] + '-' + item['arm']) / 'attempt1'
+    dest.mkdir(parents=True)
+    (dest / 'session.json').write_text(json.dumps(dict(turns=[dict(infra_invalid={'reason': 'x'})], scores=[],
+                                                       quota_stop=True, identity='0' * 64)))
+    kwargs = dict(reruns=[item['case'] + ':' + item['arm']], retry_reason='quota') if rerun else {}
+    with pytest.raises(ValueError, match='different identity'):
+        run_phase('calibrate', tmp_path / 'phase', executor=lambda *a, **k: [], **kwargs)
+
+
+def test_receipts_and_metrics_carry_identity(tmp_path, lane_f):
+    from bench.slice3 import identity
+    def executor(case, arm, directory, **kw):
+        invocation = directory / 'run/turns/1'
+        (invocation / 'after').mkdir(parents=True)
+        return [dict(case=case, arm=arm, turn=1, attempt=1, status='ok', infra_invalid=None, session_id='p',
+                     children=[], graded_child=None, delta={}, parent_reply='', wall_s=1, invocation=str(invocation),
+                     parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0, wait_calls=0,
+                                 assign_wait_seconds=[]))]
+    run_phase('calibrate', tmp_path / 'phase', executor=executor)
+    expected = identity.verify(require_hidden=False)
+    receipts = [json.loads(p.read_text()) for p in (tmp_path / 'phase').glob('*/attempt1/session.json')]
+    assert receipts and {r['identity'] for r in receipts} == {expected}
+    assert {r['identity'] for r in json.loads((tmp_path / 'phase/metrics.json').read_text())} == {expected}
+    assert json.loads((tmp_path / 'calibration.json').read_text())['identity'] == expected
+
+
+def test_analyze_refuses_mixed_identities(tmp_path):
+    from bench.slice3.run import main
+    rows = tmp_path / 'metrics.json'
+    rows.write_text(json.dumps([dict(identity='a'), dict(identity='b')]))
+    with pytest.raises(SystemExit, match='different identities'):
+        main(['analyze', '--directory', str(tmp_path), '--input', str(rows), '--output', str(tmp_path / 'out.json')])
 
 
 @pytest.fixture

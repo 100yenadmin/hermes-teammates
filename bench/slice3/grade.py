@@ -177,8 +177,13 @@ def _sandbox(run, venv, python):
 
 def _run_node(work, node, python, venv):
     junit = work.parent / 'junit.xml'
-    command = [str(python), '-m', 'pytest', '-q', '-p', 'no:cacheprovider',
-               f'--junitxml={junit}', node]
+    # Hermetic: no config, conftest or package above the work dir may shape the run or its node ids.
+    ini = work / 'pytest.ini'
+    if not ini.is_file():
+        ini = work.parent / 'grader-pytest.ini'
+        ini.write_text('[pytest]\n')
+    command = [str(python), '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '-c', str(ini), f'--rootdir={work}',
+               f'--confcutdir={work}', f'--junitxml={junit}', node]
     if sys.platform == 'darwin':
         profile = work.parent / 'pytest.sb'
         profile.write_text(_sandbox(work.parent, venv, python))

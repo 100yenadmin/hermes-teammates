@@ -36,7 +36,7 @@ def score_turn(row, oracle, workspace, pristine):
             fp = result['fp']
     return dict(case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],
                 status=row['status'], infra_invalid=row['infra_invalid'], n_children=len(row['children']),
-                rules=rules, adherence_all=int(all(rules)),
+                rules=rules, adherence_all=int(all(rules) and routing != 'wrong'),
                 adherence_rules=sum(rules) / 4, success=int(success), fp=fp, routing=routing,
                 parent_tokens=token_total(row['parent']), parent_calls=row['parent']['api_calls'],
                 parent_output=(row['parent']['tokens'] or {}).get('output'),
