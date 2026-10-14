@@ -307,6 +307,11 @@ def main(argv=None):
             missing = sorted(set(dispositions['dropped_cases']) - set(args.drop_case))
             if missing:
                 raise SystemExit('dispositions require --drop-case for: ' + ', '.join(missing))
+            extra = sorted(set(args.drop_case) - set(dispositions['dropped_cases']))
+            if extra:
+                raise SystemExit('--drop-case not recorded by the runner (no selective drops): ' + ', '.join(extra))
+        elif args.drop_case:
+            raise SystemExit('--drop-case needs the runner-written dispositions.json next to the metrics')
         checker_errors = sum('checker_error' in row for row in value)
         if checker_errors:
             raise SystemExit(f'{checker_errors} metrics rows carry checker_error')

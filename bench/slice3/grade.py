@@ -218,13 +218,23 @@ def _run_node(work, node, python, venv):
     return {'exit': result.returncode, 'state': state}
 
 
-def _tester_success(oracle, workspace, pristine):
+def _tester_success(oracle, workspace, pristine, support=()):
     file, _, node = _test_identity(oracle)
     submitted = _safe_file(workspace, file)
     if submitted is None:
         return {'success': False, 'fp': None, 'detail': 'submitted test absent or unsafe'}
     # Snapshot submitted bytes once; buggy and fixed trees get identical support.
     content = submitted.read_bytes()
+    # Files this turn added or changed under tests/ (the rules allow them) travel with the test; src/ and
+    # everything an earlier turn left behind stay pristine.
+    extras = {}
+    for relative in support:
+        parts = PurePosixPath(relative).parts
+        if relative == file or not parts or parts[0] != 'tests' or '..' in parts:
+            continue
+        source = _safe_file(workspace, relative)
+        if source is not None and source.is_file():
+            extras[relative] = source.read_bytes()
     venv = ensure_bench_python()
     python = venv / 'bin/python'
     SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -234,8 +244,9 @@ def _tester_success(oracle, workspace, pristine):
         for label in ('buggy', 'fixed'):
             work = root / label / 'work'
             shutil.copytree(pristine, work, ignore=shutil.ignore_patterns('.git', '__pycache__', '*.pyc'))
-            (work / file).parent.mkdir(parents=True, exist_ok=True)
-            (work / file).write_bytes(content)
+            for relative, data in [*extras.items(), (file, content)]:
+                (work / relative).parent.mkdir(parents=True, exist_ok=True)
+                (work / relative).write_bytes(data)
             if label == 'fixed':
                 for relative, fix in oracle['fix_files'].items():
                     target = _safe_file(work, relative)
@@ -248,7 +259,7 @@ def _tester_success(oracle, workspace, pristine):
             'detail': f'buggy={outcomes[0]["state"]}/{outcomes[0]["exit"]}; fixed={outcomes[1]["state"]}/{outcomes[1]["exit"]}'}
 
 
-def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, receipts) -> dict:
+def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, receipts, support=()) -> dict:
     if role == 'scout':
         lines = _lines(text)
         answer = lines[-1].removeprefix('ANSWER: ') if lines and lines[-1].startswith('ANSWER: ') else None
@@ -274,7 +285,7 @@ def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, rece
             success = verdict is not None and verdict[1] == 'request-changes' and bool(matches) and high <= 1
         return {'success': bool(success), 'fp': int(fp), 'detail': 'verdict and finding checks'}
     if role == 'tester':
-        return _tester_success(oracle_turn, workspace, pristine)
+        return _tester_success(oracle_turn, workspace, pristine, support)
     raise ValueError(f'Unknown role: {role}')
 
 

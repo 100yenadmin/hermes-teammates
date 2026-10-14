@@ -31,7 +31,8 @@ def score_turn(row, oracle, workspace, pristine):
             rules = check_rules(oracle['role'], oracle, child['final_text'], row['delta'], child['receipts'], workspace)
             if len(rules) != 4:
                 raise ValueError('Rule checker must return exactly four values')
-            result = child_success(oracle['role'], oracle, child['final_text'], workspace, pristine, child['receipts'])
+            result = child_success(oracle['role'], oracle, child['final_text'], workspace, pristine, child['receipts'],
+                                   row['delta'].get('added', []) + row['delta'].get('modified', []))
             success = result['success'] and delivered(oracle['role'], oracle, row['parent_reply'], workspace)
             fp = result['fp']
     return dict(case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],

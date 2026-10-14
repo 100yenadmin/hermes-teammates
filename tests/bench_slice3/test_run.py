@@ -343,3 +343,18 @@ def test_calibration_never_passes_while_paused(tmp_path, lane_f, monkeypatch):
     result = run_phase('calibrate', tmp_path / 'phase', executor=executor)
     assert result['status'] == 'PAUSED'
     assert json.loads((tmp_path / 'calibration.json').read_text())['status'] == 'PAUSED'
+
+
+def test_analyze_refuses_drops_the_runner_did_not_record(tmp_path):
+    from bench.slice3 import cases
+    from bench.slice3.run import main
+    metrics = tmp_path / 'metrics.json'
+    write_json(metrics, [])
+    args = ['analyze', '--directory', str(tmp_path), '--input', str(metrics), '--output', str(tmp_path / 'out.json'),
+            '--drop-case', cases.SCORED[0]]
+    with pytest.raises(SystemExit, match='dispositions.json'):
+        main(args)
+    write_json(tmp_path / 'dispositions.json', dict(identity='x', pending=[], dropped_cases=[]))
+    with pytest.raises(SystemExit, match='no selective drops'):
+        main(args)
+    assert not (tmp_path / 'out.json').exists()

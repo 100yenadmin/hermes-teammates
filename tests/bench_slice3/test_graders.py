@@ -368,3 +368,14 @@ def test_node_run_ignores_config_and_conftest_above_the_work_dir(tmp_path, proof
     monkeypatch.setattr(grade, 'sys', type('Linux', (), {'platform': 'linux'})())
     outcome = grade._run_node(work, 'tests/test_control.py::test_control', proof_python, proof_python.parent.parent)
     assert outcome == {'exit': 1, 'state': 'failure'}
+
+
+def test_tester_support_files_from_this_turn_travel_with_the_test(oracles, work, case, proof_python):
+    # The rules allow any file under tests/; a test that imports its own helper must grade the same way.
+    oracle = oracle_for(oracles, 'tester')
+    file, function, _ = grade._test_identity(oracle)
+    (work / 'tests/regression_support.py').write_text(oracle['reference_test'])
+    submit(work, oracle, code=f'from regression_support import {function}\n')
+    assert not grade.child_success('tester', oracle, '', work, case['workspace'], [])['success']
+    support = ['tests/regression_support.py', file, 'src/ignored.py', 'tests/../escape.py']
+    assert grade.child_success('tester', oracle, '', work, case['workspace'], [], support)['success']
