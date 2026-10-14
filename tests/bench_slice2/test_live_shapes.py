@@ -85,3 +85,29 @@ def test_probe_instruction_requires_one_plain_cat_per_call(tmp_path):
     import re
     assert 'one target per' in text and 'no loop, pipe' in text
     assert re.search(r'<[A-Za-z][^<>]*>', text) is None  # no bracketed placeholder for agents to copy
+
+
+@pytest.mark.parametrize('arm', ['B-briefed', 'C'])
+def test_parent_recipe_requires_verbatim_payloads_without_context(arm):
+    from bench.slice2.protocol import recipe
+    parent = recipe(arm, 'Qualification: synthetic.')['parent']
+    assert 'verbatim' in parent and 'no context' in parent and 'same working directory' in parent
+    assert 'work/src' not in parent and 'work/README' not in parent  # children already run in work/
+    if arm == 'C':
+        assert 'after its brief' in parent
+
+
+@pytest.mark.parametrize('context', ['', None, 'Service root (cwd): /abs/work'])
+def test_c_fanout_rejects_context(monkeypatch, context):
+    roles = ['contracts', 'state', 'boundaries', 'errors']
+    monkeypatch.setattr(hermes, 'config_roles', lambda: roles)
+    payloads = [f'brief {r}\n\ngoal {r}\nScope: {r}' for r in roles]
+    calls, pres = [], []
+    for i, (r, p) in enumerate(zip(roles, payloads)):
+        args = dict(teammate=r, goal=p.split('\n\n', 1)[1])
+        if context is not None:
+            args['context'] = context
+        calls.append(dict(tool='teammate_assign', call_id=f'a{i}', args=args))
+        pres.append(dict(kind='pre_tool_call', session_id='p', tool='teammate_assign', call_id=f'a{i}', args=args))
+    events = [dict(kind='batch', session_id='p', calls=calls)] + pres
+    assert hermes.fanout_recipe(events, 'p', 'C', payloads) == (0 if context else 1)
