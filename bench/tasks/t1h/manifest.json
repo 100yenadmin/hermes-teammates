@@ -32,7 +32,7 @@
     "bench/slice2/audit.py": "7ed2ab9937b9334c6778e4367caa5ee693416f50faa39e45745c52d612ef386b",
     "bench/slice2/budget.py": "13d8b9d17e9a9764fa819e129917e99ade696a411ad7292bb9ae9e7ef9eb2ae5",
     "bench/slice2/grade.py": "55009740dc10bbd3faf5e545d56dae6eed3cd23504637fd626daa72aba1ba4a1",
-    "bench/slice2/hermes.py": "9709bf2ba97c132dcf86c048fc37d559bbc87fd33b72e4807e12e7f308f4323b",
+    "bench/slice2/hermes.py": "557903f136842408a8e4dfb0763f20dbaeda73725ab56dbbf19fe994ec059004",
     "bench/slice2/proofs.py": "b1f7a5c351b9022d31012caa925e5aa01baab79a3256b43ac354017fa97c8d6f",
     "bench/slice2/protocol.py": "3e9ab4879acd956d436940e247f18aae3100c9cd2e55a88f61aeefc819d773ef",
     "bench/slice2/run.py": "ad8ce77cdd59a193ba7c563c9f25d660f7f4762dc5bc06a567ad584fb19ded26",

@@ -38,9 +38,10 @@ def test_harness_controls_are_denial_evidence(adapter, monkeypatch, controls):
                    and hermes.read_target(e, adapter.run/'work') == target)
     assert (receipt.get('error') == 'SANDBOX_HIDDEN') is hidden
     if hidden:
-        assert receipt['control_denied'] is True
-        # The agent's own terminal probe still did not prove inheritance for this target.
+        assert receipt['evidence'] == 'harness_controls'
+        # Integrity accepts the controls, but qualification coverage needs the session's own denial.
         assert batch['parent_denials'] is False
+        assert hermes.read_coverage([receipt], [target], adapter.run/'work', denied=True, kinds=('read_file',)) is False
 
 
 def test_control_evidence_never_excuses_a_successful_read(adapter):
@@ -81,4 +82,6 @@ def test_b_fanout_task_role_orchestrator_rejected():
 
 def test_probe_instruction_requires_one_plain_cat_per_call(tmp_path):
     text = hermes.qualification_recipe('C', tmp_path, [tmp_path/'t'])['parent']
-    assert 'one target per tool call' in text and 'no loop, pipe' in text
+    import re
+    assert 'one target per' in text and 'no loop, pipe' in text
+    assert re.search(r'<[A-Za-z][^<>]*>', text) is None  # no bracketed placeholder for agents to copy

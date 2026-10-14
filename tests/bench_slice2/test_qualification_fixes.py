@@ -47,6 +47,7 @@ def test_hidden_read_requires_all_proofs(adapter, monkeypatch, damage):
         receipt = next(e for e in classified if e.get('tool') == 'read_file'
                        and hermes.read_target(e, adapter.run/'work') == target)
         assert receipt['error'] == 'SANDBOX_HIDDEN' and receipt['denied'] is True
+        assert receipt['evidence'] == ('session_terminal' if damage is None else 'harness_controls')
 
 
 def test_nonprotected_not_found_is_unchanged(adapter):

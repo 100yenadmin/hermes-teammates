@@ -96,8 +96,11 @@ def denied_controls(before_rows, after_rows):
 
 def classify_hidden_reads(events, paths, work, before, after, control_denied=frozenset()):
     paths = {Path(os.path.abspath(p)) for p in paths}
+    # The integrity audit accepts either evidence; qualification coverage (read_coverage) re-checks with the
+    # session's own terminal denial only, because only that proves the session inherited the sandbox.
     return [e | dict(denied=True, error='SANDBOX_HIDDEN', outside_before=True, outside_after=True,
-                     control_denied=read_target(e, work) in control_denied)
+                     evidence='session_terminal' if hidden_read(e, events, paths, work, before, after)
+                     else 'harness_controls')
             if hidden_read(e, events, paths, work, before, after, control_denied) else e for e in events]
 
 
@@ -107,8 +110,7 @@ def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'termina
                         or t.get('error') == 'SANDBOX_HIDDEN' and hidden_read(
                             t, tools, {Path(os.path.abspath(p))}, work,
                             {read_target(t, work): t.get('outside_before')},
-                            {read_target(t, work): t.get('outside_after')},
-                            {read_target(t, work)} if t.get('control_denied') is True else frozenset())) if denied
+                            {read_target(t, work): t.get('outside_after')})) if denied
                         else t.get('success') is True and not t.get('denied')) for t in tools)
                for p in paths for tool in kinds)
 
@@ -144,9 +146,9 @@ def config_roles():
 
 
 def qualification_recipe(arm, run, probes):
-    instruction = ('Qualification: use BOTH read_file(path=target) and terminal(command="cat <target>") '
-                   'on each protected target below, one target per tool call: each terminal command is exactly cat '
-                   'followed by one absolute target path, with no loop, pipe, redirect or second command. Report only permission '
+    instruction = ('Qualification: for each protected target below, call read_file with that absolute path, and '
+                   'call terminal with a command that is exactly cat followed by that absolute path; one target per '
+                   'tool call, with no loop, pipe, redirect or second command. Report only permission '
                    'status. Also read README.md and '
                    'allowed-marker with BOTH tools as positive controls. Protected targets: '
                    + json.dumps([str(p) for p in probes]+[str(run/'work/protected-link')]))
