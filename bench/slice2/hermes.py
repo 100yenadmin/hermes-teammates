@@ -10,6 +10,7 @@ import os
 import shutil
 import signal
 import shlex
+import sqlite3
 import subprocess
 import time
 from pathlib import Path
@@ -19,6 +20,8 @@ from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
 from bench.slice2.accounting import PLUGIN, is_error, reconcile, sessions
 from bench.slice2.audit import audit_reads
 from bench.slice2.protocol import ARMS, ROOT, RUNTIME, TASK, canonical, digest, receipt, recipe
+
+FANOUT = {'teammate_assign', 'delegate_task'}
 
 
 def records(path):
@@ -115,17 +118,81 @@ def read_coverage(tools, paths, work, denied=False, kinds=('read_file', 'termina
                for p in paths for tool in kinds)
 
 
-def fanout_recipe(events, root, arm, payloads):
+def assistant_turns(db_path, session_id):
+    """Read untruncated, post-expansion tool calls grouped by assistant message."""
+    path = Path(db_path)
+    if not path.exists():
+        return []
+
+    def parsed(value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except ValueError:
+                return None
+        return value
+
+    db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+    try:
+        try:
+            rows = db.execute("SELECT id, tool_calls FROM messages WHERE session_id=? "
+                              "AND role='assistant' AND tool_calls IS NOT NULL ORDER BY id", (session_id,)).fetchall()
+        except sqlite3.OperationalError as error:
+            if str(error) == 'no such table: messages':
+                return []
+            raise
+    finally:
+        db.close()
+    turns = []
+    for _, raw in rows:
+        calls = []
+        stored = parsed(raw)
+        for call in stored if isinstance(stored, list) else []:
+            if not isinstance(call, dict):
+                continue
+            function = call.get('function') or call
+            name = function.get('name')
+            call_id = call.get('id') or call.get('call_id')
+            args = parsed(function.get('arguments'))
+            if name == 'tool_call' and isinstance(args, dict):
+                entries = parsed(args.get('calls')) if 'calls' in args else args
+                if isinstance(entries, dict):
+                    entries = [entries]
+                for entry in entries if isinstance(entries, list) else []:
+                    if not isinstance(entry, dict):
+                        continue
+                    entry_args = parsed(entry.get('arguments'))
+                    calls.append(dict(tool=entry.get('name') or entry.get('tool_name'), call_id=call_id,
+                                      args=entry_args if isinstance(entry_args, dict) else None))
+            else:
+                calls.append(dict(tool=name, call_id=call_id, args=args if isinstance(args, dict) else None))
+        turns.append(calls)
+    return turns
+
+
+def fanout_recipe(events, root, arm, payloads, turns):
     tool = 'teammate_assign' if arm == 'C' else 'delegate_task'
     parent = [e for e in events if e.get('session_id') == root]
-    pre = [e for e in parent if e.get('kind') == 'pre_tool_call' and e.get('tool') in {'teammate_assign', 'delegate_task'}]
-    batches = [e for e in parent if e.get('kind') == 'batch' and any(c.get('tool') in {'teammate_assign', 'delegate_task'} for c in e['calls'])]
-    if len(batches) != 1 or len(pre) != (4 if arm == 'C' else 1):
+    pre = [e for e in parent if e.get('kind') == 'pre_tool_call' and e.get('tool') in FANOUT]
+    # Hook batches lose 8000-char strings and predate tool_call expansion; use persisted turns.
+    # In-place compaction archives rows (active=0) and re-inserts the kept tail, so one turn can
+    # appear twice; identical fan-out calls (ids, tools, args) are the same turn.
+    fan, seen = [], set()
+    for m in turns:
+        key = canonical(sorted(([c.get('call_id'), c.get('tool'), c.get('args')] for c in m if c.get('tool') in FANOUT),
+                               key=canonical))
+        if key != canonical([]) and key not in seen:
+            seen.add(key)
+            fan.append(m)
+    if len(fan) != 1:
         return 0
-    calls = [c for c in batches[0]['calls'] if c.get('tool') in {'teammate_assign', 'delegate_task'}]
-    if len(calls) != len(pre) or any(c.get('tool') != tool for c in calls):
+    calls = [c for c in fan[0] if c.get('tool') in FANOUT]
+    if len(pre) != len(calls) or len(calls) != (4 if arm == 'C' else 1) or any(c.get('tool') != tool for c in calls):
         return 0
-    if not all(c.get('call_id') and sum(p.get('call_id') == c['call_id'] and p.get('args') == c.get('args') for p in pre) == 1 for c in calls):
+    if (len({c.get('call_id') for c in calls}) != len(calls)
+            or not all(c.get('call_id') and c.get('args') is not None
+                       and sum(p.get('call_id') == c['call_id'] and p.get('tool') == c['tool']
+                               and p.get('args') == c['args'] for p in pre) == 1 for c in calls)):
         return 0
     if arm == 'C':
         roles = list(config_roles())
@@ -335,7 +402,8 @@ def execute(launch, directory, *, fake_base_url=None):
     intervals += [(d['ended_at'],-1) for d in db if d['id'] in {c['session_id'] for c in children} and d.get('ended_at') is not None]
     live=peak=0
     for _,delta in sorted(intervals): live+=delta; peak=max(peak,live)
-    fanout=fanout_recipe(events,root,launch['arm'],launch['recipe']['children'])
+    turns=assistant_turns(run/'hermes/state.db',root)
+    fanout=fanout_recipe(events,root,launch['arm'],launch['recipe']['children'],turns)
     answer=final.get('text','').replace(key,'[REDACTED]')
     (run/'answer.txt').write_text(answer)
     quota=bool(QUOTA.search(stderr.decode(errors='replace')))

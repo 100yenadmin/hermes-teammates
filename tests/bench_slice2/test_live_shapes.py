@@ -65,19 +65,24 @@ def _b_events(args):
             dict(kind='pre_tool_call', session_id='p', tool='delegate_task', call_id='d1', args=args)]
 
 
+def _b_turns(args):
+    return [[dict(tool='read_file', call_id='r1', args={'path': 'x'}),
+             dict(tool='delegate_task', call_id='d1', args=args)]]
+
+
 @pytest.mark.parametrize('extra,ok', [({}, 1), ({'role': None}, 1), ({'role': ''}, 1), ({'role': 'leaf'}, 1),
                                       ({'background': None}, 1), ({'background': False}, 1),
                                       ({'role': 'orchestrator'}, 0), ({'background': True}, 0)])
 def test_b_fanout_uses_effective_role_and_background(extra, ok):
     payloads = [f'brief\n\ngoal {i}\nScope: s{i}' for i in range(4)]
     args = dict(tasks=[dict(goal=p) for p in payloads], **extra)
-    assert hermes.fanout_recipe(_b_events(args), 'p', 'B-briefed', payloads) == ok
+    assert hermes.fanout_recipe(_b_events(args), 'p', 'B-briefed', payloads, _b_turns(args)) == ok
 
 
 def test_b_fanout_task_role_orchestrator_rejected():
     payloads = [f'brief\n\ngoal {i}\nScope: s{i}' for i in range(4)]
     args = dict(tasks=[dict(goal=p, role='orchestrator' if i == 0 else None) for i, p in enumerate(payloads)])
-    assert hermes.fanout_recipe(_b_events(args), 'p', 'B-briefed', payloads) == 0
+    assert hermes.fanout_recipe(_b_events(args), 'p', 'B-briefed', payloads, _b_turns(args)) == 0
 
 
 def test_probe_instruction_requires_one_plain_cat_per_call(tmp_path):
@@ -110,4 +115,4 @@ def test_c_fanout_rejects_context(monkeypatch, context):
         calls.append(dict(tool='teammate_assign', call_id=f'a{i}', args=args))
         pres.append(dict(kind='pre_tool_call', session_id='p', tool='teammate_assign', call_id=f'a{i}', args=args))
     events = [dict(kind='batch', session_id='p', calls=calls)] + pres
-    assert hermes.fanout_recipe(events, 'p', 'C', payloads) == (0 if context else 1)
+    assert hermes.fanout_recipe(events, 'p', 'C', payloads, [calls]) == (0 if context else 1)
