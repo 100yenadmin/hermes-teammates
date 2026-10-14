@@ -175,9 +175,9 @@ most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes
 `role_hash`, `launch_toolsets` (or `inherits parent`), route support in `features`, ignored fields in
 `unsupported`, and read-only global `delegation` values: `inherit_mcp_toolsets`, `worktree_isolation` and
 `child_timeout_seconds`. Unset values use Hermes's defaults; `delegation_sources` marks each value as
-`config`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
-The reply stays within 16,000 characters; if an explained definition would not fit (for example 4,000 characters of
-non-ASCII instructions, which JSON escapes), its instructions are shortened and `instructions_clipped` is true.
+`config`, `managed`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
+The reply stays within 16,000 characters, measured as JSON with non-ASCII text left unescaped. If an explained
+definition would not fit, its instructions are shortened and `instructions_clipped` is true.
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
