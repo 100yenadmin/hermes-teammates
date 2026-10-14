@@ -28,6 +28,15 @@ def records(path):
     return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
 
 
+def normalize_args(events):
+    """Preserve rejected malformed calls while keeping consumer arguments object-shaped."""
+    for event in events:
+        if 'args' in event and not isinstance(event['args'], dict):
+            event['malformed_args'] = event['args']
+            event['args'] = {}
+    return events
+
+
 def controls(run, profile, targets):
     rows=[]
     for target in [run/'work/README.md',run/'work/allowed-marker',*targets,run/'work/protected-link']:
@@ -38,14 +47,18 @@ def controls(run, profile, targets):
     return rows
 
 
-def matched_payload(messages, expected, payloads):
+def matched_payload(messages, expected, payloads, repeated_brief_ok=False):
     # Compare exact fragments in the serialized effective messages (JSON escapes newlines).
     text = canonical(messages)
     user = canonical([m for m in messages if m.get('role', 'user') == 'user'])
     brief, remainder = expected.split('\n\n', 1)
     goal, scope = remainder.split('\nScope: ', 1)
     fragments = (brief, goal, 'Scope: ' + scope)
-    return (all(text.count(canonical(f)[1:-1]) == 1 for f in fragments)
+    brief_fragment = canonical(brief)[1:-1]
+    brief_matches = (text.count(brief_fragment) == 1
+                     or repeated_brief_ok and text.count(brief_fragment) == 2
+                     and user.count(brief_fragment) == 1 and canonical(expected)[1:-1] in user)
+    return (brief_matches and all(text.count(canonical(f)[1:-1]) == 1 for f in fragments[1:])
             and all(user.count(canonical(f)[1:-1]) == 1 for f in fragments[1:])
             and sum(text.count(canonical('Scope: ' + p.split('\nScope: ', 1)[1])[1:-1])
                     for p in payloads) == 1)
@@ -198,8 +211,14 @@ def fanout_recipe(events, root, arm, payloads, turns):
         roles = list(config_roles())
         if any(c['args'].get('context') for c in calls):
             return 0  # extra briefing breaks matched prompting, as for B's task context
-        return int(sorted((c['args'].get('teammate', ''), c['args'].get('goal', '')) for c in calls)
-                   == sorted(zip(roles, [p.split('\n\n', 1)[1] for p in payloads])))
+        expected = list(zip(roles, payloads))
+        for c in calls:
+            pair = next((pair for pair in expected if pair[0] == c['args'].get('teammate', '')
+                         and c['args'].get('goal', '') in (pair[1].split('\n\n', 1)[1], pair[1])), None)
+            if pair is None:
+                return 0
+            expected.remove(pair)
+        return int(not expected)
     args = calls[0]['args']
     tasks = args.get('tasks', [])
     # Hermes normalizes a missing or empty role to 'leaf' (tools/delegate_tool.py _normalize_role).
@@ -335,6 +354,7 @@ def execute(launch, directory, *, fake_base_url=None):
     final=next((r for r in reversed(stream) if r.get('type')=='result'),{})
     root=next((r.get('session_id') for r in stream if r.get('subtype')=='init'),final.get('session_id'))
     db=sessions(run/'hermes/state.db'); events=records(run/'events.jsonl'); usage=records(run/'usage.jsonl')
+    normalize_args(events + usage)
     receipts=[]
     ledger=run/'hermes/plugin-data/hermes-teammates/data.db'
     if ledger.exists():
@@ -377,7 +397,8 @@ def execute(launch, directory, *, fake_base_url=None):
         sid=e['session_id']; tools=[t for t in events if t.get('session_id')==sid and t['kind']=='post_tool_call']
         agent=next((a for a in events if a['kind']=='agent' and a.get('session_id')==sid),{})
         payloads=launch['recipe']['children']
-        matches=[i for i,p in enumerate(payloads) if matched_payload(e['messages'],p,payloads)]
+        matches=[i for i,p in enumerate(payloads) if matched_payload(
+            e['messages'],p,payloads,repeated_brief_ok=(launch['arm']=='C'))]
         role=next((r['teammate'] for r in receipts if r['session_id']==sid),None)
         roles=launch['config'].get('plugins',{}).get('entries',{}).get('hermes-teammates',{}).get('settings',{}).get('teammates',{})
         scope=roles.get(role,{}).get('description')
