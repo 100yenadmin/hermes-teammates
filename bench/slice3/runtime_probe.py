@@ -44,8 +44,12 @@ def expand(call):
     entries = args.get('calls', [args]) if fn.get('name') == 'tool_call' and isinstance(args, dict) else None
     if entries is None:
         return [dict(call_id=call.get('id'), entry_index=0, tool=fn.get('name'), args=args)]
+    if isinstance(entries, str):
+        entries = parsed(entries.strip(), [])  # Hermes accepts the batch envelope as a JSON string
     if isinstance(entries, dict):
         entries = [entries]
+    if not isinstance(entries, list):
+        entries = []
     return [dict(call_id=call.get('id'), entry_index=i, tool=e.get('name') or e.get('tool_name'),
                  args=parsed(e.get('arguments', e.get('args', {})), {}))
             for i, e in enumerate(entries) if isinstance(e, dict)]

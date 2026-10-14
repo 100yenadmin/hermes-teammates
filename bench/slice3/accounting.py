@@ -112,8 +112,11 @@ def unrecovered(receipts):
     return [e for e in last.values() if is_error(e)]
 
 
-def quota_exhausted(receipts):
+def quota_exhausted(receipts, status=None, *, parents=None):
+    """An unrecovered quota failure that cost the turn: the turn failed, or it hit a session outside the
+    status-gated set (the graded child). A recovered or routed-around 429 neither pauses nor authorizes a rerun."""
     return any(QUOTA.search(str(e.get('http_status', '')) + ' ' + str(e.get('error_type', '')))
+               and (status != 'ok' or parents is not None and e.get('session_id') not in parents)
                for e in unrecovered(receipts))
 
 

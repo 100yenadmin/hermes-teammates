@@ -2,13 +2,16 @@
 import argparse
 import hashlib
 import json
+import os
 import random
+import signal
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from bench.slice2.hermes import records
-from bench.slice3.analysis import analyze, mean, report, score_turn
-from bench.slice3.session import ARMS, DECLARED, _run_session, write_json
+from bench.slice3.analysis import analyze, mean, report, score_turn, token_total
+from bench.slice3.session import ARMS, DECLARED, IdentityStopped, SandboxBreach, _run_session, write_json
 
 SEED = 1403
 
@@ -131,6 +134,24 @@ def calibrate(rows):
     return dict(status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled, per_role=by_role, checks=checks)
 
 
+SPEND = ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')
+
+
+def partial_spend(dest):
+    """Spend of the turns an attempt completed before a harness fault (DECLARED: every attempt's spend is kept)."""
+    path, rows = dest / 'turns.jsonl', []
+    for line in path.read_text().splitlines() if path.exists() else []:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        parent, child = token_total(row['parent']), token_total(row.get('child_usage', {}))
+        rows.append(dict(case=row['case'], arm=row['arm'], attempt=row['attempt'], turn=row['turn'],
+                         parent_tokens=parent, parent_calls=row['parent']['api_calls'], child_tokens=child,
+                         total_tokens=parent + child if parent is not None and child is not None else None))
+    return rows
+
+
 def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, executor=None,
               reruns=(), retry_reason=None):
     from bench.slice3.cases import DEV, SCORED, load_case, load_oracle
@@ -139,7 +160,26 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     ident = frozen_identity.verify(require_hidden=executor is None) if fake_base_url is None else None
     if fake_base_url is None and executor is None:
         frozen_identity.verify_hermes()
+        frozen_identity.verify_runtime()
     directory = Path(directory)
+    # A verified sandbox breach stops this identity for every phase, resume and rerun (DECLARED).
+    # One evidence root ($EV) per identity: the marker lives beside the phase directories.
+    breach = directory.parent / 'sandbox-breach.json'
+    if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
+        raise ValueError('Sandbox breach recorded for this identity; it stops (see ' + str(breach) + ')')
+    breach_lock, launched = threading.Lock(), []
+
+    def admit(launch=None):
+        # Session starts and model launches are admitted against the marker under the publication lock; a launched
+        # process is registered so that a later breach stops it.
+        with breach_lock:
+            if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
+                raise IdentityStopped('Sandbox breach recorded for this identity; see ' + str(breach))
+            if launch is None:
+                return None
+            process = launch()
+            launched.append(process)
+            return process
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
                if phase == 'qualify' else schedule(DEV if phase == 'calibrate' else SCORED))
@@ -173,7 +213,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         return cached
 
     def final_invalid(value, attempt):
-        return attempt == 2 and (value['quota_stop'] or any(t.get('infra_invalid') for t in value['turns']))
+        return attempt == 2 and (value['quota_stop'] or bool(value.get('harness_fault'))
+                                 or any(t.get('infra_invalid') for t in value['turns']))
 
     def cell(item):
         cell_root = directory / (item['case'] + '-' + item['arm'])
@@ -183,7 +224,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             old = json.loads(prior.read_text())
             if old.get('identity') != ident:
                 raise ValueError('Rerun target comes from a different identity')
-            eligible = old['quota_stop'] if retry_reason == 'quota' else any(t['infra_invalid'] for t in old['turns'])
+            if old.get('sandbox_breach') or (old.get('harness_fault') or {}).get('error_class') == 'IdentityStopped':
+                raise ValueError('A sandbox breach stops this identity; it is never rerun')
+            eligible = old['quota_stop'] if retry_reason == 'quota' else (
+                bool(old.get('harness_fault')) or any(t['infra_invalid'] for t in old['turns']))
             if not eligible:
                 raise ValueError('No independent evidence supports the requested rerun')
         receipt, attempt = (cell_root / 'attempt2/session.json', 2) if retry else latest_receipt(item)
@@ -192,8 +236,30 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             return read_receipt(receipt)
         if dest.exists():
             raise ValueError('Incomplete attempt requires orchestrator disposition; no automatic rerun')
-        turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
-                        turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
+        admit()  # queued siblings never start after a breach
+        try:
+            turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url, admit=admit,
+                            turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
+        except Exception as error:
+            breached = isinstance(error, SandboxBreach)
+            if breached:
+                # Publish before any receipt work: from here no launch is admitted, and running siblings stop now.
+                with breach_lock:  # the first breach is the recorded one
+                    if not (breach.exists() and json.loads(breach.read_text()).get('identity') == ident):
+                        write_json(breach, dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
+                    for process in launched:
+                        if process.poll() is None:
+                            try:
+                                os.killpg(process.pid, signal.SIGKILL)
+                            except OSError:
+                                pass
+            # A harness fault before the receipt: keep the evidence and the spend of any completed turns, record
+            # the fault so the orchestrator can authorize the one rerun (confirmed-infra), and still stop the phase.
+            # Completed turns are never graded from a fault receipt.
+            dest.mkdir(parents=True, exist_ok=True)
+            write_json(receipt, dict(turns=[], scores=[], spend=partial_spend(dest), quota_stop=False, identity=ident,
+                                     sandbox_breach=breached, harness_fault={'error_class': type(error).__name__}))
+            raise
         scores = []
         oracle = load_oracle(item['case'])
         pristine = load_case(item['case'])['workspace']
@@ -240,24 +306,29 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         if not receipt.exists():
             continue
         value = read_receipt(receipt)
-        if attempt == 1 and any(t.get('infra_invalid') for t in value['turns']):
+        if attempt == 1 and (value.get('harness_fault') or any(t.get('infra_invalid') for t in value['turns'])):
             pending.append(item['case'] + ':' + item['arm'])
         if final_invalid(value, attempt):
             dropped_cases.add(item['case'])
     pending, dropped_cases = sorted(pending), sorted(dropped_cases)
     write_json(directory / 'dispositions.json', dict(identity=ident, pending=pending, dropped_cases=dropped_cases))
     write_json(directory / 'metrics.json', graded)
-    attempts = [json.loads(p.read_text())['scores'] for p in sorted(directory.glob('*/attempt*/session.json'))]
+    attempts = [json.loads(p.read_text()) for p in sorted(directory.glob('*/attempt*/session.json'))]
     write_json(directory / 'attempt-spend.json', [
-        {k: r.get(k) for k in ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')}
-        for scores in attempts for r in scores])
+        {k: r.get(k) for k in SPEND}
+        for value in attempts for r in value['scores'] + value.get('spend', [])])
     if phase == 'qualify':
         result = qualification(sessions)
         result['identity'] = ident
         write_json(directory.parent / 'qualification.json', result)
     elif phase == 'calibrate':
-        result = calibrate(graded)
-        result['identity'] = ident
+        # ITT: a scheduled turn that never ran (a session stopped early) counts as a failure, never vanishes.
+        roles = {(i['case'], i['arm'], t['index']): t['role'] for i in planned for t in load_oracle(i['case'])['turns']}
+        present = {(r['case'], r['arm'], r['turn']) for r in graded}
+        missing = [dict(case=c, arm=a, turn=t, role=role, attempt=None, status='missing', adherence_all=0,
+                        adherence_rules=0, success=0) for (c, a, t), role in sorted(roles.items()) if (c, a, t) not in present]
+        result = calibrate(graded + missing)
+        result.update(identity=ident, scheduled_turns=len(roles), missing_turns=len(missing))
         if quota_stop:
             result.update(status='PAUSED')
         elif pending:
@@ -302,6 +373,9 @@ def main(argv=None):
         dispositions_path = args.input.parent / 'dispositions.json'
         if dispositions_path.exists():
             dispositions = json.loads(dispositions_path.read_text())
+            row_identities = {row.get('identity') for row in value}
+            if row_identities and dispositions.get('identity') not in row_identities:
+                raise SystemExit('dispositions.json comes from a different identity than the metrics')
             if dispositions['pending']:
                 raise SystemExit('pending infrastructure dispositions: ' + ', '.join(dispositions['pending']))
             missing = sorted(set(dispositions['dropped_cases']) - set(args.drop_case))

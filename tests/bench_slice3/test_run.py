@@ -206,6 +206,46 @@ def test_unknown_model_failure_never_authorizes_rerun(tmp_path, lane_f):
                   reruns=[item['case'] + ':' + item['arm']], retry_reason='confirmed-infra')
 
 
+def test_an_identity_stopped_receipt_is_never_rerun(tmp_path, lane_f):
+    # A sibling stopped by another session's breach is never rerun, even if the breach marker went missing.
+    item = schedule(lane_f.DEV)[0]
+    dest = tmp_path / 'phase' / (item['case'] + '-' + item['arm']) / 'attempt1'
+    dest.mkdir(parents=True)
+    from bench.slice3 import identity
+    (dest / 'session.json').write_text(json.dumps(dict(turns=[], scores=[], quota_stop=False, sandbox_breach=False,
+                                                       harness_fault={'error_class': 'IdentityStopped'},
+                                                       identity=identity.verify(require_hidden=False))))
+    with pytest.raises(ValueError, match='never rerun'):
+        run_phase('calibrate', tmp_path / 'phase', executor=lambda *a, **k: [],
+                  reruns=[item['case'] + ':' + item['arm']], retry_reason='confirmed-infra')
+
+
+def test_a_fault_after_completed_turns_keeps_their_spend_but_grades_nothing(tmp_path, lane_f):
+    first = schedule(lane_f.DEV)[0]
+    parent = dict(tokens=dict(input=100, output=20, cache_read=0, cache_write=0), api_calls=3, peak_prompt=10,
+                  discovery_calls=0, wait_calls=0, assign_wait_seconds=[])
+    def executor(case, arm, directory, **kw):
+        directory.mkdir(parents=True)
+        if (case, arm, kw['attempt']) == (first['case'], first['arm'], 1):
+            row = dict(case=case, arm=arm, turn=1, attempt=1, parent=parent,
+                       child_usage=dict(tokens=dict(input=40, output=5, cache_read=0, cache_write=0)))
+            (directory / 'turns.jsonl').write_text(json.dumps(row) + '\n')
+            raise RuntimeError('state extraction failed on turn two')
+        return []
+    evidence = tmp_path / 'phase'
+    with pytest.raises(RuntimeError, match='turn two'):
+        run_phase('calibrate', evidence, executor=executor)
+    case, arm = first['case'], first['arm']
+    fault = json.loads((evidence / f'{case}-{arm}/attempt1/session.json').read_text())
+    assert fault['turns'] == [] and fault['scores'] == []
+    assert fault['spend'] == [dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3,
+                                   child_tokens=45, total_tokens=165)]
+    run_phase('calibrate', evidence, executor=executor, reruns=[f'{case}:{arm}'], retry_reason='confirmed-infra')
+    spends = json.loads((evidence / 'attempt-spend.json').read_text())
+    assert dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3, child_tokens=45,
+                total_tokens=165) in spends
+
+
 @pytest.mark.parametrize('rerun', [False, True])
 def test_receipts_from_another_identity_are_never_reused(tmp_path, lane_f, rerun):
     item = schedule(lane_f.DEV)[0]
@@ -358,3 +398,118 @@ def test_analyze_refuses_drops_the_runner_did_not_record(tmp_path):
     with pytest.raises(SystemExit, match='no selective drops'):
         main(args)
     assert not (tmp_path / 'out.json').exists()
+
+
+def test_calibration_counts_turns_that_never_ran(tmp_path, lane_f, monkeypatch):
+    import bench.slice3.run as run_module
+    seen = []
+    monkeypatch.setattr(run_module, 'calibrate', lambda rows: seen.extend(rows) or dict(status='PASS'))
+    def executor(case, arm, directory, **kw):
+        invocation = directory / 'run/turns/1'
+        (invocation / 'after').mkdir(parents=True)
+        # The session stopped after its first turn (e.g. no root session), with no infrastructure evidence.
+        return [dict(case=case, arm=arm, turn=1, attempt=1, status='error', infra_invalid=None, session_id=None,
+                     children=[], graded_child=None, delta={}, parent_reply='', wall_s=1, invocation=str(invocation),
+                     quota_stop=False, stopped='no_root_session',
+                     parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0, wait_calls=0,
+                                 assign_wait_seconds=[]))]
+    result = run_phase('calibrate', tmp_path / 'phase', executor=executor)
+    assert result['scheduled_turns'] == 12 and result['missing_turns'] == 6
+    missing = [r for r in seen if r['status'] == 'missing']
+    assert len(seen) == 12 and len(missing) == 6
+    assert all(r['success'] == 0 and r['adherence_all'] == 0 and r['turn'] == 2 for r in missing)
+
+
+def test_analyze_refuses_dispositions_from_another_identity(tmp_path):
+    from bench.slice3 import cases
+    from bench.slice3.run import main
+    metrics = tmp_path / 'metrics.json'
+    write_json(metrics, [dict(identity='CURRENT')])
+    write_json(tmp_path / 'dispositions.json', dict(identity='OTHER', pending=[], dropped_cases=[cases.SCORED[0]]))
+    with pytest.raises(SystemExit, match='different identity'):
+        main(['analyze', '--directory', str(tmp_path), '--input', str(metrics), '--output', str(tmp_path / 'out.json'),
+              '--drop-case', cases.SCORED[0]])
+
+
+def test_receiptless_harness_fault_keeps_evidence_and_allows_one_rerun(tmp_path, lane_f):
+    calls = []
+    first = schedule(lane_f.DEV)[0]
+    def executor(case, arm, directory, **kw):
+        calls.append((case, arm, kw['attempt']))
+        directory.mkdir(parents=True)
+        if (case, arm, kw['attempt']) == (first['case'], first['arm'], 1):
+            (directory / 'state-extract.log').write_text('partial')
+            raise RuntimeError('state extraction failed')
+        invocation = directory / 'run/turns/1'
+        (invocation / 'after').mkdir(parents=True)
+        return [dict(case=case, arm=arm, turn=1, attempt=kw['attempt'], status='ok', infra_invalid=None, session_id='p',
+                     children=[], graded_child=None, delta={}, parent_reply='', wall_s=1, invocation=str(invocation),
+                     quota_stop=False, parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0,
+                                                   wait_calls=0, assign_wait_seconds=[]))]
+    evidence = tmp_path / 'phase'
+    with pytest.raises(RuntimeError, match='state extraction'):
+        run_phase('calibrate', evidence, executor=executor)
+    case, arm = first['case'], first['arm']
+    fault = json.loads((evidence / f'{case}-{arm}/attempt1/session.json').read_text())
+    assert fault['harness_fault'] == {'error_class': 'RuntimeError'} and fault['turns'] == []
+    assert (evidence / f'{case}-{arm}/attempt1/state-extract.log').exists()
+    result = run_phase('calibrate', evidence, executor=executor)
+    assert result['status'] == 'NEEDS_DISPOSITION' and result['pending'] == [f'{case}:{arm}']
+    run_phase('calibrate', evidence, executor=executor, reruns=[f'{case}:{arm}'], retry_reason='confirmed-infra')
+    assert (case, arm, 2) in calls
+    assert json.loads((evidence / 'dispositions.json').read_text())['pending'] == []
+
+
+def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, lane_f):
+    from bench.slice3.session import SandboxBreach
+    from bench.slice3.session import IdentityStopped
+    import threading
+    import time
+    first = schedule(lane_f.DEV)[0]
+    launched, stopped, sibling_started = [], [], threading.Event()
+    def executor(case, arm, directory, admit, **kw):
+        launched.append(case + ':' + arm)
+        directory.mkdir(parents=True)
+        if (case, arm) == (first['case'], first['arm']):
+            # Breach only once the concurrent sibling is inside its session, so its next launch is what stops.
+            sibling_started.wait(10)
+            raise SandboxBreach('Sandbox controls failed before any model call')
+        import subprocess
+        running = admit(lambda: subprocess.Popen(['/bin/sleep', '30'], start_new_session=True))
+        sibling_started.set()
+        # Publishing the breach stops the sibling's running process; its next launch is refused.
+        assert running.wait(10) == -9
+        try:
+            admit(lambda: subprocess.Popen(['/bin/sleep', '30'], start_new_session=True))
+        except IdentityStopped:
+            stopped.append(case + ':' + arm)
+            raise
+        raise AssertionError('admitted a launch after a recorded breach')
+    evidence = tmp_path / 'calibrate'
+    with pytest.raises(SandboxBreach):
+        run_phase('calibrate', evidence, executor=executor)
+    marker = json.loads((tmp_path / 'sandbox-breach.json').read_text())
+    assert marker['phase'] == 'calibrate' and marker['session'] == first['case'] + ':' + first['arm']
+    # Only the breached session and its one running sibling ever started; the sibling was stopped and no
+    # queued session launched.
+    name = first['case'] + ':' + first['arm']
+    assert len(launched) == 2 and name in launched and stopped == [s for s in launched if s != name]
+    receipt = json.loads((evidence / (first['case'] + '-' + first['arm']) / 'attempt1/session.json').read_text())
+    assert receipt['sandbox_breach'] is True
+    for phase, kwargs in (('calibrate', {}), ('qualify', {}),
+                          ('calibrate', dict(reruns=[first['case'] + ':' + first['arm']], retry_reason='confirmed-infra'))):
+        with pytest.raises(ValueError, match='Sandbox breach recorded'):
+            run_phase(phase, tmp_path / phase, executor=executor, **kwargs)
+
+
+def test_the_live_launcher_verifies_runtime_however_it_is_invoked(tmp_path, monkeypatch):
+    from bench.slice3 import identity, session
+    monkeypatch.setenv('SLICE3_LIVE', '1')
+    monkeypatch.setenv('GLM_API_KEY', 'bench-not-a-secret')
+    monkeypatch.setattr(identity, 'verify_hermes', lambda: None)
+    def drifted():
+        raise ValueError('Plugin runtime differs from the declared release: __init__.py')
+    monkeypatch.setattr(identity, 'verify_runtime', drifted)
+    monkeypatch.setattr(session, 'setup', lambda *a, **k: pytest.fail('launched with undeclared runtime'))
+    with pytest.raises(ValueError, match='differs from the declared release'):
+        session._run_session('dev0', 'B-native', tmp_path / 'live')

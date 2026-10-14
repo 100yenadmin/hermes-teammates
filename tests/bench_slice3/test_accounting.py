@@ -139,6 +139,42 @@ def test_normalized_deferred_batch_keeps_outer_entry_identity():
     assert [(c['call_id'], c['entry_index']) for c in canonical_calls(persisted, events)] == [('outer', 0), ('outer', 1)]
 
 
+@pytest.mark.parametrize('coerced', [False, True])
+def test_split_batch_entries_match_hooks_by_their_persisted_ids(coerced):
+    # C arm: direct teammate_assign calls a1 and a2 are rejected without hooks (deferred tools). The retry is one
+    # bridge call P = [x, y]; Hermes splits it into P and a minted ID D, and the hooks carry P and D. Hermes may
+    # coerce y's arguments before its hooks. The rejected a2 must not take D's run, and y (launched last) is graded.
+    x, y = dict(teammate='scout', goal='g1'), dict(teammate='reviewer', goal='g2', wait_seconds='30')
+    hooked_y = y | dict(wait_seconds=30) if coerced else y
+    persisted = [dict(session_id='p', call_id=cid, entry_index=0, tool='teammate_assign', args=a)
+                 for cid, a in (('a1', x), ('a2', y), ('P', x), ('D', y))]
+    batches = [dict(kind='batch', session_id='p', calls=[dict(call_id=cid, entry_index=0, tool='teammate_assign', args=a)
+                                                        for cid, a in (('a1', x), ('a2', y))]),
+               dict(kind='batch', session_id='p', calls=[dict(call_id='P', entry_index=i, tool='teammate_assign', args=a)
+                                                        for i, a in enumerate((x, y))])]
+    posts = [dict(kind='post_tool_call', session_id='p', tool='teammate_assign', call_id=cid, args=a,
+                  result={'run_id': run}, result_text='queued') for cid, a, run in (('P', x, 'run0'), ('D', hooked_y, 'run1'))]
+    lineage = [dict(kind='child_lineage', session_id='s'+str(i), subagent_id='a'+str(i)) for i in range(2)]
+    ledger = [dict(run_id='run'+str(i), subagent_id='a'+str(i), teammate=r, status='succeeded', summary_clipped=0)
+              for i, r in enumerate(('scout', 'reviewer'))]
+    calls = canonical_calls(persisted, batches)
+    assert [(c['call_id'], c['entry_index'], c.get('hook_id')) for c in calls] == [
+        ('a1', 0, 'a1'), ('a2', 0, 'a2'), ('P', 0, 'P'), ('P', 1, 'D')]
+    children = extract_children(calls, batches + posts + lineage, [], [], ledger)
+    assert [(c['call_id'], c['entry_index'], c['child_session_id']) for c in children] == [
+        ('a1', 0, None), ('a2', 0, None), ('P', 0, 's0'), ('P', 1, 's1')]
+    assert graded_child(children) == 4
+
+
+def test_a_json_string_batch_envelope_keeps_its_entries():
+    entry = dict(name='teammate_assign', arguments=dict(teammate='scout', goal='g1'))
+    call = dict(id='bridge', function=dict(name='tool_call', arguments=json.dumps(dict(calls=json.dumps([entry])))))
+    messages = [dict(id=1, session_id='p', role='user', content='turn one'),
+                dict(id=2, session_id='p', role='assistant', tool_calls=json.dumps([call]))]
+    assert [(c['call_id'], c['tool'], c['args']) for c in turn_calls(messages, {'p'}, 'turn one')] == [
+        ('bridge', 'teammate_assign', dict(teammate='scout', goal='g1'))]
+
+
 def test_child_wait_arguments_are_normalized():
     calls = [dict(session_id='p', call_id=str(i), entry_index=0, tool='teammate_assign',
                   args=dict(teammate='scout', goal=str(i), wait_seconds=w))
@@ -147,16 +183,103 @@ def test_child_wait_arguments_are_normalized():
     assert [c['wait_seconds'] for c in children] == [0, 30.0, 5, None]
 
 
-@pytest.mark.parametrize('tasks,goals', [
-    ('[{"goal": "a"}, {"goal": "b"}]', ['a', 'b']),   # a JSON-encoded list
-    ({'goal': 'a'}, ['a']),                            # a single object
-    (['not an object', {'goal': 'b'}, 3], ['b']),      # non-object entries
-    (5, []), ('not json', []),
+LONG_A, LONG_B = 'Find the documented retry limit', 'Review the pending pagination patch'
+
+
+def _call(call_id, args, session='p', entry_index=0):
+    return dict(session_id=session, call_id=call_id, entry_index=entry_index, tool='delegate_task', args=args)
+
+
+def _hook(kind, call_id, args, session='p'):
+    return dict(kind=kind, session_id=session, call_id=call_id, tool='delegate_task', args=args,
+                result_text='', result=None)
+
+
+def _lineage(child, goal, parent='p'):
+    return dict(kind='child_lineage', session_id=child, parent_session_id=parent, subagent_id='s-' + child, goal=goal)
+
+
+def _children(calls, events):
+    return [(c['call_id'], c['goal'], c['child_session_id']) for c in extract_children(calls, events, [], [], [])]
+
+
+def test_rejected_call_claims_nothing_and_the_retry_keeps_its_child():
+    # Hermes rejected call 1 (no subagent_start inside its tool window); call 2 launched the child.
+    bad, good = dict(goal=LONG_B, images=[42]), dict(goal=LONG_B)
+    events = [_hook('pre_tool_call', '1', bad), _hook('post_tool_call', '1', bad),
+              _hook('pre_tool_call', '2', good), _lineage('c2', LONG_B), _hook('post_tool_call', '2', good)]
+    assert _children([_call('1', bad), _call('2', good)], events) == [('2', LONG_B, 'c2')]
+
+
+def test_a_call_rejected_before_its_hooks_never_borrows_a_retry():
+    # Hermes rejected A before any hook; B launched H; C retried A's goal and launched G. C's child is graded.
+    a, b, c = dict(goal=LONG_A, bad=1), dict(goal=LONG_B), dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', 'b', b), _lineage('cb', LONG_B), _hook('post_tool_call', 'b', b),
+              _hook('pre_tool_call', 'c', c), _lineage('ca', LONG_A), _hook('post_tool_call', 'c', c)]
+    assert _children([_call('a', a), _call('b', b), _call('c', c)], events) == [('b', LONG_B, 'cb'), ('c', LONG_A, 'ca')]
+
+
+def test_every_child_launched_in_the_window_is_kept_in_order():
+    args = dict(tasks=[{'goal': LONG_A}, {'goal': LONG_B}])
+    events = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A), _lineage('cb', LONG_B),
+              _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == [('1', LONG_A, 'ca'), ('1', LONG_B, 'cb')]
+
+
+def test_overlapping_windows_are_split_by_requested_goal():
+    a, b = dict(goal=LONG_A), dict(goal=LONG_B)
+    events = [_hook('pre_tool_call', '1', a), _hook('pre_tool_call', '2', b), _lineage('cb', LONG_B),
+              _lineage('ca', LONG_A), _hook('post_tool_call', '1', a), _hook('post_tool_call', '2', b)]
+    assert _children([_call('1', a), _call('2', b)], events) == [('1', LONG_A, 'ca'), ('2', LONG_B, 'cb')]
+
+
+def test_a_timed_out_call_without_post_keeps_its_child():
+    args = dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A)]
+    assert _children([_call('1', args)], events) == [('1', LONG_A, 'ca')]
+
+
+def test_coerced_hook_arguments_still_match_the_call():
+    # The model sent tasks as a JSON string; Hermes coerced it to a list before its hooks fired.
+    raw, coerced = dict(tasks=json.dumps([{'goal': LONG_A}])), dict(tasks=[{'goal': LONG_A}])
+    events = [_hook('pre_tool_call', '1', coerced), _lineage('ca', LONG_A), _hook('post_tool_call', '1', coerced)]
+    assert _children([_call('1', raw)], events) == [('1', LONG_A, 'ca')]
+    # Expanded batch entries share the outer ID and get new physical IDs; requested goals pick the window.
+    calls = [_call('outer', raw, entry_index=0), _call('outer', dict(goal=LONG_B), entry_index=1)]
+    events = [_hook('pre_tool_call', 'x0', coerced), _lineage('ca', LONG_A), _hook('post_tool_call', 'x0', coerced),
+              _hook('pre_tool_call', 'x1', dict(goal=LONG_B)), _lineage('cb', LONG_B),
+              _hook('post_tool_call', 'x1', dict(goal=LONG_B))]
+    assert _children(calls, events) == [('outer', LONG_A, 'ca'), ('outer', LONG_B, 'cb')]
+
+
+def test_another_sessions_lineage_is_never_claimed():
+    args = dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', '1', args), _lineage('cx', LONG_A, parent='other'), _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == []
+
+
+@pytest.mark.parametrize('args', [
+    dict(tasks='null', goal=LONG_A), dict(tasks=5), dict(tasks='not json'), dict(goal=42), dict(tasks=[{'goal': 42}]),
+    dict(tasks=['not an object', {'goal': LONG_B}]), dict(tasks=(dict(goal=LONG_B),)), dict(tasks='['), dict(),
+    dict(tasks=json.dumps([json.dumps({'goal': LONG_A})])), dict(goal=LONG_A, output_schema='not a schema'),
 ])
-def test_malformed_delegation_batches_never_crash_extraction(tasks, goals):
-    calls = [dict(session_id='p', call_id='1', entry_index=0, tool='delegate_task', args=dict(tasks=tasks))]
-    children = extract_children(calls, [], [], [], [])
-    assert [c['goal'] for c in children] == goals
+def test_odd_arguments_never_raise_and_claim_only_launched_children(args):
+    events = [_hook('pre_tool_call', '1', args), _hook('post_tool_call', '1', args)]
+    assert _children([_call('1', args)], events) == []
+    launched = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A), _hook('post_tool_call', '1', args)]
+    assert [g for _, g, _ in _children([_call('1', args)], launched)] in ([], [LONG_A])
+
+
+def test_routed_around_quota_neither_stops_nor_reruns():
+    from bench.slice3.session import status_gated_sessions
+    quota = lambda sid: dict(kind='usage', session_id=sid, error=True, http_status=429, retry_exhausted=True)
+    ok = lambda sid: dict(kind='usage', session_id=sid, input_tokens=1)
+    children = [dict(order=1, terminal=True, child_session_id='c1'), dict(order=2, terminal=True, child_session_id='c2')]
+    routed = [ok('p'), quota('c1'), ok('c2'), ok('p')]
+    assert not accounting.quota_exhausted(routed, 'ok', parents=status_gated_sessions(routed, children))
+    graded = [ok('p'), ok('c1'), quota('c2'), ok('p')]
+    assert accounting.quota_exhausted(graded, 'ok', parents=status_gated_sessions(graded, children))
+    assert accounting.quota_exhausted(routed, 'error', parents=status_gated_sessions(routed, children))
 
 
 def test_observer_error_is_a_harness_fault():

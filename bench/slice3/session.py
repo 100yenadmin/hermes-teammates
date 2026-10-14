@@ -3,6 +3,7 @@
 Live launch is opt-in. Fakes are restricted to IPv4 loopback and the sandbox denies
 all other network access. Hidden grading material is never copied into the run.
 """
+import collections
 import hashlib
 import json
 import math
@@ -87,7 +88,8 @@ def turn_calls(messages, parents, user_text, seen=None):
 
 
 def canonical_calls(calls, events):
-    """Restore provider bridge identities after Hermes splits a local batch."""
+    """Restore provider bridge identities after Hermes splits a local batch. The persisted per-entry ID stays
+    as hook_id: Hermes fires each split entry's hooks under it, not under the provider's outer ID."""
     pending = [(e.get('session_id'), c) for e in events if e.get('kind') == 'batch'
                for c in e.get('calls', [])]
     result = []
@@ -99,7 +101,7 @@ def canonical_calls(calls, events):
         if match:
             i, raw = match
             pending.pop(i)
-            call = call | dict(call_id=raw['call_id'], entry_index=raw['entry_index'])
+            call = call | dict(call_id=raw['call_id'], entry_index=raw['entry_index'], hook_id=call['call_id'])
         result.append(call)
     return result
 
@@ -141,26 +143,31 @@ def extract_children(calls, events, rows, messages, ledger):
     lineage = [e for e in events if e.get('kind') == 'child_lineage']
     used, children = set(), []
     posts = [e for e in events if e.get('kind') == 'post_tool_call']
+    owned = collections.Counter((x['session_id'], _hook_id(x)) for x in calls)
     for c in calls:
         if c['tool'] not in {'delegate_task', 'teammate_assign'}:
             continue
-        # Expanded Hermes IDs can differ from the provider bridge ID. Match the
-        # exact entry args within this invocation, consuming each receipt once.
-        matching = [e for e in posts if e.get('session_id') == c['session_id']
-                    and e.get('tool') == c['tool'] and e.get('args') == c['args'] and id(e) not in used]
-        post = next((e for e in matching if e.get('call_id') == c['call_id']),
-                    matching[0] if matching else {})
-        if post:
-            used.add(id(post))
         args = c['args'] if isinstance(c['args'], dict) else {}
-        tasks = args.get('tasks') or [args] if c['tool'] == 'delegate_task' else [args]
-        # Model-written batches can be a JSON string, a single object or hold non-objects; extract what
-        # Hermes could have launched and never let malformed model output crash the harness.
-        if isinstance(tasks, str):
-            tasks = parsed(tasks, [])
-        if isinstance(tasks, dict):
-            tasks = [tasks]
-        tasks = [t for t in tasks if isinstance(t, dict)] if isinstance(tasks, list) else []
+        unique_id = owned[c['session_id'], _hook_id(c)] == 1
+        pre = _claim(events, 'pre_tool_call', c, args, used, unique_id, owned) if c['tool'] == 'delegate_task' else None
+        end = _claim(events, 'post_tool_call', c, args, used, unique_id, owned, after=-1 if pre is None else pre,
+                     physical=None if pre is None else events[pre].get('call_id'))
+        post = events[end] if end is not None else {}
+        if c['tool'] == 'delegate_task':
+            # Children are what Hermes actually launched: subagent_start lineage emitted inside this call's
+            # pre/post tool window (Hermes builds children synchronously in the tool). A rejected call has no
+            # lineage, so it never claims a child; requested goals only separate overlapping calls.
+            # A call cut off by a timeout has no post event; its window runs to the end of the invocation.
+            wanted = requested_goals(args)
+            launched = [e for e in (events[pre + 1:len(events) if end is None else end] if pre is not None else [])
+                        if e.get('kind') == 'child_lineage' and e.get('parent_session_id') == c['session_id']
+                        and e.get('session_id') and e['session_id'] not in used
+                        and (not wanted or (isinstance(e.get('goal'), str) and e['goal'] in wanted))]
+            tasks = [dict(goal=e.get('goal') or '', _lineage=e['session_id'],
+                          context=next((t.get('context', '') for t in _task_dicts(args) if t.get('goal') == e.get('goal')), ''))
+                     for e in launched]
+        else:
+            tasks = [args]
         for task in tasks:
             sid, row = None, {}
             received = post.get('result_text', '')
@@ -182,9 +189,7 @@ def extract_children(calls, events, rows, messages, ledger):
                             clipped = bool(done.get('summary_clipped'))
                 clipped = clipped or bool(row.get('summary_clipped'))
             else:
-                match = next((e for e in lineage if e.get('parent_session_id') == c['session_id']
-                              and e.get('goal') == task.get('goal') and e['session_id'] not in used), {})
-                sid = match.get('session_id')
+                sid = task.get('_lineage')
             if sid:
                 used.add(sid)
             session = by_id.get(sid, {})
@@ -200,6 +205,77 @@ def extract_children(calls, events, rows, messages, ledger):
                                  terminal=terminal, final_text=final, receipts=child_receipts(events, sid),
                                  parent_received_text=received, summary_clipped=clipped))
     return children
+
+
+class SandboxBreach(RuntimeError):
+    """The sandbox failed its own preflight; DECLARED: a verified breach stops this identity."""
+
+
+class IdentityStopped(RuntimeError):
+    """Another session of this identity recorded a sandbox breach; no further model launches."""
+
+
+def _claim(events, kind, c, args, used, unique_id, owned, after=-1, physical=None):
+    """Index of this call's next unclaimed hook event, consumed once. Hermes coerces arguments before its
+    hooks fire and renumbers expanded batch entries, so the claimed pre's physical ID or a unique hook ID wins,
+    then exact arguments, then (delegate_task) the same requested goals. The fallbacks never take an event
+    whose ID belongs to another call: a call Hermes rejected before its hooks must not borrow a retry's window."""
+    pool = [i for i, e in enumerate(events) if i > after and e.get('kind') == kind and id(e) not in used
+            and e.get('session_id') == c['session_id'] and e.get('tool') == c['tool']]
+    if physical is not None:
+        return _take(events, used, [i for i in pool if events[i].get('call_id') == physical])
+    hook = _hook_id(c)
+    if unique_id:
+        mine = [i for i in pool if events[i].get('call_id') == hook]
+        if mine:
+            return _take(events, used, mine)
+    pool = [i for i in pool if (c['session_id'], events[i].get('call_id')) not in owned
+            or events[i].get('call_id') == hook]
+    tests = [lambda e: e.get('args') == c['args']]
+    goals = requested_goals(args) if c['tool'] == 'delegate_task' else set()
+    if goals:
+        tests.append(lambda e: requested_goals(e.get('args') if isinstance(e.get('args'), dict) else {}) == goals)
+    return _take(events, used, [next((i for test in tests for i in pool if test(events[i])), None)])
+
+
+def _hook_id(call):
+    """The ID Hermes's hooks carry for this call: its persisted per-entry ID."""
+    return call.get('hook_id', call['call_id'])
+
+
+def _take(events, used, candidates):
+    index = next((i for i in candidates if i is not None), None)
+    if index is not None:
+        used.add(id(events[index]))
+    return index
+
+
+def _task_dicts(args):
+    tasks = args.get('tasks')
+    if isinstance(tasks, str):
+        tasks = parsed(tasks.strip(), None)
+    tasks = tasks if isinstance(tasks, (list, tuple)) else [tasks] if isinstance(tasks, dict) else []
+    return [t for t in (parsed(t, t) if isinstance(t, str) else t for t in tasks) if isinstance(t, dict)] + [args]
+
+
+def requested_goals(args):
+    """Goal strings a delegate_task call asked for, read leniently; used only to tell overlapping calls apart."""
+    goals, pending = set(), [args.get('goal'), args.get('tasks')]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, str):
+            loaded = parsed(value.strip(), None) if value.strip()[:1] in '[{' else None
+            if loaded is None:
+                continue
+            value = loaded
+        if isinstance(value, dict):
+            if isinstance(value.get('goal'), str):
+                goals.add(value['goal'])
+        elif isinstance(value, (list, tuple)):
+            pending.extend(value)
+    if isinstance(args.get('goal'), str):
+        goals.add(args['goal'])
+    return goals
 
 
 def graded_child(children):
@@ -268,12 +344,17 @@ def setup(case, arm, run):
     return venv
 
 
-def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=1200, turn_limit=None, attempt=1):
+def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=1200, turn_limit=None, attempt=1,
+                 admit=None):
     from bench.slice3.cases import load_case
     if arm not in ARMS:
         raise ValueError('Unknown arm')
     if fake_base_url is None and os.environ.get('SLICE3_LIVE') != '1':
         raise ValueError('Live launch requires explicit SLICE3_LIVE=1 authorization')
+    if fake_base_url is None:
+        from bench.slice3 import identity  # every live launch, however it was invoked
+        identity.verify_hermes()
+        identity.verify_runtime()
     if fake_base_url is not None:
         url = urlsplit(fake_base_url)
         if url.scheme != 'http' or url.hostname != '127.0.0.1' or not url.port or url.username or url.password:
@@ -301,6 +382,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=5)
         control_rows.append(dict(path=str(target), success=p.returncode == 0,
                                  denied=b'Operation not permitted' in p.stderr or b'Permission denied' in p.stderr))
+    (run / 'work/protected-link').unlink()  # a harness-only control: the model never sees it in its workspace
     check = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), str(venv / 'bin/python'),
                             '-m', 'pytest', '--version'], cwd=run / 'work', timeout=30,
                            env={'PATH': str(venv / 'bin') + ':/usr/bin:/bin', 'HOME': str(run / 'home'),
@@ -308,6 +390,10 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     write_json(run / 'controls.json', dict(reads=control_rows, pytest=dict(
         exit_code=check.returncode, stdout=check.stdout.replace(key, '[REDACTED]'))))
+    # A sandbox that fails its own preflight never sees a model call (DECLARED: a breach stops this identity).
+    reads_ok = control_rows[0]['success'] and all(r['denied'] and not r['success'] for r in control_rows[1:])
+    if not (reads_ok and check.returncode == 0 and 'pytest ' in check.stdout):
+        raise SandboxBreach('Sandbox controls failed before any model call; see ' + str(run / 'controls.json'))
     all_usage, output, root, seen = [], [], None, set()
     for turn in case['turns'][:turn_limit]:
         invocation = run / 'turns' / str(turn['index'])
@@ -331,8 +417,11 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
             command += ['--resume', root]
         started, timeout, exception = time.monotonic(), False, None
         try:
-            process = subprocess.Popen(command, cwd=run / 'work', env=env, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, start_new_session=True)
+            def launch():
+                return subprocess.Popen(command, cwd=run / 'work', env=env, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, start_new_session=True)
+            # Admission and launch happen under the breach lock; a later breach kills this process group.
+            process = admit(launch) if admit else launch()
             try:
                 stdout, stderr = process.communicate(timeout=turn_timeout)
             except subprocess.TimeoutExpired:
@@ -381,7 +470,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                                                           any(c['child_session_id'] == sid for c in children)}))
         # Quota pauses the whole schedule; keep receipts and never auto-rerun a failed session.
         record['child_usage'] = child_metrics
-        record['quota_stop'] = quota_exhausted(usage)
+        record['quota_stop'] = quota_exhausted(usage, status, parents=status_gated_sessions(usage, children))
         record['invocation'] = str(invocation)
         output.append(record)
         if not root:
