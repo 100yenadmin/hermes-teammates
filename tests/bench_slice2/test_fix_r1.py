@@ -75,7 +75,8 @@ def adapter(tmp_path, monkeypatch):
     monkeypatch.setattr(hermes, 'sandbox_profile', lambda run: 'synthetic')
     monkeypatch.setattr(hermes.shutil, 'copy2', lambda *a: None)
     monkeypatch.setattr(hermes, 'sessions', lambda path: db)
-    monkeypatch.setattr(hermes, 'records', lambda path: events if path.name == 'events.jsonl' else [])
+    monkeypatch.setattr(hermes, 'records', lambda path: events if path.name == 'events.jsonl' else
+                        [dict(kind='usage', session_id='p', error=False)])
     monkeypatch.setattr(hermes, 'reconcile', lambda *a, **k: {'pass': True, 'metrics': {'requests': 4}})
     monkeypatch.setattr(hermes, 'controls', lambda run, profile, targets:
                         [dict(path=str(run / 'work' / p), success=True) for p in ['README.md', 'allowed-marker']] +

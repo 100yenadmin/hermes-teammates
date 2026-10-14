@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
-from bench.slice2.accounting import PLUGIN, reconcile, sessions
+from bench.slice2.accounting import PLUGIN, is_error, reconcile, sessions
 from bench.slice2.audit import audit_reads
 from bench.slice2.protocol import ARMS, ROOT, RUNTIME, TASK, canonical, digest, receipt, recipe
 
@@ -177,7 +177,7 @@ def wait_recipe(events, root, receipt_ids=None):
 
 
 
-def classify(returncode, timeout, answer, stderr, requests, quota, key):
+def classify(returncode, timeout, answer, stderr, requests, quota, key, successful_responses=None):
     """Status plus a bounded, key-free reason. A crash before any model call is the harness's fault, not the agent's."""
     lines=[l.strip() for l in stderr.splitlines() if l.strip()]
     error=next((l for l in reversed(lines) if re.match(r'^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b',l)),None)
@@ -185,6 +185,8 @@ def classify(returncode, timeout, answer, stderr, requests, quota, key):
     reason=reason.replace(key,'[REDACTED]')[:200] if key else reason[:200]
     if quota:
         return 'QUOTA_STOP',reason
+    if successful_responses == 0:
+        return 'HARNESS_ERROR','provider unreachable'
     if not timeout and returncode==0 and answer:
         return 'COMPLETE',None
     if not requests:
@@ -318,8 +320,10 @@ def execute(launch, directory, *, fake_base_url=None):
     (run/'answer.txt').write_text(answer)
     quota=bool(QUOTA.search(stderr.decode(errors='replace')))
     status,reason=classify(process.returncode,timeout,answer,stderr.decode(errors='replace'),
-                           reconciliation['metrics']['requests'],quota,key)
-    if observer_errors:
+                           reconciliation['metrics']['requests'],quota,key,
+                           successful_responses=sum(r.get('kind')=='usage' and r.get('session_id')==root
+                                                    and not r.get('aux_task') and not is_error(r) for r in usage))
+    if observer_errors and not quota:
         status,reason='HARNESS_ERROR','observer error'
     parent_agent=next((e for e in events if e['kind']=='agent' and e.get('session_id')==root),{})
     return launch | dict(status=status,arm=launch['arm'],started=started,ended=time.monotonic(),

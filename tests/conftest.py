@@ -104,3 +104,22 @@ def rig(plugin, tmp_path):
     # Most tests drive finalization explicitly; monitor tests opt into the actual thread.
     service.start_monitor = lambda *args: None
     return SimpleNamespace(service=service, host=host, lifecycle=lifecycle, raw=raw, store=factory)
+
+
+@pytest.fixture
+def selected_tree(monkeypatch):
+    import subprocess
+    from bench.drivers import hermes_cell
+    from bench.slice2 import hermes
+    tree = Path(os.environ.get('HERMES_SOURCE', str(Path(sys.executable).parents[2])))
+    if not (tree / '.venv/bin/python').exists():
+        pytest.skip('Hermes venv absent (CI)')
+    sha = subprocess.check_output(['git', '-C', str(tree), 'rev-parse', 'HEAD'], text=True).strip()
+    expected = {'hermes-teammates-upstream-pin': '1078a4e5f363472c43a50c6738e47e54eab2940c',
+                'hermes-main-venv': '3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065'}
+    if tree.name in expected:
+        assert sha == expected[tree.name], 'Hermes acceptance tree drift'
+    monkeypatch.setattr(hermes, 'HERMES', tree)
+    monkeypatch.setattr(hermes, 'HERMES_SHA', sha)
+    monkeypatch.setattr(hermes_cell, 'HERMES', tree)
+    return tree
