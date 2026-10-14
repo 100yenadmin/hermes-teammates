@@ -153,7 +153,29 @@ def extract_children(calls, events, rows, messages, ledger):
         if post:
             used.add(id(post))
         args = c['args'] if isinstance(c['args'], dict) else {}
-        tasks = launched_tasks(args) if c['tool'] == 'delegate_task' else [args]
+        if c['tool'] == 'delegate_task':
+            # Children are what Hermes actually launched: subagent_start lineage emitted inside this call's
+            # pre/post tool window (Hermes builds children synchronously in the tool). A rejected call has no
+            # lineage, so it never claims a child; requested goals only separate overlapping calls.
+            starts = [i for i, e in enumerate(events) if e.get('kind') == 'pre_tool_call' and id(e) not in used
+                      and e.get('session_id') == c['session_id'] and e.get('tool') == 'delegate_task'
+                      and e.get('args') == c['args']]
+            pre = next((i for i in starts if post and events[i].get('call_id') == post.get('call_id')),
+                       starts[0] if starts else None)
+            if pre is not None:
+                used.add(id(events[pre]))
+            # A call cut off by a timeout has no post event; its window runs to the end of the invocation.
+            end = next((i for i, e in enumerate(events) if e is post), len(events))
+            wanted = requested_goals(args)
+            launched = [e for e in (events[pre + 1:end] if pre is not None else [])
+                        if e.get('kind') == 'child_lineage' and e.get('parent_session_id') == c['session_id']
+                        and e.get('session_id') and e['session_id'] not in used
+                        and (not wanted or e.get('goal') in wanted)]
+            tasks = [dict(goal=e.get('goal') or '', _lineage=e['session_id'],
+                          context=next((t.get('context', '') for t in _task_dicts(args) if t.get('goal') == e.get('goal')), ''))
+                     for e in launched]
+        else:
+            tasks = [args]
         for task in tasks:
             sid, row = None, {}
             received = post.get('result_text', '')
@@ -175,9 +197,7 @@ def extract_children(calls, events, rows, messages, ledger):
                             clipped = bool(done.get('summary_clipped'))
                 clipped = clipped or bool(row.get('summary_clipped'))
             else:
-                match = next((e for e in lineage if e.get('parent_session_id') == c['session_id']
-                              and e.get('goal') == task.get('goal') and e['session_id'] not in used), {})
-                sid = match.get('session_id')
+                sid = task.get('_lineage')
             if sid:
                 used.add(sid)
             session = by_id.get(sid, {})
@@ -199,34 +219,32 @@ class SandboxBreach(RuntimeError):
     """The sandbox failed its own preflight; DECLARED: a verified breach stops this identity."""
 
 
-def launched_tasks(args):
-    """The tasks Hermes actually launches for delegate_task arguments; a rejected call launches none.
+def _task_dicts(args):
+    tasks = args.get('tasks')
+    if isinstance(tasks, str):
+        tasks = parsed(tasks.strip(), None)
+    tasks = tasks if isinstance(tasks, (list, tuple)) else [tasks] if isinstance(tasks, dict) else []
+    return [t for t in (parsed(t, t) if isinstance(t, str) else t for t in tasks) if isinstance(t, dict)] + [args]
 
-    Runs Hermes's own steps on a copy: coerce_tool_args with the registered delegate_task schema, the
-    spawn-only action gate, _normalize_task_list and the output-schema check that precede any spawn. An
-    exception there fails the tool call in Hermes too, so malformed model output never crashes the harness
-    and never invents a child.
-    """
-    import copy
-    try:
-        import tools.delegate_tool  # noqa: F401  registers the delegate_task schema used by coercion
-        from tools.arg_coercion import coerce_tool_args
-        from tools.delegate_tool_tasks import _coerce_task_schemas, _normalize_task_list
-        coerced = coerce_tool_args('delegate_task', copy.deepcopy(args))
-        action = coerced.get('action')
-        if action is not None and str(action).strip().lower() not in {'', 'spawn'}:
-            return []
-        limit = json.loads((DECLARED / 'configs.json').read_text())['B-native']['delegation']['max_concurrent_children']
-        task_list, error = _normalize_task_list(coerced.get('goal'), coerced.get('context'), coerced.get('tasks'),
-                                                coerced.get('output_schema'), 'leaf', limit)
-        if error:
-            return []
-        _, schema_error = _coerce_task_schemas(task_list, coerced.get('output_schema'))
-        return [] if schema_error else task_list
-    except ImportError:
-        raise
-    except Exception:
-        return []
+
+def requested_goals(args):
+    """Goal strings a delegate_task call asked for, read leniently; used only to tell overlapping calls apart."""
+    goals, pending = set(), [args.get('goal'), args.get('tasks')]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, str):
+            loaded = parsed(value.strip(), None) if value.strip()[:1] in '[{' else None
+            if loaded is None:
+                continue
+            value = loaded
+        if isinstance(value, dict):
+            if isinstance(value.get('goal'), str):
+                goals.add(value['goal'])
+        elif isinstance(value, (list, tuple)):
+            pending.extend(value)
+    if isinstance(args.get('goal'), str):
+        goals.add(args['goal'])
+    return goals
 
 
 def graded_child(children):
