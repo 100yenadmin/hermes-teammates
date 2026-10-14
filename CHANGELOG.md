@@ -3,7 +3,7 @@
 ## 0.2.3 (2026-10-14)
 
 - Blank model, route and reasoning settings count as unset before checking their length, so long whitespace-only values no longer invalidate a teammate.
-- `delegation_sources` reports `managed` for a value set by the managed config scope (/etc/hermes or `HERMES_MANAGED_DIR`), including one equal to Hermes's default or also named in config.yaml, since managed values win. If that scope exists but cannot be read, merged values are reported as `unknown`.
+- `delegation_sources` reports `managed` for a value set by the managed config scope (/etc/hermes or `HERMES_MANAGED_DIR`), including one equal to Hermes's default or also named in config.yaml, since managed values win. If that scope exists but Hermes's managed-config reader is missing or raises, merged values are reported as `unknown`. A malformed managed file is ignored by Hermes itself, so its values never reach the merged config and keep their `config` or `default` source.
 - Tool replies leave non-ASCII text unescaped, and the roster measures its reply budget on that same JSON form. Japanese summaries take less space and explained definitions avoid clipping caused by escape expansion.
 
 ## 0.2.2 (2026-10-14)
