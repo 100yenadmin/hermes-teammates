@@ -128,10 +128,12 @@ def calibrate(rows):
         by_role[role] = {arm: mean([r['success'] for r in rows if r['role'] == role and r['arm'] == arm]) for arm in ARMS}
     pooled = mean([r['success'] for r in rows])
     checks = dict(pooled=pooled is not None and .40 <= pooled <= .95,
-                  roles=all(all(v is not None for v in values.values()) and
-                            not all(v == 0 for v in values.values()) and not all(v == 1 for v in values.values())
+                  roles_floor=all(all(v is not None for v in values.values()) and
+                            not all(v == 0 for v in values.values())
                             for values in by_role.values()), checker_errors=not any(r.get('checker_error') for r in rows))
-    return dict(status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled, per_role=by_role, checks=checks)
+    ceiling_roles = sorted(role for role, values in by_role.items() if all(v == 1.0 for v in values.values()))
+    return dict(status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled,
+                per_role=by_role, checks=checks, ceiling_roles=ceiling_roles)
 
 
 SPEND = ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')

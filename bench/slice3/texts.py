@@ -20,7 +20,8 @@ Rules:
 2. Write each finding as one line: - <file>:<line> | <P1, P2 or P3> | <problem> | <fix>
    where <line> is the line number in the file after the patch is applied.
 3. Report at most 5 findings.
-4. End with one last line, either VERDICT: approve or VERDICT: request-changes''',
+4. End with one last line, either VERDICT: approve or VERDICT: request-changes
+Use P1 or P2 only for a defect that changes behaviour, report style issues as P3, and request changes only when a P1 or P2 finding remains.''',
     'tester': '''You turn a reported bug into a failing regression test.
 Rules:
 1. Create files only under tests/. Do not edit anything in src/.

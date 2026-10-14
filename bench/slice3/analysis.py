@@ -22,10 +22,16 @@ def token_total(parent):
 
 
 def score_turn(row, oracle, workspace, pristine):
-    from bench.slice3.grade import check_rules, child_success, delivered, route
+    from bench.slice3.grade import _content, _findings, _on_locus, check_rules, child_success, delivered, route
     child = next((c for c in row['children'] if c['order'] == row['graded_child']), None)
     rules, success, fp, routing = [False] * 4, False, None, 'unspecified'
+    envelope, output_schema, on_locus = None, None, None
     if child:
+        content = _content(child['final_text'])
+        envelope = content['envelope']
+        output_schema = bool(child['output_schema']) if 'output_schema' in child else None
+        if oracle['role'] == 'reviewer' and oracle.get('verdict') == 'request-changes':
+            on_locus = any(_on_locus(f, oracle['bug']) for f in _findings('\n'.join(content['lines'])))
         routing = route(row['arm'], {k: child[k] for k in ('mechanism', 'teammate', 'goal', 'context')}, oracle['role'])
         if row['status'] != 'timeout':
             rules = check_rules(oracle['role'], oracle, child['final_text'], row['delta'], child['receipts'], workspace)
@@ -37,7 +43,8 @@ def score_turn(row, oracle, workspace, pristine):
             fp = result['fp']
     return dict(case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],
                 status=row['status'], infra_invalid=row['infra_invalid'], n_children=len(row['children']),
-                rules=rules, adherence_all=int(all(rules) and routing != 'wrong'),
+                rules=rules, envelope=envelope, output_schema=output_schema, on_locus=on_locus,
+                adherence_all=int(all(rules) and routing != 'wrong'),
                 adherence_rules=sum(rules) / 4, success=int(success), fp=fp, routing=routing,
                 parent_tokens=token_total(row['parent']), parent_calls=row['parent']['api_calls'],
                 parent_output=(row['parent']['tokens'] or {}).get('output'),
@@ -49,7 +56,7 @@ def score_turn(row, oracle, workspace, pristine):
                 wall_s=row['wall_s'])
 
 
-def verdict(bars, superior, floor=True, dropped=0):
+def verdict(bars, superior, floor=True, dropped=0, ceiling=False):
     a, s, t, k = (bars[name] for name in ('adherence', 'success', 'tokens', 'calls'))
     if not floor or dropped > 2:
         row, value = 1, 'INCONCLUSIVE'
@@ -65,7 +72,7 @@ def verdict(bars, superior, floor=True, dropped=0):
         row, value = 7, 'ROLES WIN'
     else:
         row, value = 8, 'PARITY'
-    return dict(row=row, verdict=value, no_task_quality_claim=s == 'CEILING')
+    return dict(row=row, verdict=value, no_task_quality_claim=ceiling)
 
 
 def bar(bounds, threshold, cost=False):
@@ -133,14 +140,13 @@ def contrast(means, cases, treatment, dropped):
         bars['tokens'] = 'UNRESOLVED'
     success = {arm: mean([means[c][arm]['success'] for c in cases]) for arm in ('B-native', treatment)}
     floor = bool(cases) and all(v is not None and v >= .50 for v in success.values())
-    if floor and all(v >= .95 for v in success.values()):
-        bars['success'] = 'CEILING'
+    ceiling = floor and all(v >= .95 for v in success.values())
     superior = stats['adherence_all']['bounds'] is not None and stats['adherence_all']['bounds'][0] > 0
-    result = dict(statistics=stats, bars=bars, superior=superior, success_means=success, floor=floor,
+    result = dict(statistics=stats, bars=bars, superior=superior, success_means=success, floor=floor, ceiling=ceiling,
                   quality_reading='superior adherence' if superior else 'non-inferior' if
-                  bars['adherence'] == 'PASS' and bars['success'] in {'PASS', 'CEILING'} else 'unresolved or worse')
+                  bars['adherence'] == 'PASS' and bars['success'] == 'PASS' else 'unresolved or worse')
     if treatment == 'C':
-        result.update(verdict(bars, superior, floor, dropped))
+        result.update(verdict(bars, superior, floor, dropped, ceiling))
     return result
 
 
@@ -207,8 +213,8 @@ def report(analysis):
             stat = c['statistics'][key]
             lines.append(f"| {arm} vs B-native | {name} | {c['bars'][name]} | {stat['point']} | {stat['bounds']} | "
                          f"{stat['discordant']['higher']} / {stat['discordant']['lower']} / {stat['discordant']['equal']} |")
-        if c.get('no_task_quality_claim') or c['bars']['success'] == 'CEILING':
-            lines += ['', f'{arm}: no task-quality claim (success ceiling).', '']
+        if c.get('ceiling'):
+            lines += ['', f'{arm}: CEILING — no task-quality claim (success ceiling).', '']
         lines += ['', f'Paired script values: {arm}', '', '| Case | Metric | B-native | Treatment |', '|---|---|---|---|']
         for key, stat in c['statistics'].items():
             for p in stat['pairs']:

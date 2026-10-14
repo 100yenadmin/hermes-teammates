@@ -4,6 +4,7 @@ import time
 import pytest
 
 from bench.slice3 import grade
+from bench.slice3.templates import REVIEWER_BUGS
 from .f_helpers import generated, pack, case, oracles, work, proof_python, offline
 
 EMPTY = {'added': [], 'modified': [], 'deleted': []}
@@ -20,7 +21,8 @@ def scout_text(oracle):
 
 def review_text(oracle):
     bug = oracle['bug']
-    return f'- {bug["file"]}:{bug["line"]} | P1 | {bug["terms"][0]} permits an extra admission | Restore the boundary\nVERDICT: request-changes'
+    term = bug['terms'][0].removesuffix('*')
+    return f'- {bug["file"]}:{bug["line"]} | P1 | {term} breaks behaviour | Restore correctness\nVERDICT: request-changes'
 
 
 def submit(work, oracle, code=None):
@@ -145,7 +147,7 @@ def test_each_review_rule_negative(rule, oracles, work):
     if rule == 0:
         delta = {**EMPTY, 'deleted': ['patches/admission.diff']}
     elif rule == 1:
-        text = '- invented malformed finding\n' + text
+        text = '- P1: invented malformed finding\n' + text
     elif rule == 2:
         text = '\n'.join([text.splitlines()[0]] * 6) + '\nVERDICT: request-changes'
     else:
@@ -164,8 +166,8 @@ def test_reviewer_scattershot_wrong_location_and_unsupported_counts(oracles, wor
     assert not grade.child_success('reviewer', oracle, wrong_file, work, case['workspace'], [])['success']
     wrong_line = correct.replace(f':{oracle["bug"]["line"]} |', ':999 |')
     assert not grade.child_success('reviewer', oracle, wrong_line, work, case['workspace'], [])['success']
-    wrong_term = correct.replace(oracle['bug']['terms'][0], 'unrelated mechanism')
-    # The generated message also says "extra admission", not another frozen term.
+    wrong_term = correct.replace(oracle['bug']['terms'][0].removesuffix('*'), 'unrelated mechanism')
+    # No mechanism term remains in either the problem or the fix.
     assert not grade.child_success('reviewer', oracle, wrong_term, work, case['workspace'], [])['success']
     one_other = '- src/other.py:1 | P2 | unsupported mechanism | proposed fix\n' + correct
     assert grade.child_success('reviewer', oracle, one_other, work, case['workspace'], [])['success']
@@ -180,7 +182,7 @@ def test_parent_verdict_alone_is_not_bug_delivery(oracles, work):
     oracle = oracle_for(oracles, 'reviewer')
     assert not grade.delivered('reviewer', oracle, 'request-changes', work)
     assert not grade.delivered('reviewer', oracle, review_text(oracle).replace(oracle['bug']['file'], 'src/wrong.py'), work)
-    assert not grade.delivered('reviewer', oracle, review_text(oracle).replace(oracle['bug']['terms'][0], 'unrelated'), work)
+    assert not grade.delivered('reviewer', oracle, review_text(oracle).replace(oracle['bug']['terms'][0].removesuffix('*'), 'unrelated'), work)
     line = oracle['bug']['line']
     assert grade.delivered('reviewer', oracle, review_text(oracle).replace(f':{line} |', f':{line + 2} |'), work)
     assert not grade.delivered('reviewer', oracle, review_text(oracle).replace(f':{line} |', f':{line + 3} |'), work)
@@ -379,3 +381,148 @@ def test_tester_support_files_from_this_turn_travel_with_the_test(oracles, work,
     assert not grade.child_success('tester', oracle, '', work, case['workspace'], [])['success']
     support = ['tests/regression_support.py', file, 'src/ignored.py', 'tests/../escape.py']
     assert grade.child_success('tester', oracle, '', work, case['workspace'], [], support)['success']
+
+
+# A1 controls use synthetic oracles only; no operator hidden data is copied here.
+def a1_review(verdict='request-changes', template='admission_boundary'):
+    return {'verdict': verdict, 'bug': {'file': 'src/x/quotas.py', 'line': 14,
+            'terms': REVIEWER_BUGS[template]['terms']}}
+
+
+def a1_success(text, tmp_path, oracle=None):
+    return grade.child_success('reviewer', oracle or a1_review(), text, tmp_path, tmp_path, [])
+
+
+@pytest.mark.parametrize('finding', [
+    '- quotas.py:14 | P3 | variable name could be clearer | rename',
+    '- src/x/quotas.py:1-60 | P1 | <= admits at the limit | use <',
+    '- quotas.py:14 | P1 | rename count to job_count | rename',
+])
+def test_a1_reviewer_false_diagnoses(finding, tmp_path):
+    assert not a1_success(finding + '\nVERDICT: request-changes', tmp_path)['success']
+
+
+def test_a1_reviewer_scattershot(tmp_path):
+    text = '\n'.join(f'- elsewhere{i}.py:14 | P1 | <= admits at the limit | use <' for i in range(4))
+    text += '\n- quotas.py:14 | P1 | <= admits at the limit | use <\nVERDICT: request-changes'
+    result = a1_success(text, tmp_path)
+    assert not result['success'] and result['fp'] == 4
+
+
+def test_a1_reviewer_prose_is_not_candidate(tmp_path):
+    text = '- The comparison admits one extra job\n- Evidence: quotas.py:14 compares with <=\nVERDICT: request-changes'
+    assert not a1_success(text, tmp_path)['success']
+    assert grade.check_rules('reviewer', a1_review(), text, EMPTY, [], tmp_path) == [True] * 4
+
+
+def test_a1_reviewer_conflicting_json_verdict(tmp_path):
+    text = '- quotas.py:14 | P1 | <= admits at the limit | use <\nVERDICT: request-changes\n{"verdict": "approve"}'
+    assert not a1_success(text, tmp_path)['success']
+
+
+@pytest.mark.parametrize('prose,success,rule2', [
+    ('- P1: this drops tuple support', False, False),
+    ('No P1 or P2 issues found.', True, True),
+])
+def test_a1_reviewer_approve_candidates(prose, success, rule2, tmp_path):
+    oracle = a1_review('approve')
+    text = prose + '\nVERDICT: approve'
+    assert a1_success(text, tmp_path, oracle)['success'] is success
+    assert grade.check_rules('reviewer', oracle, text, EMPTY, [], tmp_path) == [True, rule2, True, True]
+
+
+def test_a1_reviewer_equivalent_findings_deduped(tmp_path):
+    finding = '- quotas.py:14 | P1 | <= admits at the limit | use <'
+    off = '- elsewhere.py:1 | P2 | missing docstring | document'
+    text = finding + '\n' + off + '\nVERDICT: request-changes\n' + json.dumps(
+        {'findings': [finding.replace('quotas.py', 'a/src/x/quotas.py'), off], 'verdict': 'request-changes'})
+    result = a1_success(text, tmp_path)
+    assert result['success'] and result['fp'] == 1
+    assert grade.check_rules('reviewer', a1_review(), text, EMPTY, [], tmp_path)[2]
+
+
+PARAPHRASES = {
+    'admission_boundary': ('uses <= so a job is admitted when count equals the limit', 'an inclusive check exceeds the quota'),
+    'swapped_arguments': ('reverses the subtraction arguments', 'position has the wrong sign'),
+    'wrong_default': ('defaults to true when the flag is absent', 'the flag is enabled by default'),
+    'none_guard_removed': ('None raises AttributeError', 'missing message loses its guard'),
+    'condition_inverted': ('local requests go remote', 'the inverted test misroutes requests'),
+    'unit_conversion': ('multiplies seconds instead of dividing', 'should divide by 60'),
+    'integer_division': ('floor division rounds down', 'truncates the fractional share'),
+    'wrong_dict_key': ('login replaces the public name', 'the wrong field exposes the account identifier'),
+    'shared_default': ('mutable default list persists across calls', "aliases the caller's list"),
+    'off_by_one_slice': ('one extra event is returned', 'the slice boundary yields n+1 entries'),
+}
+
+
+@pytest.mark.parametrize('template', REVIEWER_BUGS)
+@pytest.mark.parametrize('variant', [0, 1, 2])
+def test_a1_reviewer_mechanism_paraphrases(template, variant, tmp_path):
+    problem = PARAPHRASES[template][variant] if variant < 2 else 'missing docstring; rename variable'
+    text = f'- quotas.py:14 | P1 | {problem} | restore correctness\nVERDICT: request-changes'
+    assert a1_success(text, tmp_path, a1_review(template=template))['success'] is (variant < 2)
+
+
+@pytest.mark.parametrize('verdict,reply,expected', [
+    ('approve', 'Do not approve this patch.', False),
+    ('request-changes', 'VERDICT: request-changes\nquotas.py:14 admits at the limit', True),
+    ('request-changes', 'Request changes before I can approve: quotas.py:14 off by one', True),
+    ('request-changes', 'request changes: quotas.py:14 is wrong', False),
+    ('request-changes', 'Never request changes. Approved: quotas.py:14 off by one', False),
+    ('approve', 'VERDICT: request-changes\n**VERDICT: approve**', True),
+])
+def test_a1_reviewer_delivered(verdict, reply, expected, tmp_path):
+    assert grade.delivered('reviewer', a1_review(verdict), reply, tmp_path) is expected
+
+
+def a1_scout(tmp_path):
+    (tmp_path / 'docs').mkdir(exist_ok=True)
+    (tmp_path / 'docs/guide.md').write_text('filler\n' * 60)
+    return {'answer': '300', 'accepted': ['300', '300 ticks'], 'citation': {'file': 'docs/guide.md', 'line': 40}}
+
+
+@pytest.mark.parametrize('conflict', [False, True])
+def test_a1_scout_json_content(conflict, tmp_path):
+    oracle = a1_scout(tmp_path)
+    text = '[docs/guide.md:40]\n' + ('ANSWER: 300\n' if conflict else '')
+    text += '```json\n' + json.dumps({'answer_line': 'ANSWER: 307' if conflict else 'ANSWER: 300 ticks'}) + '\n```'
+    assert grade.child_success('scout', oracle, text, tmp_path, tmp_path, [])['success'] is (not conflict)
+    assert not grade.check_rules('scout', oracle, text, EMPTY, [], tmp_path)[3]
+
+
+@pytest.mark.parametrize('reply,expected', [
+    ('The answer is not 300; it is 307.', False), ('It is 300.\nANSWER: 307', False),
+    ('It lasts 300 ticks.', True), ('It is not 307. It lasts 300 ticks.', True),
+])
+def test_a1_scout_delivered(reply, expected, tmp_path):
+    assert grade.delivered('scout', a1_scout(tmp_path), reply, tmp_path) is expected
+
+
+@pytest.mark.parametrize('offset,expected', [(6, False), (-6, False), (2, True), (-2, True)])
+def test_a1_scout_value_citation(offset, expected, tmp_path):
+    oracle = a1_scout(tmp_path)
+    text = f'[docs/guide.md:{40 + offset}]\nANSWER: 300'
+    assert grade.child_success('scout', oracle, text, tmp_path, tmp_path, [])['success'] is expected
+
+
+@pytest.mark.parametrize('command,error,expected', [
+    ('echo "FAILED tests/test_bug_142.py::test_bug_142_regression"', '', False),
+    ('cd /work && python -m pytest -q', '', True),
+    ('cd /work && python -m pytest -q', 'ERROR collecting tests/test_bug_142.py\n', False),
+    ('MODE=offline py.test -q', '', True),
+])
+def test_a1_tester_node_receipts(command, error, expected, tmp_path):
+    oracle = {'ticket': 'BUG-142'}
+    file, function, node = grade._test_identity(oracle)
+    (tmp_path / 'tests').mkdir()
+    (tmp_path / file).write_text(f'def {function}():\n    assert False\n')
+    output = error + f'FAILED {node} - assert ...\n1 failed, 12 passed'
+    r = receipt(file, command=command)
+    r['result_text'] = json.dumps({'output': output, 'error': None})
+    assert grade.check_rules('tester', oracle, '**RED: ' + node + '**',
+                             {**EMPTY, 'added': [file]}, [r], tmp_path)[2] is expected
+
+
+@pytest.mark.parametrize('role,last', [('reviewer', '**VERDICT: request-changes**'), ('scout', '## ANSWER: 300')])
+def test_a1_markdown_last_lines(role, last, tmp_path):
+    assert grade.check_rules(role, a1_review(), last, EMPTY, [], tmp_path)[3]

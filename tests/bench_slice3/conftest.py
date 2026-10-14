@@ -41,6 +41,9 @@ def lane_f(monkeypatch, tmp_path):
     grade.child_success = lambda *a: dict(success=True, fp=None, detail='synthetic')
     grade.delivered = lambda *a: True
     grade.route = lambda *a: 'correct'
+    grade._content = lambda text: dict(lines=text.splitlines(), envelope=False)
+    grade._findings = lambda text: []
+    grade._on_locus = lambda *a: False
     venv = ModuleType('bench.slice3.venv')
     from bench.drivers import hermes_cell
     venv.ensure_bench_python = lambda: hermes_cell.HERMES / '.venv'

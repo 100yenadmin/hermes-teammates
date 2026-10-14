@@ -2,6 +2,7 @@ import hashlib
 from collections import Counter
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,7 @@ import pytest
 
 from bench.slice3 import cases, grade
 from bench.slice3.generate import DIFFICULTY, POOLS, generate
+from bench.slice3.templates import FACTS
 from .f_helpers import generated, pack, proof_python, offline
 
 
@@ -89,11 +91,14 @@ def test_case_shape_and_unique_scout_targets(pack, case_id):
         if turn['role'] == 'scout':
             matches = [(p.relative_to(workspace).as_posix(), n) for p in docs
                        for n, line in enumerate(p.read_text().splitlines(), 1)
-                       if turn['subject'] in line and turn['answer'] in line]
+                       if line.startswith('The ') and line.endswith(
+                           f" sets {turn['answer']} {FACTS[turn['template']][2]}.")]
             assert matches == [(turn['citation']['file'], turn['citation']['line'])]
         elif turn['role'] == 'reviewer' and 'bug' in turn:
             terms = turn['bug']['terms']
-            assert 3 <= len(terms) <= 6 and all(t == t.lower() for t in terms)
+            # A1's exact frozen wrong_dict_key list has seven terms.
+            minimum = 7 if turn['template'] == 'wrong_dict_key' else 8
+            assert len(terms) >= minimum and all(t == t.lower() for t in terms)
         elif turn['role'] == 'tester':
             request = case['turns'][turn['index'] - 1]['text']
             assert turn['ticket'] in request and 'src/' not in request
@@ -253,3 +258,35 @@ def test_regeneration_removes_obsolete_owned_files_but_preserves_unrelated(tmp_p
     generate(root, backup=None)
     assert not obsolete.exists()
     assert unrelated.read_text() == 'preserve'
+
+
+def test_a1_two_hop_scout_docs(pack):
+    from bench.slice3.templates import FACTS, PROFILES
+    assert len(PROFILES) == len(set(PROFILES)) == 12
+    assert DIFFICULTY['distractor_distance'] == 6
+    for case_id in pack.SCORED + pack.DEV:
+        case = pack.load_case(case_id)
+        for turn in pack.load_oracle(case_id)['turns']:
+            if turn['role'] != 'scout':
+                continue
+            lines = (case['workspace'] / turn['citation']['file']).read_text().splitlines()
+            ref = next(i for i, line in enumerate(lines) if line.startswith(turn['subject'] + ' uses the '))
+            p = re.fullmatch(re.escape(turn['subject']) + r' uses the (\w+) profile\.', lines[ref])[1]
+            q = re.search(r' uses the (\w+) profile\.', lines[ref + 1])[1]
+            assert p in PROFILES and q in PROFILES and p != q
+            _, answer, unit, lure, _ = FACTS[turn['template']]
+            value = lines.index(f'The {p} profile sets {answer} {unit}.')
+            distractor = lines.index(f'The {q} profile sets {lure} {unit}.')
+            assert value - ref >= 30 and abs(value - distractor) == 6
+            assert min(value, distractor) > ref + 1 and max(value, distractor) < len(lines)
+            assert turn['citation']['line'] == value + 1
+
+
+def test_a1_generator_rejects_close_lure(tmp_path):
+    with pytest.raises(ValueError, match='5..20'):
+        generate(tmp_path / 'invalid-distance', backup=None, difficulty={**DIFFICULTY, 'distractor_distance': 4})
+
+
+def test_a1_tester_tickets_symptoms_only():
+    from bench.slice3.templates import TESTER_BUGS
+    assert all(not re.search(r'\d', t['text']) for t in TESTER_BUGS.values())

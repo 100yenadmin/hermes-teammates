@@ -164,6 +164,8 @@ def extract_children(calls, events, rows, messages, ledger):
                         and e.get('session_id') and e['session_id'] not in used
                         and (not wanted or (isinstance(e.get('goal'), str) and e['goal'] in wanted))]
             tasks = [dict(goal=e.get('goal') or '', _lineage=e['session_id'],
+                          output_schema=next((t.get('output_schema', args.get('output_schema')) for t in _task_dicts(args)
+                                              if t.get('goal') == e.get('goal')), args.get('output_schema')),
                           context=next((t.get('context', '') for t in _task_dicts(args) if t.get('goal') == e.get('goal')), ''))
                      for e in launched]
         else:
@@ -201,6 +203,7 @@ def extract_children(calls, events, rows, messages, ledger):
             children.append(dict(order=len(children) + 1, call_id=c['call_id'], entry_index=c['entry_index'],
                                  mechanism=c['tool'], teammate=row.get('teammate', args.get('teammate')),
                                  goal=task.get('goal', ''), context=task.get('context', ''),
+                                 output_schema=task.get('output_schema', args.get('output_schema')),
                                  wait_seconds=wait_seconds(args.get('wait_seconds', 0)), child_session_id=sid,
                                  terminal=terminal, final_text=final, receipts=child_receipts(events, sid),
                                  parent_received_text=received, summary_clipped=clipped))
