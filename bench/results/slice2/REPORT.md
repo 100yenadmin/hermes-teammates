@@ -96,8 +96,8 @@ Per-case means (valid cells):
 | 09-config | 1.000 / 1.000 | 1.000 / 1.000 | 27,572 / 62,558 | 300,376 / 319,754 |
 | 10-ledger | 1.000 / 1.000 | 1.000 / 1.000 | 25,527 / 65,327 | 273,943 / 303,948 |
 
-All 4 false positives are in C: claims about behaviour the specification leaves open, such as a coroutine left
-unawaited after a correct rejection, and inputs outside a function's documented domain. B's answers had none.
+All 4 false positives are in C; B's answers had none. What they claimed is withheld with the oracles, because
+later slices reuse these cases.
 Duplicates (true compound restatements of bugs already credited) earn neither credit nor penalty.
 
 ## Where C's parent overhead comes from
@@ -163,5 +163,8 @@ Wall time: the scored run took 2 h 13 min (14:43–16:56 JST).
 
 - `results.jsonl`: one row per scored cell with status, recipe errors, overhead metrics and (valid cells) scores.
   No answer text and no judge findings.
-- `report.json`: the declared analysis (`bench.slice2.stats.report`), verdict INCONCLUSIVE.
-- `exploratory.json`: the valid-cell contrasts.
+- `report.json`: the declared analysis (`bench.slice2.stats.report`) over all 40 cells, including the four
+  RECIPE_INVALID ones; verdict INCONCLUSIVE.
+- `exploratory.json`: the valid-cell contrasts, reproducible with
+  `python -m bench.slice2.exploratory bench/results/slice2/results.jsonl` (tested in
+  `tests/bench_slice2/test_exploratory.py`).

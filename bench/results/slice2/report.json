@@ -6,7 +6,7 @@
   "method": "paired case-cluster percentile; one-sided 95% bounds",
   "contrasts": {},
   "gaps": [
-    "incomplete/duplicate scored matrix"
+    "qualification, frozen grades, recipe, accounting or integrity incomplete"
   ],
   "quality": {
     "B-briefed": {
@@ -1005,6 +1005,38 @@
       "clipping": []
     },
     {
+      "cell": "scored-01-parcel-1-B-briefed",
+      "status": "RECIPE_INVALID",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 43,
+        "child_cache_read_tokens": 350720,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 33661,
+        "child_output_tokens": 28181,
+        "child_reasoning_tokens": 17598,
+        "child_tokens": 412562,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16695,
+        "parent_api_calls": 4,
+        "parent_cache_read_tokens": 12032,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 19356,
+        "parent_output_tokens": 4071,
+        "parent_peak_prompt_tokens": 16695,
+        "parent_reasoning_tokens": 2482,
+        "parent_tokens": 35459,
+        "requests": 47,
+        "total_tokens": 448021
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
       "cell": "scored-01-parcel-1-C",
       "status": "COMPLETE",
       "metrics": {
@@ -1590,6 +1622,38 @@
           "02-stock-5",
           "02-stock-6"
         ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-07-pages-2-B-briefed",
+      "status": "RECIPE_INVALID",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 39,
+        "child_cache_read_tokens": 274432,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 24825,
+        "child_output_tokens": 18078,
+        "child_reasoning_tokens": 7590,
+        "child_tokens": 317335,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17378,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 29696,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12010,
+        "parent_output_tokens": 3826,
+        "parent_peak_prompt_tokens": 17378,
+        "parent_reasoning_tokens": 1634,
+        "parent_tokens": 45532,
+        "requests": 44,
+        "total_tokens": 362867
       },
       "compression_events": null,
       "retries": null,
@@ -2268,6 +2332,101 @@
       "retries": null,
       "cache_buckets": null,
       "clipping": []
+    },
+    {
+      "cell": "scored-10-ledger-2-B-briefed",
+      "status": "RECIPE_INVALID",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 35,
+        "child_cache_read_tokens": 241664,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 24756,
+        "child_output_tokens": 20208,
+        "child_reasoning_tokens": 10522,
+        "child_tokens": 286628,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 19211,
+        "parent_api_calls": 4,
+        "parent_cache_read_tokens": 21504,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 13753,
+        "parent_output_tokens": 5009,
+        "parent_peak_prompt_tokens": 19211,
+        "parent_reasoning_tokens": 2941,
+        "parent_tokens": 40266,
+        "requests": 39,
+        "total_tokens": 326894
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-10-ledger-2-C",
+      "status": "RECIPE_INVALID",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 33,
+        "child_cache_read_tokens": 217280,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 20680,
+        "child_output_tokens": 15430,
+        "child_reasoning_tokens": 5807,
+        "child_tokens": 253390,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16080,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 52736,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 11572,
+        "parent_output_tokens": 3235,
+        "parent_peak_prompt_tokens": 16080,
+        "parent_reasoning_tokens": 1528,
+        "parent_tokens": 67543,
+        "requests": 41,
+        "total_tokens": 320933
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_0a923cbe6c3b",
+          "summary_chars": 2987,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c199f5d9a2d5",
+          "summary_chars": 2992,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_0a923cbe6c3b",
+          "summary_chars": 2987,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_02d2c291697c",
+          "summary_chars": 2783,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c199f5d9a2d5",
+          "summary_chars": 2992,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_79aee26753bf",
+          "summary_chars": 3086,
+          "summary_clipped": false
+        }
+      ]
     }
   ]
 }
