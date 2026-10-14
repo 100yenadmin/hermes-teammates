@@ -308,7 +308,7 @@ Use `/teammates` for the roster, or `teammates_roster` for config problems, host
 Inspect an existing run with `teammate_check` (`wait_seconds: 0`) for status, `summary`, `api_calls` and `duration_seconds`.
 For recent agent-log excerpts, use `hermes logs -n 300 | grep -i teammate`; remove secrets and private text before sharing.
 Inspect existing runs first; ask before starting a new run or follow-up, because model calls cost money.
-From the next release, ask your Hermes agent to report a problem with Hermes Teammates; review its draft before filing.
+Or ask your Hermes agent to report a problem with Hermes Teammates (the bundled `teammates-report-problem` skill); it drafts the report and files nothing until you approve the draft. On Hermes versions that do not list plugin skills in the system prompt, name it: "load the skill `hermes-teammates:teammates-report-problem`".
 Use the [bug report form](https://github.com/100yenadmin/hermes-teammates/issues/new?template=bug_report.yml) for reproducible problems.
 Report toolset escapes, cross-profile access or leaked credentials through a [private advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new).
 
