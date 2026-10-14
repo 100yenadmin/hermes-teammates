@@ -1,0 +1,31 @@
+{
+  "blurb": "It tracks short-lived ripple resources, display codes, and admission counters.",
+  "id": "09-ripple",
+  "project": "Ripple leases",
+  "turns": [
+    {
+      "index": 1,
+      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+    },
+    {
+      "index": 2,
+      "text": "What is the duration, in ticks, for the ripple foreground lease? Please check the docs."
+    },
+    {
+      "index": 3,
+      "text": "BUG-158: A resource still authorizes work at exactly its expiry tick (178). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+    },
+    {
+      "index": 4,
+      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+    },
+    {
+      "index": 5,
+      "text": "BUG-159: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+    },
+    {
+      "index": 6,
+      "text": "Which code identifies the ripple foreground display in the documentation?"
+    }
+  ]
+}

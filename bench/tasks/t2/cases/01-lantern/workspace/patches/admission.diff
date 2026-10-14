@@ -1,0 +1,11 @@
+--- a/src/lantern/quotas.py
++++ b/src/lantern/quotas.py
+@@ -13,7 +13,7 @@
+     """
+     if count < 0:
+         raise ValueError('negative count')
+-    if count >= limit:
++    if count > limit:
+         return False
+     return True
+ 

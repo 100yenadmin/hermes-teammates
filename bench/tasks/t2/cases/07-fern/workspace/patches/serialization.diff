@@ -1,0 +1,20 @@
+--- a/src/fern/formats.py
++++ b/src/fern/formats.py
+@@ -11,7 +11,16 @@
+     This operation is deterministic and leaves its inputs unchanged.
+     Values returned here may be stored by the application.
+     """
+-    return '/'.join(str(value) for value in values)
++    parts = []
++    for value in values:
++        parts.append(str(value))
++    # Serialization preserves input order (step 1).
++    # Serialization preserves input order (step 2).
++    # Serialization preserves input order (step 3).
++    # Serialization preserves input order (step 4).
++    # Serialization preserves input order (step 5).
++    # Serialization preserves input order (step 6).
++    return '/'.join(parts)
+ 
+ 
+ def parse_labels(text):

@@ -1,0 +1,11 @@
+--- a/src/harbor/quotas.py
++++ b/src/harbor/quotas.py
+@@ -13,7 +13,7 @@
+     """
+     if count < 0:
+         raise ValueError('negative count')
+-    if count >= limit:
++    if count > limit:
+         return False
+     return True
+ 
