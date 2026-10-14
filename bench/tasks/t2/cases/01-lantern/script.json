@@ -1,0 +1,31 @@
+{
+  "blurb": "It provides optional configuration, notification batches, result pagination, retry backoff policy.",
+  "id": "01-lantern",
+  "project": "Lantern toolkit",
+  "turns": [
+    {
+      "index": 1,
+      "text": "BUG-142: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 2,
+      "text": "Would patches/admission.diff keep independent notification batches independent? Inspect the proposed default handling."
+    },
+    {
+      "index": 3,
+      "text": "What ratio is configured for the lantern primary archive compressor?"
+    },
+    {
+      "index": 4,
+      "text": "BUG-143: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 5,
+      "text": "For how many days does the lantern primary audit archive retain entries?"
+    },
+    {
+      "index": 6,
+      "text": "Is the comprehension refactor in patches/serialization.diff equivalent for the supported inputs? Please review it."
+    }
+  ]
+}

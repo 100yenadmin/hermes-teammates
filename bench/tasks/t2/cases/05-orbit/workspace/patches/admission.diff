@@ -1,0 +1,11 @@
+--- a/src/orbit/allocation.py
++++ b/src/orbit/allocation.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    return total / recipients
++    return total // recipients
+ 
+ 
+ def remainder(total, recipients):

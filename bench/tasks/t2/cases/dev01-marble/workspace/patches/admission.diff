@@ -1,0 +1,11 @@
+--- a/src/marble/quotas.py
++++ b/src/marble/quotas.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    return count < limit
++    return count <= limit
+ 
+ 
+ def spare(count, limit):

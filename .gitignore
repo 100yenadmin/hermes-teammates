@@ -15,3 +15,4 @@ bench/results/slice2/*
 !bench/results/slice2/report.json
 !bench/results/slice2/exploratory.json
 bench/tasks/t1h/hidden/
+bench/tasks/t2/hidden/

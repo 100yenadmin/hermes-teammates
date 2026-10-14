@@ -1,0 +1,31 @@
+{
+  "blurb": "It provides invoice discounts, position offsets, account display settings, descriptive statistics.",
+  "id": "08-tundra",
+  "project": "Tundra toolkit",
+  "turns": [
+    {
+      "index": 1,
+      "text": "How many ticks does the tundra primary interactive lease last?"
+    },
+    {
+      "index": 2,
+      "text": "BUG-156: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 3,
+      "text": "Please assess patches/admission.diff: will relative positions keep their direction after this change?"
+    },
+    {
+      "index": 4,
+      "text": "BUG-157: An eligible invoice remains at 100 instead of receiving the promised ten percent discount. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 5,
+      "text": "What ordering policy does the tundra primary dispatch queue follow?"
+    },
+    {
+      "index": 6,
+      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
+    }
+  ]
+}

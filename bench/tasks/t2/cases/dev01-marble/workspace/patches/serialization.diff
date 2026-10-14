@@ -1,0 +1,22 @@
+--- a/src/marble/notifications.py
++++ b/src/marble/notifications.py
+@@ -53,12 +53,18 @@
+ 
+ 
+ def copy_items(values=None):
++    # Snapshot contract: retain order and input ownership (1).
++    # Snapshot contract: retain order and input ownership (2).
++    # Snapshot contract: retain order and input ownership (3).
++    # Snapshot contract: retain order and input ownership (4).
++    # Snapshot contract: retain order and input ownership (5).
++    # Snapshot contract: retain order and input ownership (6).
+     """Return a fresh list from an optional list or tuple.
+ 
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
+     """
+-    if values is None:
++    if not (values is not None):
+         return []
+     return list(values)
+ 
