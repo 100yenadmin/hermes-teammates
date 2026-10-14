@@ -139,6 +139,42 @@ def test_normalized_deferred_batch_keeps_outer_entry_identity():
     assert [(c['call_id'], c['entry_index']) for c in canonical_calls(persisted, events)] == [('outer', 0), ('outer', 1)]
 
 
+@pytest.mark.parametrize('coerced', [False, True])
+def test_split_batch_entries_match_hooks_by_their_persisted_ids(coerced):
+    # C arm: direct teammate_assign calls a1 and a2 are rejected without hooks (deferred tools). The retry is one
+    # bridge call P = [x, y]; Hermes splits it into P and a minted ID D, and the hooks carry P and D. Hermes may
+    # coerce y's arguments before its hooks. The rejected a2 must not take D's run, and y (launched last) is graded.
+    x, y = dict(teammate='scout', goal='g1'), dict(teammate='reviewer', goal='g2', wait_seconds='30')
+    hooked_y = y | dict(wait_seconds=30) if coerced else y
+    persisted = [dict(session_id='p', call_id=cid, entry_index=0, tool='teammate_assign', args=a)
+                 for cid, a in (('a1', x), ('a2', y), ('P', x), ('D', y))]
+    batches = [dict(kind='batch', session_id='p', calls=[dict(call_id=cid, entry_index=0, tool='teammate_assign', args=a)
+                                                        for cid, a in (('a1', x), ('a2', y))]),
+               dict(kind='batch', session_id='p', calls=[dict(call_id='P', entry_index=i, tool='teammate_assign', args=a)
+                                                        for i, a in enumerate((x, y))])]
+    posts = [dict(kind='post_tool_call', session_id='p', tool='teammate_assign', call_id=cid, args=a,
+                  result={'run_id': run}, result_text='queued') for cid, a, run in (('P', x, 'run0'), ('D', hooked_y, 'run1'))]
+    lineage = [dict(kind='child_lineage', session_id='s'+str(i), subagent_id='a'+str(i)) for i in range(2)]
+    ledger = [dict(run_id='run'+str(i), subagent_id='a'+str(i), teammate=r, status='succeeded', summary_clipped=0)
+              for i, r in enumerate(('scout', 'reviewer'))]
+    calls = canonical_calls(persisted, batches)
+    assert [(c['call_id'], c['entry_index'], c.get('hook_id')) for c in calls] == [
+        ('a1', 0, 'a1'), ('a2', 0, 'a2'), ('P', 0, 'P'), ('P', 1, 'D')]
+    children = extract_children(calls, batches + posts + lineage, [], [], ledger)
+    assert [(c['call_id'], c['entry_index'], c['child_session_id']) for c in children] == [
+        ('a1', 0, None), ('a2', 0, None), ('P', 0, 's0'), ('P', 1, 's1')]
+    assert graded_child(children) == 4
+
+
+def test_a_json_string_batch_envelope_keeps_its_entries():
+    entry = dict(name='teammate_assign', arguments=dict(teammate='scout', goal='g1'))
+    call = dict(id='bridge', function=dict(name='tool_call', arguments=json.dumps(dict(calls=json.dumps([entry])))))
+    messages = [dict(id=1, session_id='p', role='user', content='turn one'),
+                dict(id=2, session_id='p', role='assistant', tool_calls=json.dumps([call]))]
+    assert [(c['call_id'], c['tool'], c['args']) for c in turn_calls(messages, {'p'}, 'turn one')] == [
+        ('bridge', 'teammate_assign', dict(teammate='scout', goal='g1'))]
+
+
 def test_child_wait_arguments_are_normalized():
     calls = [dict(session_id='p', call_id=str(i), entry_index=0, tool='teammate_assign',
                   args=dict(teammate='scout', goal=str(i), wait_seconds=w))
