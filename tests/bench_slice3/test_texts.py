@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from bench.slice3.texts import ARMS, INSTRUCTIONS, ROLES, WHEN, render
-from f_helpers import generated, pack, offline
+from .f_helpers import generated, pack, offline
 
 NOTES = Path('/Users/m1/Codex/session-notes/2026-10-14/hermes-teammates-slice3')
 PINNED = Path('/Users/m1/repos/worktrees/hermes-teammates-upstream-pin')

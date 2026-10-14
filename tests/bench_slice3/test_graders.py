@@ -4,7 +4,7 @@ import time
 import pytest
 
 from bench.slice3 import grade
-from f_helpers import generated, pack, case, oracles, work, proof_python, offline
+from .f_helpers import generated, pack, case, oracles, work, proof_python, offline
 
 EMPTY = {'added': [], 'modified': [], 'deleted': []}
 

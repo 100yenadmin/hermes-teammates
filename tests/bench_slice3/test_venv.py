@@ -4,7 +4,17 @@ from pathlib import Path
 import pytest
 
 from bench.slice3 import venv
-from f_helpers import offline
+from .f_helpers import offline
+
+
+@pytest.fixture
+def tmp_path():
+    # The bench venv must live outside the plugin checkout, and the repo conftest puts
+    # pytest's tmp_path inside it (.pytest_tmp); use the system temp root instead.
+    import shutil, tempfile
+    path = Path(tempfile.mkdtemp(prefix='slice3-venv-')).resolve()
+    yield path
+    shutil.rmtree(path, ignore_errors=True)
 
 
 def fake_environment(monkeypatch, root, packages, installed=None, hermes_version='9.1.1'):

@@ -11,7 +11,7 @@ import pytest
 
 from bench.slice3 import cases, grade
 from bench.slice3.generate import DIFFICULTY, POOLS, generate
-from f_helpers import generated, pack, proof_python, offline
+from .f_helpers import generated, pack, proof_python, offline
 
 
 def inventory(root):
