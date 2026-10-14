@@ -302,6 +302,16 @@ See [SECURITY.md](SECURITY.md). In short:
 - The plugin makes no network calls of its own.
 - It only claims Kanban cards assigned to its lane.
 
+## Troubleshooting and reporting a bug
+
+Use `/teammates` for the roster, or `teammates_roster` for config problems, host features and recent runs.
+Inspect an existing run with `teammate_check` (`wait_seconds: 0`) for status, result, `api_calls` and `duration_seconds`.
+For recent agent-log excerpts, use `hermes logs -n 300 | grep -i teammate`; remove secrets and private text before sharing.
+Inspect existing runs first; ask before starting a new run or follow-up, because model calls cost money.
+From the next release, ask your Hermes agent to report a problem with Hermes Teammates; review its draft before filing.
+Use the [bug report form](https://github.com/100yenadmin/hermes-teammates/issues/new?template=bug_report.yml) for reproducible problems.
+Report toolset escapes, cross-profile access or leaked credentials through a [private advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new).
+
 ## License
 
 MIT. Maintained by [@100yenadmin](https://github.com/100yenadmin) (Electric Sheep).
