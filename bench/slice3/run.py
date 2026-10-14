@@ -2,7 +2,9 @@
 import argparse
 import hashlib
 import json
+import os
 import random
+import signal
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -147,13 +149,19 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     breach = directory.parent / 'sandbox-breach.json'
     if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
         raise ValueError('Sandbox breach recorded for this identity; it stops (see ' + str(breach) + ')')
-    breach_lock = threading.Lock()
+    breach_lock, launched = threading.Lock(), []
 
-    def admit():
-        # Every session start and model launch is admitted against the marker; publication holds the same lock.
+    def admit(launch=None):
+        # Session starts and model launches are admitted against the marker under the publication lock; a launched
+        # process is registered so that a later breach stops it.
         with breach_lock:
             if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
                 raise IdentityStopped('Sandbox breach recorded for this identity; see ' + str(breach))
+            if launch is None:
+                return None
+            process = launch()
+            launched.append(process)
+            return process
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
                if phase == 'qualify' else schedule(DEV if phase == 'calibrate' else SCORED))
@@ -222,9 +230,15 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             write_json(receipt, dict(turns=[], scores=[], quota_stop=False, identity=ident, sandbox_breach=breached,
                                      harness_fault={'error_class': type(error).__name__}))
             if breached:
-                with breach_lock:  # the first breach is the recorded one
+                with breach_lock:  # the first breach is the recorded one; running siblings stop now
                     if not (breach.exists() and json.loads(breach.read_text()).get('identity') == ident):
                         write_json(breach, dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
+                    for process in launched:
+                        if process.poll() is None:
+                            try:
+                                os.killpg(process.pid, signal.SIGKILL)
+                            except OSError:
+                                pass
             raise
         scores = []
         oracle = load_oracle(item['case'])

@@ -175,6 +175,14 @@ def test_rejected_call_claims_nothing_and_the_retry_keeps_its_child():
     assert _children([_call('1', bad), _call('2', good)], events) == [('2', LONG_B, 'c2')]
 
 
+def test_a_call_rejected_before_its_hooks_never_borrows_a_retry():
+    # Hermes rejected A before any hook; B launched H; C retried A's goal and launched G. C's child is graded.
+    a, b, c = dict(goal=LONG_A, bad=1), dict(goal=LONG_B), dict(goal=LONG_A)
+    events = [_hook('pre_tool_call', 'b', b), _lineage('cb', LONG_B), _hook('post_tool_call', 'b', b),
+              _hook('pre_tool_call', 'c', c), _lineage('ca', LONG_A), _hook('post_tool_call', 'c', c)]
+    assert _children([_call('a', a), _call('b', b), _call('c', c)], events) == [('b', LONG_B, 'cb'), ('c', LONG_A, 'ca')]
+
+
 def test_every_child_launched_in_the_window_is_kept_in_order():
     args = dict(tasks=[{'goal': LONG_A}, {'goal': LONG_B}])
     events = [_hook('pre_tool_call', '1', args), _lineage('ca', LONG_A), _lineage('cb', LONG_B),

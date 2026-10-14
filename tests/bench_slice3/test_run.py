@@ -434,13 +434,13 @@ def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, l
             # Breach only once the concurrent sibling is inside its session, so its next launch is what stops.
             sibling_started.wait(10)
             raise SandboxBreach('Sandbox controls failed before any model call')
+        import subprocess
+        running = admit(lambda: subprocess.Popen(['/bin/sleep', '30'], start_new_session=True))
         sibling_started.set()
-        # The concurrent sibling reaches its next model launch only after the breach is published.
-        deadline = time.monotonic() + 10
-        while not (tmp_path / 'sandbox-breach.json').exists() and time.monotonic() < deadline:
-            time.sleep(.01)
+        # Publishing the breach stops the sibling's running process; its next launch is refused.
+        assert running.wait(10) == -9
         try:
-            admit()
+            admit(lambda: subprocess.Popen(['/bin/sleep', '30'], start_new_session=True))
         except IdentityStopped:
             stopped.append(case + ':' + arm)
             raise
@@ -460,3 +460,16 @@ def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, l
                           ('calibrate', dict(reruns=[first['case'] + ':' + first['arm']], retry_reason='confirmed-infra'))):
         with pytest.raises(ValueError, match='Sandbox breach recorded'):
             run_phase(phase, tmp_path / phase, executor=executor, **kwargs)
+
+
+def test_the_live_launcher_verifies_runtime_however_it_is_invoked(tmp_path, monkeypatch):
+    from bench.slice3 import identity, session
+    monkeypatch.setenv('SLICE3_LIVE', '1')
+    monkeypatch.setenv('GLM_API_KEY', 'bench-not-a-secret')
+    monkeypatch.setattr(identity, 'verify_hermes', lambda: None)
+    def drifted():
+        raise ValueError('Plugin runtime differs from the declared release: __init__.py')
+    monkeypatch.setattr(identity, 'verify_runtime', drifted)
+    monkeypatch.setattr(session, 'setup', lambda *a, **k: pytest.fail('launched with undeclared runtime'))
+    with pytest.raises(ValueError, match='differs from the declared release'):
+        session._run_session('dev0', 'B-native', tmp_path / 'live')
