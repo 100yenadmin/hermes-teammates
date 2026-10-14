@@ -71,8 +71,9 @@ def test_probe_failure_still_dispatches_hook(tmp_path, monkeypatch):
     calls = []
     fake = SimpleNamespace(has_hook=lambda name: False,
                            invoke_hook=lambda name, **kw: calls.append(name))
-    monkeypatch.setattr(hermes_cli, 'lifecycle', fake)
+    monkeypatch.setattr(hermes_cli, 'lifecycle', fake, raising=False)
     monkeypatch.setenv('TMBENCH_PROBE', str(tmp_path / 'missing/probe.jsonl'))
+    monkeypatch.setenv('TMBENCH_HERMES_PREFIX', sys.prefix)
     runpy.run_path(str(driver.ROOT / 'bench/probe/sitecustomize.py'))
     fake.invoke_hook('pre_api_request', request={'body': {'tools': []}})
     assert calls == ['pre_api_request']

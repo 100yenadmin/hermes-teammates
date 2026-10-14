@@ -65,6 +65,61 @@ def prompt(arm):
     return text + '\n' + mechanism + '\nGoals (copy exactly):\n' + '\n'.join(briefs) + '\n'
 
 
+def developer_tool_reads():
+    """Read-only paths Apple's /usr/bin/git (an xcrun shim) needs to find the selected developer tools.
+
+    Without them the shim concludes no tools are installed and asks the host to install the Command
+    Line Tools, a visible prompt. These are tool binaries and selection links only; no secrets.
+    """
+    subpaths, links = [], []
+    try:
+        selected = Path(subprocess.check_output(['/usr/bin/xcode-select', '-p'], text=True, timeout=10).strip())
+    except (OSError, subprocess.SubprocessError):
+        selected = None
+    if selected and selected.exists():
+        selected = selected.resolve()
+        # The whole app bundle: Xcode's git loads frameworks from outside Contents/Developer.
+        subpaths.append(next((p for p in [selected, *selected.parents] if p.suffix == '.app'), selected))
+    subpaths.append(Path('/private/var/select'))  # selection symlinks only (developer_dir, sh)
+    if Path('/Library/Developer/CommandLineTools').exists():
+        subpaths.append(Path('/Library/Developer/CommandLineTools').resolve())
+    # Selection links are read as links (never resolved); the license plist decides Xcode tool use.
+    links = [Path(p) for p in ('/private/var/db/xcode_select_link', '/private/var/select/developer_dir',
+                               '/Library/Preferences/com.apple.dt.Xcode.plist') if os.path.lexists(p)]
+    # Git treats a denied (not merely absent) system config as fatal.
+    return subpaths, links + [Path('/private/etc/gitconfig'), Path('/etc/gitconfig')]
+
+
+def xcrun_cache_rules():
+    """xcrun (behind /usr/bin/git) keeps its tool-lookup cache in the per-user temp dir whatever TMPDIR says.
+    Allow only that cache file and its atomic-write temporaries (xcrun_db-XXXXXXXX), so every git call does
+    not print a cache error and nothing else in that persistent directory is reachable."""
+    try:
+        temp = subprocess.check_output(['/usr/bin/getconf', 'DARWIN_USER_TEMP_DIR'], text=True, timeout=10).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    if not temp:
+        return ''
+    real = str(Path(temp).resolve())
+    forms = sorted({real.rstrip('/'), real.rstrip('/').removeprefix('/private')})
+    char = '[A-Za-z0-9]'  # SBPL regex has no {n} quantifier
+    files = ' '.join(f'(literal {json.dumps(f + "/xcrun_db")}) (regex #"^{re.escape(f)}/xcrun_db-{char * 8}$")'
+                     for f in forms)
+    dirs = sorted({str(d) for f in forms for d in [Path(f), *Path(f).parents]})
+    return (f'(allow file-read* file-write* {files})\n'
+            f'(allow file-read-metadata {" ".join(f"(literal {json.dumps(d)})" for d in dirs)})\n')
+
+
+def probe_sitecustomize(python):
+    """Observer bootstrap for PYTHONPATH. Only Hermes's own interpreter is instrumented: a python3 Hermes
+    spawns (its environment probe, the model's terminal) cannot import Hermes and must not log a fault."""
+    prefix = os.path.realpath(Path(python).parent.parent)
+    return ('import os, sys\n'
+            f'if os.path.realpath(sys.prefix) == {prefix!r}:\n'
+            '    from runtime_probe import bootstrap\n'
+            '    bootstrap()\n')
+
+
 def sandbox_profile(run):
     # Deny reads by default; no plugin checkout or published benchmark access.
     python_home = subprocess.check_output(
@@ -80,9 +135,12 @@ def sandbox_profile(run):
     files = list(HERMES.glob('*.py')) + [Path('/'), HERMES / 'pyproject.toml',
              Path('/private/etc/resolv.conf'), Path('/private/etc/hosts'),
              Path('/private/etc/localtime'), Path('/private/etc/services')]
+    developer, links = developer_tool_reads()
+    directories += developer
     reads = ' '.join(f'(subpath {json.dumps(str(Path(p).resolve()))})' for p in directories)
     reads += ' ' + ' '.join(f'(literal {json.dumps(str(p.resolve()))})' for p in files)
-    parents = {str(parent) for p in directories + files + [Path(os.readlink(HERMES / '.venv/bin/python'))]
+    reads += ''.join(f' (literal {json.dumps(str(p))})' for p in links)
+    parents = {str(parent) for p in directories + files + links + [Path(os.readlink(HERMES / '.venv/bin/python'))]
                for parent in Path(p).parents}
     metadata = ' '.join(f'(literal {json.dumps(p)})' for p in sorted(parents))
     return ('(version 1)\n(allow default)\n(deny file-read*)\n'
@@ -92,6 +150,7 @@ def sandbox_profile(run):
             f'(allow file-write* (subpath {json.dumps(str(run.resolve()))}) '
             '(literal "/dev/null") (literal "/dev/zero") (literal "/dev/dtracehelper") '
             '(regex #"^/dev/tty") (regex #"^/dev/fd/"))\n'
+            + xcrun_cache_rules() +
             '(deny process-exec (literal "/usr/bin/security"))\n')
 
 
@@ -124,8 +183,8 @@ def isolated(model, arm='A'):
                'HERMES_HOME': str(run / 'hermes'), 'HERMES_DISABLE_LAZY_INSTALLS': '1',
                'PYTHONPYCACHEPREFIX': str(run / 'pycache'), 'TERMINAL_HOME_MODE': 'profile',
                'TERMINAL_CWD': str(run / 'work'), 'HERMES_PLUGIN_PAYLOAD_MAX_CHARS': '2000000',
-               'PYTHONPATH': f'{run / "probe"}:{HERMES}',
-               'TMBENCH_PROBE': str(run / 'probe.jsonl')}
+               'PYTHONPATH': f'{run / "probe"}:{HERMES}', 'GIT_CONFIG_NOSYSTEM': '1',
+               'TMBENCH_PROBE': str(run / 'probe.jsonl'), 'TMBENCH_HERMES_PREFIX': str(HERMES / '.venv')}
         launcher = ['/usr/bin/env', '-i', *[f'{k}={v}' for k, v in env.items()],
                     '/usr/bin/sandbox-exec', '-f', str(run / 'sb.sb'), str(HERMES / '.venv/bin/python')]
         yield run, launcher, sorted(env)

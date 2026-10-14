@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, sandbox_profile
+from bench.drivers.hermes_cell import HERMES, HERMES_SHA, QUOTA, probe_sitecustomize, sandbox_profile
 from bench.slice2.accounting import PLUGIN, is_error, reconcile, sessions
 from bench.slice2.audit import audit_reads
 from bench.slice2.protocol import ARMS, ROOT, RUNTIME, TASK, canonical, digest, receipt, recipe
@@ -307,7 +307,7 @@ def execute(launch, directory, *, fake_base_url=None):
     for file in RUNTIME: shutil.copy2(ROOT/file,run/'hermes/plugins/hermes-teammates'/file)
     shutil.copy2(ROOT/'bench/slice2/accounting.py',run/'probe/observer2.py')
     shutil.copy2(ROOT/'bench/slice2/runtime_probe.py',run/'probe/runtime_probe.py')
-    (run/'probe/sitecustomize.py').write_text('from runtime_probe import bootstrap\nbootstrap()\n')
+    (run/'probe/sitecustomize.py').write_text(probe_sitecustomize(HERMES/'.venv/bin/python'))
     (run/'hermes/config.yaml').write_text(json.dumps(launch['config']))
     profile=run/'sandbox.sb'
     profile.write_text(sandbox_profile(run) + ('(deny network*)\n(allow network* (remote ip "localhost:*"))\n'
@@ -327,7 +327,7 @@ def execute(launch, directory, *, fake_base_url=None):
     (run/'query.txt').write_text(prompt)
     env={'HOME':str(run/'home'),'HERMES_HOME':str(run/'hermes'),'TMPDIR':str(run/'tmp'),
          'PATH':'/usr/bin:/bin:/usr/sbin:/sbin','LANG':'en_US.UTF-8','HERMES_DISABLE_LAZY_INSTALLS':'1',
-         'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str(run/'probe')+':'+str(HERMES),
+         'PYTHONDONTWRITEBYTECODE':'1','PYTHONPATH':str(run/'probe')+':'+str(HERMES),'GIT_CONFIG_NOSYSTEM':'1',
          'TERMINAL_CWD':str(run/'work'),'TERMINAL_HOME_MODE':'profile','GLM_API_KEY':key,
          'GLM_BASE_URL':fake_base_url or launch['endpoint'],'SLICE2_USAGE':str(run/'usage.jsonl'),'SLICE2_EVENTS':str(run/'events.jsonl')}
     command=['/usr/bin/sandbox-exec','-f',str(profile),str(HERMES/'.venv/bin/python'),'-m','hermes_cli.main',

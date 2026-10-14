@@ -96,3 +96,68 @@ def test_observer_callback_duplicate_is_safe_and_fails_closed(tmp_path):
     rows = [json.loads(line) for line in (tmp_path/'usage').read_text().splitlines()]
     assert rows[-1] == {'kind': 'observer_error', 'where': 'accounting.pre_api_request', 'type': 'ValueError'}
     assert not accounting(rows, {'p': None}, 'p')['complete']
+
+
+def test_observer_bootstraps_only_inside_the_hermes_interpreter(tmp_path):
+    # A python3 that Hermes spawns (environment probe, model terminal) inherits PYTHONPATH but cannot
+    # import Hermes; bootstrapping there logged an observer fault and invalidated the cell.
+    import subprocess
+    from bench.drivers.hermes_cell import probe_sitecustomize
+    probe = tmp_path / 'probe'
+    probe.mkdir()
+    marker = tmp_path / 'bootstrapped'
+    (probe / 'runtime_probe.py').write_text(f'def bootstrap():\n    open({str(marker)!r}, "a").write("x")\n')
+    env = {'PYTHONPATH': str(probe), 'PATH': '/usr/bin:/bin'}
+    for python, expected in [('/elsewhere/venv/bin/python', False), (sys.executable, True)]:
+        (probe / 'sitecustomize.py').write_text(probe_sitecustomize(python))
+        marker.unlink(missing_ok=True)
+        subprocess.run([sys.executable, '-c', 'pass'], env=env, check=True, timeout=60)
+        assert marker.exists() is expected, python
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox and xcrun shims')
+def test_sandboxed_developer_shims_run_without_install_requests(tmp_path):
+    # /usr/bin/git and /usr/bin/python3 are xcrun shims: without the selected developer directory they
+    # ask macOS to install the Command Line Tools (a visible prompt) instead of running.
+    import subprocess
+    run = tmp_path / 'run'
+    for folder in ('home', 'tmp', 'work'):
+        (run / folder).mkdir(parents=True)
+    profile = run / 'sandbox.sb'
+    profile.write_text(sandbox_profile(run))
+    env = {'PATH': '/usr/bin:/bin', 'HOME': str(run / 'home'), 'TMPDIR': str(run / 'tmp'), 'LANG': 'en_US.UTF-8'}
+    for command in (['/usr/bin/git', '--version'], ['/usr/bin/git', 'init', '-q', '.'],
+                    ['/usr/bin/git', 'status', '--short'], ['/usr/bin/python3', '-c', 'print(1)']):
+        result = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), *command], cwd=run / 'work',
+                                env=env, capture_output=True, text=True, timeout=60)
+        assert result.returncode == 0 and result.stderr == '', (command, result.stderr[-300:])
+    secret = tmp_path / 'outside-secret'
+    secret.write_text('x')
+    denied = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), '/bin/cat', str(secret)],
+                            env=env, capture_output=True, text=True, timeout=60)
+    assert denied.returncode != 0 and 'x' not in denied.stdout
+
+
+def test_slice1_observer_ignores_foreign_interpreters(tmp_path):
+    import subprocess
+    from bench.drivers.hermes_cell import ROOT
+    env = {'PATH': '/usr/bin:/bin', 'PYTHONPATH': str(ROOT / 'bench/probe'), 'TMBENCH_PROBE': str(tmp_path / 'probe.jsonl')}
+    check = [sys.executable, '-c', 'import sys; print("hermes_cli" in sys.modules)']
+    for prefix, expected in [('/elsewhere/venv', 'False'), (sys.prefix, None)]:
+        result = subprocess.run(check, env=env | {'TMBENCH_HERMES_PREFIX': prefix}, capture_output=True, text=True, timeout=60)
+        if expected:
+            assert result.returncode == 0 and result.stdout.strip() == expected and 'sitecustomize' not in result.stderr
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='xcrun cache lives in the macOS per-user temp dir')
+def test_xcrun_cache_rules_name_only_the_cache_files():
+    import re
+    from bench.drivers.hermes_cell import xcrun_cache_rules
+    rules = xcrun_cache_rules()
+    temp = re.search(r'\(literal "([^"]+)/xcrun_db"\)', rules).group(1)
+    patterns = re.findall(r'\(regex #"([^"]+)"\)', rules)
+    def allowed(path):
+        return f'(literal "{path}")' in rules or any(re.search(p, path) for p in patterns)
+    assert allowed(temp + '/xcrun_db') and allowed(temp + '/xcrun_db-AbCd1234')
+    for other in ('/xcrun_db.backup', '/xcrun_db-AbCd12345', '/xcrun_db-AbCd1234/payload', '/xcrun_dbx', '/other'):
+        assert not allowed(temp + other), other
