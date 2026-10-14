@@ -129,6 +129,6 @@
     "teammates_service.py": "61d7d390c58453e8fa8fd1d70e42bef01bc05946424c0933367465af76add379",
     "teammates_store.py": "d98a750b3683281a7382a6be2bb642be3eac38696418d48e40d228ff11f1068c",
     "teammates_tools.py": "7d50a6e166859ebb27aeb1c810330d9eae6ec7ad5456833b28d707343dce344d",
-    "bench/drivers/hermes_cell.py": "9a7ca9efe2509d73a0f31ad27885aa2d0ef5f2ac95155a0d33149b7d24401fc1"
+    "bench/drivers/hermes_cell.py": "53acaf4830ce7746080ba4204f8826b65afd82d83662208c8186c6338622b5a3"
   }
 }
