@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. From the next release, your Hermes agent can draft it for you: ask it to "report a problem with Hermes Teammates".
+        Thanks for the report. Your Hermes agent can draft it for you: ask it to "report a problem with Hermes Teammates".
         **Security problems** (toolset escapes, cross-profile access, or anything that exposes a secret) go to a [private advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new), not here.
         **Problems in Hermes itself** belong in [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent/issues).
   - type: textarea

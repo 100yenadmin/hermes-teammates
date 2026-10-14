@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.6 (2026-10-15)
+
+- Adds the `teammates-report-problem` skill: ask your agent to "report a problem with Hermes Teammates". It checks the roster and existing runs, sends security problems to a private advisory, drafts a report with the bug form's headings, and files it with `gh` only after you approve that draft. Hosts without plugin skills, and copies without the `skills` folder, load the plugin without it.
+- Contributor guide, bug report form, security scope and agent guidance (#50).
+
 ## 0.2.5 (2026-10-14)
 
 - `teammate_assign(wait_seconds=...)` starts a teammate and waits up to 0–300 seconds for its result in the same call. The default 0 still returns at once. Finished replies include the summary and receipts without the goal; a deadline returns `timed_out: true`, and an interrupt returns promptly without cancelling the run.

@@ -25,6 +25,8 @@ def test_pinned_loader_registers_and_real_lifecycle_launches(monkeypatch, tmp_pa
         assert names <= manager._plugin_tool_names
         loaded = manager._plugins['hermes-teammates']
         assert not loaded.error
+        skill = manager._plugin_skills['hermes-teammates:teammates-report-problem']
+        assert skill['path'].name == 'SKILL.md' and skill['description'] == 'Hermes Teammates: report a bug or problem'
         assert loaded.module.__package__.startswith('hermes_plugins.hermes_teammates')
         command = manager._plugin_commands['teammates']['handler']
         text = command('')

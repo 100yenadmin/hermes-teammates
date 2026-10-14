@@ -1,12 +1,30 @@
-"""hermes-teammates v0.2.5 registration; state opens only on first use."""
+"""hermes-teammates v0.2.6 registration; state opens only on first use."""
 import logging
 import os
 import threading
+from pathlib import Path
 
 from . import teammates_config, teammates_tools
 from .teammates_host import HermesHost
 from .teammates_service import TeammatesService
 logger = logging.getLogger(__name__)
+REPORT_SKILL = 'teammates-report-problem'
+REPORT_DESCRIPTION = 'Hermes Teammates: report a bug or problem'
+
+
+def register_report_skill(ctx, root=Path(__file__).parent):
+    """The report-a-problem skill. Hermes ignores plugin SKILL.md frontmatter, so name and description are passed.
+    Older hosts without plugin skills, and copies without the skills folder, simply go without it."""
+    path = root / 'skills' / REPORT_SKILL / 'SKILL.md'
+    if not callable(getattr(ctx, 'register_skill', None)) or not path.is_file():
+        return False
+    try:
+        ctx.register_skill(REPORT_SKILL, path, description=REPORT_DESCRIPTION,
+                           frontmatter={'name': REPORT_SKILL, 'description': REPORT_DESCRIPTION})
+    except Exception:
+        logger.debug('teammates report skill not registered')
+        return False
+    return True
 
 
 def register(ctx):
@@ -33,6 +51,7 @@ def register(ctx):
         except Exception as exc:
             return f'hermes-teammates: internal error: {str(exc)[:2000]}'
     ctx.register_command('teammates', handler=command, description='List teammates and lane tasks')
+    register_report_skill(ctx)
     def callback(method):
         def on_hook(**kwargs):
             try:
