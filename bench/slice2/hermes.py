@@ -129,6 +129,8 @@ def fanout_recipe(events, root, arm, payloads):
         return 0
     if arm == 'C':
         roles = list(config_roles())
+        if any(c['args'].get('context') for c in calls):
+            return 0  # extra briefing breaks matched prompting, as for B's task context
         return int(sorted((c['args'].get('teammate', ''), c['args'].get('goal', '')) for c in calls)
                    == sorted(zip(roles, [p.split('\n\n', 1)[1] for p in payloads])))
     args = calls[0]['args']
