@@ -165,6 +165,6 @@ Wall time: the scored run took 2 h 13 min (14:43–16:56 JST).
   No answer text and no judge findings.
 - `report.json`: the declared analysis (`bench.slice2.stats.report`) over all 40 cells, including the four
   RECIPE_INVALID ones; verdict INCONCLUSIVE.
-- `exploratory.json`: the valid-cell contrasts, reproducible with
-  `python -m bench.slice2.exploratory bench/results/slice2/results.jsonl` (tested in
-  `tests/bench_slice2/test_exploratory.py`).
+- `exploratory.json`: the valid-cell contrasts. To reproduce them, write a fresh file and compare:
+  `python -m bench.slice2.exploratory bench/results/slice2/results.jsonl --output exploratory-check.json`
+  (`tests/bench_slice2/test_exploratory.py` asserts the match).
