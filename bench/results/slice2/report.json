@@ -1,0 +1,2273 @@
+{
+  "slice": "slice2",
+  "verdict": "INCONCLUSIVE",
+  "seed": 1402,
+  "resamples": 20000,
+  "method": "paired case-cluster percentile; one-sided 95% bounds",
+  "contrasts": {},
+  "gaps": [
+    "incomplete/duplicate scored matrix"
+  ],
+  "quality": {
+    "B-briefed": {
+      "recall": 0.9803921568627451,
+      "precision": 1.0,
+      "cross_file_recall": 0.9686274509803922
+    },
+    "C": {
+      "recall": 0.9824561403508772,
+      "precision": 0.9718045112781954,
+      "cross_file_recall": 0.9649122807017544
+    }
+  },
+  "cells": [
+    {
+      "cell": "scored-06-reports-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 38,
+        "child_cache_read_tokens": 255104,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 36154,
+        "child_output_tokens": 18555,
+        "child_reasoning_tokens": 9091,
+        "child_tokens": 309813,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17537,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 21632,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 18018,
+        "parent_output_tokens": 4932,
+        "parent_peak_prompt_tokens": 17537,
+        "parent_reasoning_tokens": 2839,
+        "parent_tokens": 44582,
+        "requests": 43,
+        "total_tokens": 354395,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "06-reports-1",
+          "06-reports-2",
+          "06-reports-3",
+          "06-reports-4",
+          "06-reports-5",
+          "06-reports-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-06-reports-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 36,
+        "child_cache_read_tokens": 236864,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 19606,
+        "child_output_tokens": 15988,
+        "child_reasoning_tokens": 7804,
+        "child_tokens": 272458,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16143,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 44544,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 14342,
+        "parent_output_tokens": 3905,
+        "parent_peak_prompt_tokens": 16143,
+        "parent_reasoning_tokens": 2162,
+        "parent_tokens": 62791,
+        "requests": 43,
+        "total_tokens": 335249,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "06-reports-1",
+          "06-reports-2",
+          "06-reports-3",
+          "06-reports-4",
+          "06-reports-5",
+          "06-reports-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_55da78ea3992",
+          "summary_chars": 2484,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_55da78ea3992",
+          "summary_chars": 2484,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_29f8cce5bef5",
+          "summary_chars": 2685,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_d5166e745deb",
+          "summary_chars": 3228,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_dc6fa8b8c529",
+          "summary_chars": 3252,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-04-policy-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 42,
+        "child_cache_read_tokens": 337472,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 29684,
+        "child_output_tokens": 23273,
+        "child_reasoning_tokens": 13328,
+        "child_tokens": 390429,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17499,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 46848,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 13368,
+        "parent_output_tokens": 5336,
+        "parent_peak_prompt_tokens": 17499,
+        "parent_reasoning_tokens": 3319,
+        "parent_tokens": 65552,
+        "requests": 49,
+        "total_tokens": 455981,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "04-policy-1",
+          "04-policy-2",
+          "04-policy-3",
+          "04-policy-4",
+          "04-policy-5",
+          "04-policy-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_ac88607bbf37",
+          "summary_chars": 3457,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ad2e28c22e44",
+          "summary_chars": 2851,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_051e5df13621",
+          "summary_chars": 3723,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ac88607bbf37",
+          "summary_chars": 3457,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_d2faab4425ec",
+          "summary_chars": 3503,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ad2e28c22e44",
+          "summary_chars": 2851,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_051e5df13621",
+          "summary_chars": 3723,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-04-policy-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 39,
+        "child_cache_read_tokens": 281344,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 26179,
+        "child_output_tokens": 19391,
+        "child_reasoning_tokens": 10694,
+        "child_tokens": 326914,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17381,
+        "parent_api_calls": 4,
+        "parent_cache_read_tokens": 6464,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 26627,
+        "parent_output_tokens": 4580,
+        "parent_peak_prompt_tokens": 17381,
+        "parent_reasoning_tokens": 2959,
+        "parent_tokens": 37671,
+        "requests": 43,
+        "total_tokens": 364585,
+        "tp": 5,
+        "fp": 0,
+        "recall": 0.8333333333333334,
+        "precision": 1.0,
+        "f1": 0.9090909090909091,
+        "cross_file_recall": 0.8,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "04-policy-1",
+          "04-policy-2",
+          "04-policy-3",
+          "04-policy-5",
+          "04-policy-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-02-stock-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 35,
+        "child_cache_read_tokens": 235584,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 22452,
+        "child_output_tokens": 17636,
+        "child_reasoning_tokens": 8212,
+        "child_tokens": 275672,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17629,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 27840,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12616,
+        "parent_output_tokens": 4660,
+        "parent_peak_prompt_tokens": 17629,
+        "parent_reasoning_tokens": 2857,
+        "parent_tokens": 45116,
+        "requests": 40,
+        "total_tokens": 320788,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "02-stock-1",
+          "02-stock-2",
+          "02-stock-3",
+          "02-stock-4",
+          "02-stock-5",
+          "02-stock-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-02-stock-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 36,
+        "child_cache_read_tokens": 261568,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 26394,
+        "child_output_tokens": 21434,
+        "child_reasoning_tokens": 10990,
+        "child_tokens": 309396,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 14216,
+        "parent_api_calls": 6,
+        "parent_cache_read_tokens": 34240,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12417,
+        "parent_output_tokens": 5042,
+        "parent_peak_prompt_tokens": 14216,
+        "parent_reasoning_tokens": 3302,
+        "parent_tokens": 51699,
+        "requests": 42,
+        "total_tokens": 361095,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "02-stock-1",
+          "02-stock-2",
+          "02-stock-3",
+          "02-stock-4",
+          "02-stock-5",
+          "02-stock-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_68871b41a148",
+          "summary_chars": 3062,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_381d73e84e6b",
+          "summary_chars": 2750,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_50b87cab6399",
+          "summary_chars": 2893,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c5c27982eb33",
+          "summary_chars": 3490,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-07-pages-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 39,
+        "child_cache_read_tokens": 285888,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 23093,
+        "child_output_tokens": 18110,
+        "child_reasoning_tokens": 8022,
+        "child_tokens": 327091,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 14970,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 44416,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10906,
+        "parent_output_tokens": 3806,
+        "parent_peak_prompt_tokens": 14970,
+        "parent_reasoning_tokens": 2140,
+        "parent_tokens": 59128,
+        "requests": 46,
+        "total_tokens": 386219,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "07-pages-1",
+          "07-pages-2",
+          "07-pages-3",
+          "07-pages-4",
+          "07-pages-5",
+          "07-pages-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_149143ce8a27",
+          "summary_chars": 2843,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_415d227952e7",
+          "summary_chars": 3261,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_83e4b1b8778d",
+          "summary_chars": 3699,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_94c349cc6baa",
+          "summary_chars": 3649,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-07-pages-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 39,
+        "child_cache_read_tokens": 278784,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 25649,
+        "child_output_tokens": 21107,
+        "child_reasoning_tokens": 8464,
+        "child_tokens": 325540,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17564,
+        "parent_api_calls": 4,
+        "parent_cache_read_tokens": 15104,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 17644,
+        "parent_output_tokens": 3654,
+        "parent_peak_prompt_tokens": 17564,
+        "parent_reasoning_tokens": 1980,
+        "parent_tokens": 36402,
+        "requests": 43,
+        "total_tokens": 361942,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "07-pages-1",
+          "07-pages-2",
+          "07-pages-3",
+          "07-pages-4",
+          "07-pages-5",
+          "07-pages-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-08-delivery-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 215744,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 21701,
+        "child_output_tokens": 18434,
+        "child_reasoning_tokens": 8443,
+        "child_tokens": 255879,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17138,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 18944,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 19585,
+        "parent_output_tokens": 3614,
+        "parent_peak_prompt_tokens": 17138,
+        "parent_reasoning_tokens": 2101,
+        "parent_tokens": 42143,
+        "requests": 36,
+        "total_tokens": 298022,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "08-delivery-1",
+          "08-delivery-2",
+          "08-delivery-3",
+          "08-delivery-4",
+          "08-delivery-5",
+          "08-delivery-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-08-delivery-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 37,
+        "child_cache_read_tokens": 254976,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 22715,
+        "child_output_tokens": 17618,
+        "child_reasoning_tokens": 7978,
+        "child_tokens": 295309,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 12784,
+        "parent_api_calls": 6,
+        "parent_cache_read_tokens": 30400,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 11297,
+        "parent_output_tokens": 3086,
+        "parent_peak_prompt_tokens": 12784,
+        "parent_reasoning_tokens": 1611,
+        "parent_tokens": 44783,
+        "requests": 43,
+        "total_tokens": 340092,
+        "tp": 6,
+        "fp": 1,
+        "recall": 1.0,
+        "precision": 0.8571428571428571,
+        "f1": 0.923076923076923,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "08-delivery-1",
+          "08-delivery-2",
+          "08-delivery-3",
+          "08-delivery-4",
+          "08-delivery-5",
+          "08-delivery-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_f3febe9caa83",
+          "summary_chars": 2987,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ddef5a07220d",
+          "summary_chars": 3079,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_2cc58cc116c8",
+          "summary_chars": 3039,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_3ce2a0916163",
+          "summary_chars": 3105,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-05-retry-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 34,
+        "child_cache_read_tokens": 241216,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 35872,
+        "child_output_tokens": 21802,
+        "child_reasoning_tokens": 13073,
+        "child_tokens": 298890,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16654,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 52672,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12723,
+        "parent_output_tokens": 3002,
+        "parent_peak_prompt_tokens": 16654,
+        "parent_reasoning_tokens": 1285,
+        "parent_tokens": 68397,
+        "requests": 42,
+        "total_tokens": 367287,
+        "tp": 5,
+        "fp": 0,
+        "recall": 0.8333333333333334,
+        "precision": 1.0,
+        "f1": 0.9090909090909091,
+        "cross_file_recall": 0.6666666666666666,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "05-retry-1",
+          "05-retry-2",
+          "05-retry-4",
+          "05-retry-5",
+          "05-retry-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_dc97cfb22d99",
+          "summary_chars": 2480,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_35dfacb7418c",
+          "summary_chars": 2840,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_d79203485602",
+          "summary_chars": 3323,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_dc97cfb22d99",
+          "summary_chars": 2480,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_35dfacb7418c",
+          "summary_chars": 2840,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_d79203485602",
+          "summary_chars": 3323,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_e3e06bfe9821",
+          "summary_chars": 2925,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-05-retry-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 211072,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 23979,
+        "child_output_tokens": 20070,
+        "child_reasoning_tokens": 12350,
+        "child_tokens": 255121,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 15050,
+        "parent_api_calls": 4,
+        "parent_cache_read_tokens": 6464,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 22725,
+        "parent_output_tokens": 3116,
+        "parent_peak_prompt_tokens": 15050,
+        "parent_reasoning_tokens": 1444,
+        "parent_tokens": 32305,
+        "requests": 35,
+        "total_tokens": 287426,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "05-retry-1",
+          "05-retry-2",
+          "05-retry-3",
+          "05-retry-4",
+          "05-retry-5",
+          "05-retry-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-03-events-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 33,
+        "child_cache_read_tokens": 224768,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 22533,
+        "child_output_tokens": 17543,
+        "child_reasoning_tokens": 9507,
+        "child_tokens": 264844,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16089,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 28288,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 17470,
+        "parent_output_tokens": 3724,
+        "parent_peak_prompt_tokens": 16089,
+        "parent_reasoning_tokens": 2187,
+        "parent_tokens": 49482,
+        "requests": 38,
+        "total_tokens": 314326,
+        "tp": 5,
+        "fp": 0,
+        "recall": 0.8333333333333334,
+        "precision": 1.0,
+        "f1": 0.9090909090909091,
+        "cross_file_recall": 0.6666666666666666,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "03-events-1",
+          "03-events-2",
+          "03-events-3",
+          "03-events-4",
+          "03-events-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-03-events-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 220672,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 23057,
+        "child_output_tokens": 17916,
+        "child_reasoning_tokens": 9403,
+        "child_tokens": 261645,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 13503,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 41216,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12016,
+        "parent_output_tokens": 4939,
+        "parent_peak_prompt_tokens": 13503,
+        "parent_reasoning_tokens": 3371,
+        "parent_tokens": 58171,
+        "requests": 38,
+        "total_tokens": 319816,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "03-events-1",
+          "03-events-2",
+          "03-events-3",
+          "03-events-4",
+          "03-events-5",
+          "03-events-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_baa73221a819",
+          "summary_chars": 2952,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_9bae6e6a2c7d",
+          "summary_chars": 2604,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ca46f83caef6",
+          "summary_chars": 2365,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_5c8f489ad5df",
+          "summary_chars": 2949,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-09-config-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 34,
+        "child_cache_read_tokens": 229504,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 31026,
+        "child_output_tokens": 18517,
+        "child_reasoning_tokens": 8481,
+        "child_tokens": 279047,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17933,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 47232,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 20312,
+        "parent_output_tokens": 3927,
+        "parent_peak_prompt_tokens": 17933,
+        "parent_reasoning_tokens": 1872,
+        "parent_tokens": 71471,
+        "requests": 42,
+        "total_tokens": 350518,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "09-config-1",
+          "09-config-2",
+          "09-config-3",
+          "09-config-4",
+          "09-config-5",
+          "09-config-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_07c3637e46fe",
+          "summary_chars": 3256,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ab377f5672e3",
+          "summary_chars": 3757,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c4931b7e9a3c",
+          "summary_chars": 3409,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_9392b9dc4e0a",
+          "summary_chars": 3933,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_07c3637e46fe",
+          "summary_chars": 3256,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ab377f5672e3",
+          "summary_chars": 3757,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c4931b7e9a3c",
+          "summary_chars": 3409,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-09-config-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 32,
+        "child_cache_read_tokens": 206400,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 32091,
+        "child_output_tokens": 18172,
+        "child_reasoning_tokens": 9357,
+        "child_tokens": 256663,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17391,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 6464,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 17805,
+        "parent_output_tokens": 5583,
+        "parent_peak_prompt_tokens": 17391,
+        "parent_reasoning_tokens": 3982,
+        "parent_tokens": 29852,
+        "requests": 35,
+        "total_tokens": 286515,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "09-config-1",
+          "09-config-2",
+          "09-config-3",
+          "09-config-4",
+          "09-config-5",
+          "09-config-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-01-parcel-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 29,
+        "child_cache_read_tokens": 238144,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 38837,
+        "child_output_tokens": 30356,
+        "child_reasoning_tokens": 19755,
+        "child_tokens": 307337,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 18157,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 52224,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 18633,
+        "parent_output_tokens": 5257,
+        "parent_peak_prompt_tokens": 18157,
+        "parent_reasoning_tokens": 3168,
+        "parent_tokens": 76114,
+        "requests": 37,
+        "total_tokens": 383451,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "01-parcel-1",
+          "01-parcel-2",
+          "01-parcel-3",
+          "01-parcel-4",
+          "01-parcel-5",
+          "01-parcel-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_59ba412abaa0",
+          "summary_chars": 3294,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_cfff80c6ac1d",
+          "summary_chars": 4086,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_59ba412abaa0",
+          "summary_chars": 3294,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_6fb2952da597",
+          "summary_chars": 3435,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_016af906fb7b",
+          "summary_chars": 4122,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_cfff80c6ac1d",
+          "summary_chars": 4086,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-10-ledger-1-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 202560,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 20755,
+        "child_output_tokens": 15306,
+        "child_reasoning_tokens": 6136,
+        "child_tokens": 238621,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16270,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 48640,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 11767,
+        "parent_output_tokens": 4920,
+        "parent_peak_prompt_tokens": 16270,
+        "parent_reasoning_tokens": 3154,
+        "parent_tokens": 65327,
+        "requests": 38,
+        "total_tokens": 303948,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "10-ledger-1",
+          "10-ledger-2",
+          "10-ledger-3",
+          "10-ledger-4",
+          "10-ledger-5",
+          "10-ledger-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_b7707b949d5f",
+          "summary_chars": 2803,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ef8f18da33d5",
+          "summary_chars": 3173,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_23013bba2012",
+          "summary_chars": 3367,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_983790a7288e",
+          "summary_chars": 3148,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_b7707b949d5f",
+          "summary_chars": 2803,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-10-ledger-1-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 32,
+        "child_cache_read_tokens": 213440,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 19051,
+        "child_output_tokens": 15925,
+        "child_reasoning_tokens": 7944,
+        "child_tokens": 248416,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 15671,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10201,
+        "parent_output_tokens": 2974,
+        "parent_peak_prompt_tokens": 15671,
+        "parent_reasoning_tokens": 1592,
+        "parent_tokens": 25527,
+        "requests": 35,
+        "total_tokens": 273943,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 1,
+        "unplanted": [],
+        "matched": [
+          "10-ledger-1",
+          "10-ledger-2",
+          "10-ledger-3",
+          "10-ledger-4",
+          "10-ledger-5",
+          "10-ledger-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-06-reports-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 27,
+        "child_cache_read_tokens": 161984,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 14001,
+        "child_output_tokens": 11864,
+        "child_reasoning_tokens": 5308,
+        "child_tokens": 187849,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16711,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 52096,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12228,
+        "parent_output_tokens": 2947,
+        "parent_peak_prompt_tokens": 16711,
+        "parent_reasoning_tokens": 1240,
+        "parent_tokens": 67271,
+        "requests": 35,
+        "total_tokens": 255120,
+        "tp": 6,
+        "fp": 1,
+        "recall": 1.0,
+        "precision": 0.8571428571428571,
+        "f1": 0.923076923076923,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "06-reports-1",
+          "06-reports-2",
+          "06-reports-3",
+          "06-reports-4",
+          "06-reports-5",
+          "06-reports-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_0710566951f9",
+          "summary_chars": 2899,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_8ba620dc5c77",
+          "summary_chars": 1982,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_76745d50e718",
+          "summary_chars": 2973,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_0710566951f9",
+          "summary_chars": 2899,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_8ba620dc5c77",
+          "summary_chars": 1982,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_9a87a02b3e64",
+          "summary_chars": 2955,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_76745d50e718",
+          "summary_chars": 2973,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-06-reports-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 33,
+        "child_cache_read_tokens": 223296,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 20269,
+        "child_output_tokens": 14771,
+        "child_reasoning_tokens": 7713,
+        "child_tokens": 258336,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 14818,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 9348,
+        "parent_output_tokens": 2957,
+        "parent_peak_prompt_tokens": 14818,
+        "parent_reasoning_tokens": 1261,
+        "parent_tokens": 24657,
+        "requests": 36,
+        "total_tokens": 282993,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 1,
+        "unplanted": [],
+        "matched": [
+          "06-reports-1",
+          "06-reports-2",
+          "06-reports-3",
+          "06-reports-4",
+          "06-reports-5",
+          "06-reports-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-04-policy-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 32,
+        "child_cache_read_tokens": 251520,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 28953,
+        "child_output_tokens": 26808,
+        "child_reasoning_tokens": 14918,
+        "child_tokens": 307281,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 22077,
+        "parent_api_calls": 6,
+        "parent_cache_read_tokens": 74816,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 16750,
+        "parent_output_tokens": 7117,
+        "parent_peak_prompt_tokens": 22077,
+        "parent_reasoning_tokens": 3909,
+        "parent_tokens": 98683,
+        "requests": 38,
+        "total_tokens": 405964,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "04-policy-1",
+          "04-policy-2",
+          "04-policy-3",
+          "04-policy-4",
+          "04-policy-5",
+          "04-policy-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-04-policy-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 38,
+        "child_cache_read_tokens": 303680,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 29485,
+        "child_output_tokens": 25161,
+        "child_reasoning_tokens": 14684,
+        "child_tokens": 358326,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16957,
+        "parent_api_calls": 8,
+        "parent_cache_read_tokens": 57088,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12563,
+        "parent_output_tokens": 5690,
+        "parent_peak_prompt_tokens": 16957,
+        "parent_reasoning_tokens": 3711,
+        "parent_tokens": 75341,
+        "requests": 46,
+        "total_tokens": 433667,
+        "tp": 6,
+        "fp": 2,
+        "recall": 1.0,
+        "precision": 0.75,
+        "f1": 0.8571428571428571,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "04-policy-1",
+          "04-policy-2",
+          "04-policy-3",
+          "04-policy-4",
+          "04-policy-5",
+          "04-policy-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_0ca5d6664182",
+          "summary_chars": 2354,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_629d8e6550b8",
+          "summary_chars": 3691,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_795067be20b2",
+          "summary_chars": 3394,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_0ca5d6664182",
+          "summary_chars": 2354,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_b386c3808dfc",
+          "summary_chars": 3656,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_629d8e6550b8",
+          "summary_chars": 3691,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-02-stock-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 32,
+        "child_cache_read_tokens": 221120,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 22359,
+        "child_output_tokens": 17819,
+        "child_reasoning_tokens": 7753,
+        "child_tokens": 261298,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 11,
+        "main_peak_prompt_tokens": 17584,
+        "parent_api_calls": 6,
+        "parent_cache_read_tokens": 37568,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 13061,
+        "parent_output_tokens": 4157,
+        "parent_peak_prompt_tokens": 17584,
+        "parent_reasoning_tokens": 2112,
+        "parent_tokens": 54786,
+        "requests": 49,
+        "total_tokens": 316084,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "02-stock-1",
+          "02-stock-2",
+          "02-stock-3",
+          "02-stock-4",
+          "02-stock-5",
+          "02-stock-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_825fa51450e4",
+          "summary_chars": 3571,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_2cb4f54588fc",
+          "summary_chars": 3513,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_01337b4a067d",
+          "summary_chars": 2708,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_825fa51450e4",
+          "summary_chars": 3571,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_2cb4f54588fc",
+          "summary_chars": 3513,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_01337b4a067d",
+          "summary_chars": 2708,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_1b8c05663ecc",
+          "summary_chars": 4273,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-02-stock-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 218688,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 30879,
+        "child_output_tokens": 21189,
+        "child_reasoning_tokens": 11847,
+        "child_tokens": 270756,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 17829,
+        "parent_api_calls": 5,
+        "parent_cache_read_tokens": 28736,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 12472,
+        "parent_output_tokens": 4887,
+        "parent_peak_prompt_tokens": 17829,
+        "parent_reasoning_tokens": 3149,
+        "parent_tokens": 46095,
+        "requests": 36,
+        "total_tokens": 316851,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "02-stock-1",
+          "02-stock-2",
+          "02-stock-3",
+          "02-stock-4",
+          "02-stock-5",
+          "02-stock-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-07-pages-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 34,
+        "child_cache_read_tokens": 241216,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 26742,
+        "child_output_tokens": 21476,
+        "child_reasoning_tokens": 10758,
+        "child_tokens": 289434,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 13701,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 41408,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 9182,
+        "parent_output_tokens": 3596,
+        "parent_peak_prompt_tokens": 13701,
+        "parent_reasoning_tokens": 1766,
+        "parent_tokens": 54186,
+        "requests": 41,
+        "total_tokens": 343620,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 1,
+        "unplanted": [],
+        "matched": [
+          "07-pages-1",
+          "07-pages-2",
+          "07-pages-3",
+          "07-pages-4",
+          "07-pages-5",
+          "07-pages-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_71a5d122e81b",
+          "summary_chars": 2589,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_6ec564b8f397",
+          "summary_chars": 3533,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_fc52d3f6c99d",
+          "summary_chars": 2929,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_60678a7cfa21",
+          "summary_chars": 2946,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-08-delivery-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 39,
+        "child_cache_read_tokens": 271296,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 37682,
+        "child_output_tokens": 18954,
+        "child_reasoning_tokens": 8228,
+        "child_tokens": 327932,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 1,
+        "main_peak_prompt_tokens": 13733,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 43200,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 9277,
+        "parent_output_tokens": 4049,
+        "parent_peak_prompt_tokens": 13733,
+        "parent_reasoning_tokens": 2337,
+        "parent_tokens": 56526,
+        "requests": 47,
+        "total_tokens": 384458,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "08-delivery-1",
+          "08-delivery-2",
+          "08-delivery-3",
+          "08-delivery-4",
+          "08-delivery-5",
+          "08-delivery-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_b3bd2014fdd3",
+          "summary_chars": 2770,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_0bfa4752be2e",
+          "summary_chars": 3401,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_63f9f3d7fc28",
+          "summary_chars": 3135,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_a53c35ee0912",
+          "summary_chars": 3057,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-08-delivery-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 210560,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 20520,
+        "child_output_tokens": 16820,
+        "child_reasoning_tokens": 7423,
+        "child_tokens": 247900,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 15736,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10266,
+        "parent_output_tokens": 3217,
+        "parent_peak_prompt_tokens": 15736,
+        "parent_reasoning_tokens": 1692,
+        "parent_tokens": 25835,
+        "requests": 34,
+        "total_tokens": 273735,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "08-delivery-1",
+          "08-delivery-2",
+          "08-delivery-3",
+          "08-delivery-4",
+          "08-delivery-5",
+          "08-delivery-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-05-retry-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 30,
+        "child_cache_read_tokens": 202176,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 24794,
+        "child_output_tokens": 19884,
+        "child_reasoning_tokens": 12570,
+        "child_tokens": 246854,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16041,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10571,
+        "parent_output_tokens": 3680,
+        "parent_peak_prompt_tokens": 16041,
+        "parent_reasoning_tokens": 2151,
+        "parent_tokens": 26603,
+        "requests": 33,
+        "total_tokens": 273457,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "05-retry-1",
+          "05-retry-2",
+          "05-retry-3",
+          "05-retry-4",
+          "05-retry-5",
+          "05-retry-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-05-retry-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 27,
+        "child_cache_read_tokens": 185408,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 24204,
+        "child_output_tokens": 18860,
+        "child_reasoning_tokens": 11868,
+        "child_tokens": 228472,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 13089,
+        "parent_api_calls": 6,
+        "parent_cache_read_tokens": 34880,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 8647,
+        "parent_output_tokens": 3703,
+        "parent_peak_prompt_tokens": 13089,
+        "parent_reasoning_tokens": 2012,
+        "parent_tokens": 47230,
+        "requests": 33,
+        "total_tokens": 275702,
+        "tp": 5,
+        "fp": 0,
+        "recall": 0.8333333333333334,
+        "precision": 1.0,
+        "f1": 0.9090909090909091,
+        "cross_file_recall": 0.6666666666666666,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "05-retry-1",
+          "05-retry-2",
+          "05-retry-4",
+          "05-retry-5",
+          "05-retry-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_6bd543103316",
+          "summary_chars": 2602,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_1d0b9e8cbf84",
+          "summary_chars": 2820,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_75d1be4a4ae8",
+          "summary_chars": 2955,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_9f0d38ccfc16",
+          "summary_chars": 3110,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-03-events-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 32,
+        "child_cache_read_tokens": 207680,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 20119,
+        "child_output_tokens": 15770,
+        "child_reasoning_tokens": 7394,
+        "child_tokens": 243569,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 14846,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 45120,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10374,
+        "parent_output_tokens": 4144,
+        "parent_peak_prompt_tokens": 14846,
+        "parent_reasoning_tokens": 2592,
+        "parent_tokens": 59638,
+        "requests": 39,
+        "total_tokens": 303207,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "03-events-1",
+          "03-events-2",
+          "03-events-3",
+          "03-events-4",
+          "03-events-5",
+          "03-events-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_c0ae281354a9",
+          "summary_chars": 2207,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_1a3eb3bd9f1e",
+          "summary_chars": 3193,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_c0ae281354a9",
+          "summary_chars": 2207,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_99ce9ee5e121",
+          "summary_chars": 3298,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_107f96b4e818",
+          "summary_chars": 3031,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-03-events-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 31,
+        "child_cache_read_tokens": 212544,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 21185,
+        "child_output_tokens": 17733,
+        "child_reasoning_tokens": 10427,
+        "child_tokens": 251462,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 14887,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 9413,
+        "parent_output_tokens": 4259,
+        "parent_peak_prompt_tokens": 14887,
+        "parent_reasoning_tokens": 2736,
+        "parent_tokens": 26024,
+        "requests": 34,
+        "total_tokens": 277486,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "03-events-1",
+          "03-events-2",
+          "03-events-3",
+          "03-events-4",
+          "03-events-5",
+          "03-events-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-09-config-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 34,
+        "child_cache_read_tokens": 241856,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 26173,
+        "child_output_tokens": 20916,
+        "child_reasoning_tokens": 8932,
+        "child_tokens": 288945,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 15818,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10344,
+        "parent_output_tokens": 2595,
+        "parent_peak_prompt_tokens": 15818,
+        "parent_reasoning_tokens": 1120,
+        "parent_tokens": 25291,
+        "requests": 37,
+        "total_tokens": 314236,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "09-config-1",
+          "09-config-2",
+          "09-config-3",
+          "09-config-4",
+          "09-config-5",
+          "09-config-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    },
+    {
+      "cell": "scored-09-config-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 29,
+        "child_cache_read_tokens": 191744,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 22819,
+        "child_output_tokens": 20782,
+        "child_reasoning_tokens": 11465,
+        "child_tokens": 235345,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 13772,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 40576,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 9320,
+        "parent_output_tokens": 3750,
+        "parent_peak_prompt_tokens": 13772,
+        "parent_reasoning_tokens": 1781,
+        "parent_tokens": 53646,
+        "requests": 36,
+        "total_tokens": 288991,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "09-config-1",
+          "09-config-2",
+          "09-config-3",
+          "09-config-4",
+          "09-config-5",
+          "09-config-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_f1184ddd8e74",
+          "summary_chars": 3756,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_1e6d8aa70d57",
+          "summary_chars": 3045,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_779f7823f328",
+          "summary_chars": 3153,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_ecddb96cdb03",
+          "summary_chars": 4275,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-01-parcel-2-C",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 40,
+        "child_cache_read_tokens": 326848,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 31856,
+        "child_output_tokens": 26909,
+        "child_reasoning_tokens": 16247,
+        "child_tokens": 385613,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 23157,
+        "parent_api_calls": 7,
+        "parent_cache_read_tokens": 56960,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 18767,
+        "parent_output_tokens": 9308,
+        "parent_peak_prompt_tokens": 23157,
+        "parent_reasoning_tokens": 6998,
+        "parent_tokens": 85035,
+        "requests": 47,
+        "total_tokens": 470648,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "01-parcel-1",
+          "01-parcel-2",
+          "01-parcel-3",
+          "01-parcel-4",
+          "01-parcel-5",
+          "01-parcel-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": [
+        {
+          "run_id": "tm_70829201cfba",
+          "summary_chars": 3892,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_7370c806f13f",
+          "summary_chars": 3334,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_77d27ac7b51b",
+          "summary_chars": 2826,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_70829201cfba",
+          "summary_chars": 3892,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_7370c806f13f",
+          "summary_chars": 3334,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_77d27ac7b51b",
+          "summary_chars": 2826,
+          "summary_clipped": false
+        },
+        {
+          "run_id": "tm_696efdc406e4",
+          "summary_chars": 2823,
+          "summary_clipped": false
+        }
+      ]
+    },
+    {
+      "cell": "scored-01-parcel-2-B-briefed",
+      "status": "COMPLETE",
+      "metrics": {
+        "auxiliary_peak_prompt_tokens": 413,
+        "child_api_calls": 34,
+        "child_cache_read_tokens": 269376,
+        "child_cache_write_tokens": 0,
+        "child_input_tokens": 28564,
+        "child_output_tokens": 25837,
+        "child_reasoning_tokens": 15609,
+        "child_tokens": 323777,
+        "complete": true,
+        "compression_events": 0,
+        "error_requests": 0,
+        "main_peak_prompt_tokens": 16132,
+        "parent_api_calls": 3,
+        "parent_cache_read_tokens": 12352,
+        "parent_cache_write_tokens": 0,
+        "parent_input_tokens": 10662,
+        "parent_output_tokens": 3727,
+        "parent_peak_prompt_tokens": 16132,
+        "parent_reasoning_tokens": 1988,
+        "parent_tokens": 26741,
+        "requests": 37,
+        "total_tokens": 350518,
+        "tp": 6,
+        "fp": 0,
+        "recall": 1.0,
+        "precision": 1.0,
+        "f1": 1.0,
+        "cross_file_recall": 1.0,
+        "duplicates": 0,
+        "unplanted": [],
+        "matched": [
+          "01-parcel-1",
+          "01-parcel-2",
+          "01-parcel-3",
+          "01-parcel-4",
+          "01-parcel-5",
+          "01-parcel-6"
+        ]
+      },
+      "compression_events": null,
+      "retries": null,
+      "cache_buckets": null,
+      "clipping": []
+    }
+  ]
+}

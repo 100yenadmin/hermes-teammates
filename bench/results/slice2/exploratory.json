@@ -1,0 +1,134 @@
+{
+  "label": "EXPLORATORY (valid cells only; not the declared verdict)",
+  "cases": [
+    "01-parcel",
+    "02-stock",
+    "03-events",
+    "04-policy",
+    "05-retry",
+    "06-reports",
+    "07-pages",
+    "08-delivery",
+    "09-config",
+    "10-ledger"
+  ],
+  "dropped_cases": [],
+  "valid_reps": {
+    "01-parcel": {
+      "B-briefed": 1,
+      "C": 2
+    },
+    "02-stock": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "03-events": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "04-policy": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "05-retry": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "06-reports": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "07-pages": {
+      "B-briefed": 1,
+      "C": 2
+    },
+    "08-delivery": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "09-config": {
+      "B-briefed": 2,
+      "C": 2
+    },
+    "10-ledger": {
+      "B-briefed": 1,
+      "C": 1
+    }
+  },
+  "n_valid": {
+    "B-briefed": 17,
+    "C": 19
+  },
+  "arm_mean_recall": {
+    "B-briefed": 0.9833333333333334,
+    "C": 0.9833333333333334
+  },
+  "quality_limited": true,
+  "contrasts": {
+    "recall": {
+      "point": -1.1102230246251566e-17,
+      "bounds": [
+        -0.03333333333333334,
+        0.033333333333333305
+      ],
+      "descriptive": false
+    },
+    "precision": {
+      "point": -0.02678571428571428,
+      "bounds": [
+        -0.05178571428571428,
+        -0.00714285714285714
+      ],
+      "descriptive": false
+    },
+    "parent_tokens": {
+      "point": 1.7577986224424214,
+      "bounds": [
+        1.4845346850298888,
+        2.074501410437998
+      ],
+      "descriptive": false
+    },
+    "parent_peak_prompt_tokens": {
+      "point": 0.9472737668435095,
+      "bounds": [
+        0.8896678676347691,
+        1.0161382294433428
+      ],
+      "descriptive": false
+    },
+    "parent_api_calls": {
+      "point": 3.2,
+      "bounds": [
+        2.65,
+        3.7
+      ],
+      "descriptive": false
+    },
+    "total_tokens": {
+      "point": 1.0968296676214528,
+      "bounds": [
+        1.0479332989002976,
+        1.1474561495919178
+      ],
+      "descriptive": true
+    },
+    "cross_file_recall": {
+      "point": -0.006666666666666665,
+      "bounds": [
+        -0.07333333333333333,
+        0.050000000000000024
+      ],
+      "descriptive": true
+    },
+    "f1": {
+      "point": -0.01483516483516486,
+      "bounds": [
+        -0.03356643356643361,
+        0.00209790209790206
+      ],
+      "descriptive": true
+    }
+  },
+  "bars_reading": "DOES NOT CLOSE GAP"
+}

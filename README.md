@@ -234,11 +234,20 @@ The first live slice ran one code-review task three ways on the same model (GLM 
 | C, teammates (0.1.3) | 8 | 52k | 195k | 6.3 | 86 s |
 
 All three setups found every planted bug, so this task cannot rank them on quality. It does show the cost shape: delegating cut the parent's cumulative token use 2.6–4.2× (its peak prompt about 1.6×), cost 26–44% more tokens in total, and was not faster here. Teammates made about twice
-as many parent calls as `delegate_task`; those were status polls, which `teammate_wait` in 0.2.0 is meant to cut (not yet re-measured).
+as many parent calls as `delegate_task`.
 An audit of every recorded tool call found no run read the answer key. These are means of 3 runs, without significance tests.
 
-Full report, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md). The `$0` mechanics benchmarks
-(`tests/bench_mechanics`) run in CI on every change. A harder task and a re-measure with `teammate_wait` are tracked in #16.
+**Slice 2** re-measured this on 10 harder review cases × 2 runs, with teammates 0.2.2 and `teammate_wait`, against the
+same `delegate_task` fan-out. Its declared verdict is INCONCLUSIVE: 4 of 40 runs broke the frozen recipe (3 `delegate_task`,
+1 teammates). On the 36 valid runs both found 98% of the planted bugs. The teammates parent still used **1.76× the tokens**
+of the `delegate_task` parent (95% bounds 1.48–2.07) and made **3.2 more API calls per run**: about 1.7 calls finding the
+plugin's tools behind Hermes's tool search, and 2.3 waits, since a wait is capped at 60 s while helpers ran 150–200 s.
+Fixes: a longer wait (#40) and directly listed plugin tools upstream (NousResearch/hermes-agent#135762). For a one-shot
+fan-out, `delegate_task` is the cheaper choice today.
+
+Full reports, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md) and
+[`bench/results/slice2/REPORT.md`](bench/results/slice2/REPORT.md). The `$0` mechanics benchmarks
+(`tests/bench_mechanics`) run in CI on every change.
 
 ## Limits (honest list)
 
