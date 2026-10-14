@@ -15,10 +15,10 @@ marble-channel-1-08 has capacity 109 slots.
 marble-channel-1-09 has capacity 110 slots.
 marble-channel-1-10 has capacity 111 slots.
 marble-channel-1-11 has capacity 112 slots.
-marble primary settlement ledger uses JPY currency.
 marble-channel-1-12 has capacity 113 slots.
-marble standby settlement ledger uses USD currency.
 marble-channel-1-13 has capacity 114 slots.
+marble primary settlement ledger uses the lantern profile.
+marble standby settlement ledger uses the juniper profile.
 marble-channel-1-14 has capacity 115 slots.
 marble-channel-1-15 has capacity 116 slots.
 marble-channel-1-16 has capacity 117 slots.
@@ -48,10 +48,42 @@ marble-channel-1-39 has capacity 140 slots.
 marble-channel-1-40 has capacity 141 slots.
 marble-channel-1-41 has capacity 142 slots.
 marble-channel-1-42 has capacity 143 slots.
+The lantern profile sets JPY currency.
 marble-channel-1-43 has capacity 144 slots.
 marble-channel-1-44 has capacity 145 slots.
 marble-channel-1-45 has capacity 146 slots.
 marble-channel-1-46 has capacity 147 slots.
 marble-channel-1-47 has capacity 148 slots.
+The juniper profile sets USD currency.
 marble-channel-1-48 has capacity 149 slots.
 marble-channel-1-49 has capacity 150 slots.
+marble-channel-1-50 has capacity 151 slots.
+marble-channel-1-51 has capacity 152 slots.
+marble-channel-1-52 has capacity 153 slots.
+marble-channel-1-53 has capacity 154 slots.
+marble-channel-1-54 has capacity 155 slots.
+marble-channel-1-55 has capacity 156 slots.
+marble-channel-1-56 has capacity 157 slots.
+marble-channel-1-57 has capacity 158 slots.
+marble-channel-1-58 has capacity 159 slots.
+marble-channel-1-59 has capacity 160 slots.
+marble-channel-1-60 has capacity 161 slots.
+marble-channel-1-61 has capacity 162 slots.
+marble-channel-1-62 has capacity 163 slots.
+marble-channel-1-63 has capacity 164 slots.
+marble-channel-1-64 has capacity 165 slots.
+marble-channel-1-65 has capacity 166 slots.
+marble-channel-1-66 has capacity 167 slots.
+marble-channel-1-67 has capacity 168 slots.
+marble-channel-1-68 has capacity 169 slots.
+marble-channel-1-69 has capacity 170 slots.
+marble-channel-1-70 has capacity 171 slots.
+marble-channel-1-71 has capacity 172 slots.
+marble-channel-1-72 has capacity 173 slots.
+marble-channel-1-73 has capacity 174 slots.
+marble-channel-1-74 has capacity 175 slots.
+marble-channel-1-75 has capacity 176 slots.
+marble-channel-1-76 has capacity 177 slots.
+marble-channel-1-77 has capacity 178 slots.
+marble-channel-1-78 has capacity 179 slots.
+marble-channel-1-79 has capacity 180 slots.

@@ -9,7 +9,7 @@
     },
     {
       "index": 2,
-      "text": "BUG-152: Removing four units from a stock of nine reports thirteen units instead of five. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-152: Removing units from stock makes the reported stock level go up. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
@@ -17,15 +17,15 @@
     },
     {
       "index": 4,
-      "text": "BUG-153: A read-only account is reported as having write access despite an explicit false write grant. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "What is the weight, in kg, of the cinder primary standard parcel?"
     },
     {
       "index": 5,
-      "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
+      "text": "BUG-153: Read-only accounts are reported as able to write. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "What is the weight, in kg, of the cinder primary standard parcel?"
+      "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
     }
   ]
 }

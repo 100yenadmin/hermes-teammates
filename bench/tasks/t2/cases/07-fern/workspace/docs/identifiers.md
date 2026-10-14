@@ -14,10 +14,10 @@ fern-channel-1-07 has capacity 108 slots.
 fern-channel-1-08 has capacity 109 slots.
 fern-channel-1-09 has capacity 110 slots.
 fern-channel-1-10 has capacity 111 slots.
-fern primary import batch uses 48 items.
 fern-channel-1-11 has capacity 112 slots.
-fern standby import batch uses 52 items.
 fern-channel-1-12 has capacity 113 slots.
+fern primary import batch uses the zephyr profile.
+fern standby import batch uses the willow profile.
 fern-channel-1-13 has capacity 114 slots.
 fern-channel-1-14 has capacity 115 slots.
 fern-channel-1-15 has capacity 116 slots.
@@ -44,14 +44,46 @@ fern-channel-1-35 has capacity 136 slots.
 fern-channel-1-36 has capacity 137 slots.
 fern-channel-1-37 has capacity 138 slots.
 fern-channel-1-38 has capacity 139 slots.
+The willow profile sets 52 items.
 fern-channel-1-39 has capacity 140 slots.
 fern-channel-1-40 has capacity 141 slots.
 fern-channel-1-41 has capacity 142 slots.
 fern-channel-1-42 has capacity 143 slots.
 fern-channel-1-43 has capacity 144 slots.
+The zephyr profile sets 48 items.
 fern-channel-1-44 has capacity 145 slots.
 fern-channel-1-45 has capacity 146 slots.
 fern-channel-1-46 has capacity 147 slots.
 fern-channel-1-47 has capacity 148 slots.
 fern-channel-1-48 has capacity 149 slots.
 fern-channel-1-49 has capacity 150 slots.
+fern-channel-1-50 has capacity 151 slots.
+fern-channel-1-51 has capacity 152 slots.
+fern-channel-1-52 has capacity 153 slots.
+fern-channel-1-53 has capacity 154 slots.
+fern-channel-1-54 has capacity 155 slots.
+fern-channel-1-55 has capacity 156 slots.
+fern-channel-1-56 has capacity 157 slots.
+fern-channel-1-57 has capacity 158 slots.
+fern-channel-1-58 has capacity 159 slots.
+fern-channel-1-59 has capacity 160 slots.
+fern-channel-1-60 has capacity 161 slots.
+fern-channel-1-61 has capacity 162 slots.
+fern-channel-1-62 has capacity 163 slots.
+fern-channel-1-63 has capacity 164 slots.
+fern-channel-1-64 has capacity 165 slots.
+fern-channel-1-65 has capacity 166 slots.
+fern-channel-1-66 has capacity 167 slots.
+fern-channel-1-67 has capacity 168 slots.
+fern-channel-1-68 has capacity 169 slots.
+fern-channel-1-69 has capacity 170 slots.
+fern-channel-1-70 has capacity 171 slots.
+fern-channel-1-71 has capacity 172 slots.
+fern-channel-1-72 has capacity 173 slots.
+fern-channel-1-73 has capacity 174 slots.
+fern-channel-1-74 has capacity 175 slots.
+fern-channel-1-75 has capacity 176 slots.
+fern-channel-1-76 has capacity 177 slots.
+fern-channel-1-77 has capacity 178 slots.
+fern-channel-1-78 has capacity 179 slots.
+fern-channel-1-79 has capacity 180 slots.

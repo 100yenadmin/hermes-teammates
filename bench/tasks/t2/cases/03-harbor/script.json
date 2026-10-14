@@ -5,11 +5,11 @@
   "turns": [
     {
       "index": 1,
-      "text": "BUG-146: A booking is still active at its end tick; the end tick should already be outside the booking. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Can patches/admission.diff safely simplify message previews, including absent messages?"
     },
     {
       "index": 2,
-      "text": "Can patches/admission.diff safely simplify message previews, including absent messages?"
+      "text": "BUG-146: Bookings are still reported as active at the moment they end. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
@@ -17,15 +17,15 @@
     },
     {
       "index": 4,
-      "text": "BUG-147: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 5,
       "text": "Please evaluate the new intermediate local in patches/serialization.diff and decide whether it is safe to land."
     },
     {
-      "index": 6,
+      "index": 5,
       "text": "Which version is used by the harbor primary event schema?"
+    },
+    {
+      "index": 6,
+      "text": "BUG-147: Clients that rely on the default request budget are never cut off at the documented limit. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

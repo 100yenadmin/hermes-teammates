@@ -15,10 +15,10 @@ ripple-channel-2-08 has capacity 110 slots.
 ripple-channel-2-09 has capacity 111 slots.
 ripple-channel-2-10 has capacity 112 slots.
 ripple-channel-2-11 has capacity 113 slots.
-ripple primary audit archive uses 7 days.
 ripple-channel-2-12 has capacity 114 slots.
-ripple standby audit archive uses 9 days.
 ripple-channel-2-13 has capacity 115 slots.
+ripple primary standard parcel uses the lantern profile.
+ripple standby standard parcel uses the cobalt profile.
 ripple-channel-2-14 has capacity 116 slots.
 ripple-channel-2-15 has capacity 117 slots.
 ripple-channel-2-16 has capacity 118 slots.
@@ -50,8 +50,40 @@ ripple-channel-2-41 has capacity 143 slots.
 ripple-channel-2-42 has capacity 144 slots.
 ripple-channel-2-43 has capacity 145 slots.
 ripple-channel-2-44 has capacity 146 slots.
+The lantern profile sets 12.5 kg.
 ripple-channel-2-45 has capacity 147 slots.
 ripple-channel-2-46 has capacity 148 slots.
 ripple-channel-2-47 has capacity 149 slots.
 ripple-channel-2-48 has capacity 150 slots.
 ripple-channel-2-49 has capacity 151 slots.
+The cobalt profile sets 13.5 kg.
+ripple-channel-2-50 has capacity 152 slots.
+ripple-channel-2-51 has capacity 153 slots.
+ripple-channel-2-52 has capacity 154 slots.
+ripple-channel-2-53 has capacity 155 slots.
+ripple-channel-2-54 has capacity 156 slots.
+ripple-channel-2-55 has capacity 157 slots.
+ripple-channel-2-56 has capacity 158 slots.
+ripple-channel-2-57 has capacity 159 slots.
+ripple-channel-2-58 has capacity 160 slots.
+ripple-channel-2-59 has capacity 161 slots.
+ripple-channel-2-60 has capacity 162 slots.
+ripple-channel-2-61 has capacity 163 slots.
+ripple-channel-2-62 has capacity 164 slots.
+ripple-channel-2-63 has capacity 165 slots.
+ripple-channel-2-64 has capacity 166 slots.
+ripple-channel-2-65 has capacity 167 slots.
+ripple-channel-2-66 has capacity 168 slots.
+ripple-channel-2-67 has capacity 169 slots.
+ripple-channel-2-68 has capacity 170 slots.
+ripple-channel-2-69 has capacity 171 slots.
+ripple-channel-2-70 has capacity 172 slots.
+ripple-channel-2-71 has capacity 173 slots.
+ripple-channel-2-72 has capacity 174 slots.
+ripple-channel-2-73 has capacity 175 slots.
+ripple-channel-2-74 has capacity 176 slots.
+ripple-channel-2-75 has capacity 177 slots.
+ripple-channel-2-76 has capacity 178 slots.
+ripple-channel-2-77 has capacity 179 slots.
+ripple-channel-2-78 has capacity 180 slots.
+ripple-channel-2-79 has capacity 181 slots.

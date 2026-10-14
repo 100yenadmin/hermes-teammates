@@ -9,7 +9,7 @@
     },
     {
       "index": 2,
-      "text": "BUG-156: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-156: Averages of whole numbers lose their fractional part. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
@@ -17,15 +17,15 @@
     },
     {
       "index": 4,
-      "text": "BUG-157: An eligible invoice remains at 100 instead of receiving the promised ten percent discount. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 5,
       "text": "What ordering policy does the tundra primary dispatch queue follow?"
     },
     {
-      "index": 6,
+      "index": 5,
       "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
+    },
+    {
+      "index": 6,
+      "text": "BUG-157: Customers report that eligible invoices are not receiving the promised discount. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

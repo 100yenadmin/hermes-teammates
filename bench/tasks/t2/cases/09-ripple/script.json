@@ -5,15 +5,15 @@
   "turns": [
     {
       "index": 1,
-      "text": "Would you merge patches/admission.diff for optional settings? Check what happens when a flag is absent."
-    },
-    {
-      "index": 2,
       "text": "Which version is used by the ripple primary event schema?"
     },
     {
+      "index": 2,
+      "text": "Would you merge patches/admission.diff for optional settings? Check what happens when a flag is absent."
+    },
+    {
       "index": 3,
-      "text": "BUG-158: Two seconds is reported as 0.002 milliseconds rather than 2000 milliseconds. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-158: Durations converted from seconds to milliseconds come out far too small. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
@@ -21,11 +21,11 @@
     },
     {
       "index": 5,
-      "text": "What ordering policy does the ripple primary dispatch queue follow?"
+      "text": "BUG-159: Removing units from stock makes the reported stock level go up. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "BUG-159: Removing four units from a stock of nine reports thirteen units instead of five. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "What ordering policy does the ripple primary dispatch queue follow?"
     }
   ]
 }

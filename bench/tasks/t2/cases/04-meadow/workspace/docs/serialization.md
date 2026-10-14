@@ -14,10 +14,10 @@ meadow-channel-3-07 has capacity 110 slots.
 meadow-channel-3-08 has capacity 111 slots.
 meadow-channel-3-09 has capacity 112 slots.
 meadow-channel-3-10 has capacity 113 slots.
-meadow primary audit archive uses 7 days.
 meadow-channel-3-11 has capacity 114 slots.
-meadow standby audit archive uses 9 days.
 meadow-channel-3-12 has capacity 115 slots.
+meadow primary outbound request uses the meridian profile.
+meadow standby outbound request uses the willow profile.
 meadow-channel-3-13 has capacity 116 slots.
 meadow-channel-3-14 has capacity 117 slots.
 meadow-channel-3-15 has capacity 118 slots.
@@ -49,9 +49,41 @@ meadow-channel-3-40 has capacity 143 slots.
 meadow-channel-3-41 has capacity 144 slots.
 meadow-channel-3-42 has capacity 145 slots.
 meadow-channel-3-43 has capacity 146 slots.
+The meridian profile sets 45 seconds.
 meadow-channel-3-44 has capacity 147 slots.
 meadow-channel-3-45 has capacity 148 slots.
 meadow-channel-3-46 has capacity 149 slots.
 meadow-channel-3-47 has capacity 150 slots.
 meadow-channel-3-48 has capacity 151 slots.
+The willow profile sets 50 seconds.
 meadow-channel-3-49 has capacity 152 slots.
+meadow-channel-3-50 has capacity 153 slots.
+meadow-channel-3-51 has capacity 154 slots.
+meadow-channel-3-52 has capacity 155 slots.
+meadow-channel-3-53 has capacity 156 slots.
+meadow-channel-3-54 has capacity 157 slots.
+meadow-channel-3-55 has capacity 158 slots.
+meadow-channel-3-56 has capacity 159 slots.
+meadow-channel-3-57 has capacity 160 slots.
+meadow-channel-3-58 has capacity 161 slots.
+meadow-channel-3-59 has capacity 162 slots.
+meadow-channel-3-60 has capacity 163 slots.
+meadow-channel-3-61 has capacity 164 slots.
+meadow-channel-3-62 has capacity 165 slots.
+meadow-channel-3-63 has capacity 166 slots.
+meadow-channel-3-64 has capacity 167 slots.
+meadow-channel-3-65 has capacity 168 slots.
+meadow-channel-3-66 has capacity 169 slots.
+meadow-channel-3-67 has capacity 170 slots.
+meadow-channel-3-68 has capacity 171 slots.
+meadow-channel-3-69 has capacity 172 slots.
+meadow-channel-3-70 has capacity 173 slots.
+meadow-channel-3-71 has capacity 174 slots.
+meadow-channel-3-72 has capacity 175 slots.
+meadow-channel-3-73 has capacity 176 slots.
+meadow-channel-3-74 has capacity 177 slots.
+meadow-channel-3-75 has capacity 178 slots.
+meadow-channel-3-76 has capacity 179 slots.
+meadow-channel-3-77 has capacity 180 slots.
+meadow-channel-3-78 has capacity 181 slots.
+meadow-channel-3-79 has capacity 182 slots.

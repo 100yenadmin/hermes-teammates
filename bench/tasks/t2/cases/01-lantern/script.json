@@ -5,19 +5,19 @@
   "turns": [
     {
       "index": 1,
-      "text": "BUG-142: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-142: Previews return one more result than was requested. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 2,
-      "text": "Would patches/admission.diff keep independent notification batches independent? Inspect the proposed default handling."
-    },
-    {
-      "index": 3,
       "text": "What ratio is configured for the lantern primary archive compressor?"
     },
     {
+      "index": 3,
+      "text": "BUG-143: Invalid retry attempt numbers are accepted and produce a delay instead of an error. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
       "index": 4,
-      "text": "BUG-143: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Would patches/admission.diff keep independent notification batches independent? Inspect the proposed default handling."
     },
     {
       "index": 5,

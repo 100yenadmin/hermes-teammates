@@ -12,14 +12,14 @@ summit-channel-2-05 has capacity 107 slots.
 summit-channel-2-06 has capacity 108 slots.
 summit-channel-2-07 has capacity 109 slots.
 summit-channel-2-08 has capacity 110 slots.
+summit primary import batch uses the tundra profile.
+summit standby import batch uses the quarry profile.
 summit-channel-2-09 has capacity 111 slots.
 summit-channel-2-10 has capacity 112 slots.
 summit-channel-2-11 has capacity 113 slots.
 summit-channel-2-12 has capacity 114 slots.
 summit-channel-2-13 has capacity 115 slots.
-summit primary interactive lease uses 300 ticks.
 summit-channel-2-14 has capacity 116 slots.
-summit standby interactive lease uses 307 ticks.
 summit-channel-2-15 has capacity 117 slots.
 summit-channel-2-16 has capacity 118 slots.
 summit-channel-2-17 has capacity 119 slots.
@@ -36,11 +36,13 @@ summit-channel-2-27 has capacity 129 slots.
 summit-channel-2-28 has capacity 130 slots.
 summit-channel-2-29 has capacity 131 slots.
 summit-channel-2-30 has capacity 132 slots.
+The quarry profile sets 52 items.
 summit-channel-2-31 has capacity 133 slots.
 summit-channel-2-32 has capacity 134 slots.
 summit-channel-2-33 has capacity 135 slots.
 summit-channel-2-34 has capacity 136 slots.
 summit-channel-2-35 has capacity 137 slots.
+The tundra profile sets 48 items.
 summit-channel-2-36 has capacity 138 slots.
 summit-channel-2-37 has capacity 139 slots.
 summit-channel-2-38 has capacity 140 slots.
@@ -55,3 +57,33 @@ summit-channel-2-46 has capacity 148 slots.
 summit-channel-2-47 has capacity 149 slots.
 summit-channel-2-48 has capacity 150 slots.
 summit-channel-2-49 has capacity 151 slots.
+summit-channel-2-50 has capacity 152 slots.
+summit-channel-2-51 has capacity 153 slots.
+summit-channel-2-52 has capacity 154 slots.
+summit-channel-2-53 has capacity 155 slots.
+summit-channel-2-54 has capacity 156 slots.
+summit-channel-2-55 has capacity 157 slots.
+summit-channel-2-56 has capacity 158 slots.
+summit-channel-2-57 has capacity 159 slots.
+summit-channel-2-58 has capacity 160 slots.
+summit-channel-2-59 has capacity 161 slots.
+summit-channel-2-60 has capacity 162 slots.
+summit-channel-2-61 has capacity 163 slots.
+summit-channel-2-62 has capacity 164 slots.
+summit-channel-2-63 has capacity 165 slots.
+summit-channel-2-64 has capacity 166 slots.
+summit-channel-2-65 has capacity 167 slots.
+summit-channel-2-66 has capacity 168 slots.
+summit-channel-2-67 has capacity 169 slots.
+summit-channel-2-68 has capacity 170 slots.
+summit-channel-2-69 has capacity 171 slots.
+summit-channel-2-70 has capacity 172 slots.
+summit-channel-2-71 has capacity 173 slots.
+summit-channel-2-72 has capacity 174 slots.
+summit-channel-2-73 has capacity 175 slots.
+summit-channel-2-74 has capacity 176 slots.
+summit-channel-2-75 has capacity 177 slots.
+summit-channel-2-76 has capacity 178 slots.
+summit-channel-2-77 has capacity 179 slots.
+summit-channel-2-78 has capacity 180 slots.
+summit-channel-2-79 has capacity 181 slots.
