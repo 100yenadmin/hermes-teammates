@@ -147,16 +147,43 @@ def test_child_wait_arguments_are_normalized():
     assert [c['wait_seconds'] for c in children] == [0, 30.0, 5, None]
 
 
-@pytest.mark.parametrize('tasks,goals', [
-    ('[{"goal": "a"}, {"goal": "b"}]', ['a', 'b']),   # a JSON-encoded list
-    ({'goal': 'a'}, ['a']),                            # a single object
-    (['not an object', {'goal': 'b'}, 3], ['b']),      # non-object entries
-    (5, []), ('not json', []),
+LONG_A, LONG_B = 'Find the documented retry limit', 'Review the pending pagination patch'
+
+
+@pytest.mark.parametrize('args,goals', [
+    (dict(tasks=json.dumps([{'goal': LONG_A}, {'goal': LONG_B}])), [LONG_A, LONG_B]),   # JSON-encoded list
+    (dict(tasks={'goal': LONG_B}), [LONG_B]),                       # a bare object is wrapped, as Hermes coerces
+    (dict(tasks=[], goal=LONG_A), [LONG_A]),                        # empty batch falls back to the goal
+    (dict(tasks='[]', goal=LONG_A), [LONG_A]),                      # ... also when JSON-encoded
+    (dict(tasks=['not an object', {'goal': LONG_B}]), []),          # Hermes rejects the whole batch
+    (dict(tasks=[json.dumps({'goal': LONG_A})]), [LONG_A]),         # JSON-encoded element is decoded
+    (dict(tasks=5, goal=LONG_A), []), (dict(tasks='not json'), []),
+    (dict(tasks=[{'goal': 'a'}, {'goal': 'b'}]), []),               # multi-task batch with too-short goals
+    (dict(tasks=[{'goal': LONG_A + str(i)} for i in range(5)]), []),  # over max_concurrent_children
+    (dict(tasks='null', goal=LONG_A), []),                          # non-nullable array: wrapped, then rejected
+    (dict(tasks=None, goal=LONG_A), [LONG_A]),                      # native null: single-goal form
+    (dict(tasks=json.dumps([json.dumps({'goal': LONG_A})])), []),   # encoded array of encoded objects
+    (dict(tasks=(dict(goal=LONG_B),), goal=LONG_A), [LONG_A]),      # a tuple is not a batch
+    (dict(goal=42), []), (dict(tasks=[{'goal': 42}]), []),          # Hermes errors; the harness never raises
+    (dict(action='list', goal=LONG_A), []), (dict(action='spawn', goal=LONG_A), [LONG_A]),
+    (dict(goal=LONG_A, output_schema='not a schema'), []),          # schema failure precedes any spawn
 ])
-def test_malformed_delegation_batches_never_crash_extraction(tasks, goals):
-    calls = [dict(session_id='p', call_id='1', entry_index=0, tool='delegate_task', args=dict(tasks=tasks))]
+def test_extraction_launches_exactly_what_hermes_launches(args, goals):
+    calls = [dict(session_id='p', call_id='1', entry_index=0, tool='delegate_task', args=args)]
     children = extract_children(calls, [], [], [], [])
     assert [c['goal'] for c in children] == goals
+
+
+def test_routed_around_quota_neither_stops_nor_reruns():
+    from bench.slice3.session import status_gated_sessions
+    quota = lambda sid: dict(kind='usage', session_id=sid, error=True, http_status=429, retry_exhausted=True)
+    ok = lambda sid: dict(kind='usage', session_id=sid, input_tokens=1)
+    children = [dict(order=1, terminal=True, child_session_id='c1'), dict(order=2, terminal=True, child_session_id='c2')]
+    routed = [ok('p'), quota('c1'), ok('c2'), ok('p')]
+    assert not accounting.quota_exhausted(routed, 'ok', parents=status_gated_sessions(routed, children))
+    graded = [ok('p'), ok('c1'), quota('c2'), ok('p')]
+    assert accounting.quota_exhausted(graded, 'ok', parents=status_gated_sessions(graded, children))
+    assert accounting.quota_exhausted(routed, 'error', parents=status_gated_sessions(routed, children))
 
 
 def test_observer_error_is_a_harness_fault():

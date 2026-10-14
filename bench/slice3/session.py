@@ -153,14 +153,7 @@ def extract_children(calls, events, rows, messages, ledger):
         if post:
             used.add(id(post))
         args = c['args'] if isinstance(c['args'], dict) else {}
-        tasks = args.get('tasks') or [args] if c['tool'] == 'delegate_task' else [args]
-        # Model-written batches can be a JSON string, a single object or hold non-objects; extract what
-        # Hermes could have launched and never let malformed model output crash the harness.
-        if isinstance(tasks, str):
-            tasks = parsed(tasks, [])
-        if isinstance(tasks, dict):
-            tasks = [tasks]
-        tasks = [t for t in tasks if isinstance(t, dict)] if isinstance(tasks, list) else []
+        tasks = launched_tasks(args) if c['tool'] == 'delegate_task' else [args]
         for task in tasks:
             sid, row = None, {}
             received = post.get('result_text', '')
@@ -200,6 +193,40 @@ def extract_children(calls, events, rows, messages, ledger):
                                  terminal=terminal, final_text=final, receipts=child_receipts(events, sid),
                                  parent_received_text=received, summary_clipped=clipped))
     return children
+
+
+class SandboxBreach(RuntimeError):
+    """The sandbox failed its own preflight; DECLARED: a verified breach stops this identity."""
+
+
+def launched_tasks(args):
+    """The tasks Hermes actually launches for delegate_task arguments; a rejected call launches none.
+
+    Runs Hermes's own steps on a copy: coerce_tool_args with the registered delegate_task schema, the
+    spawn-only action gate, _normalize_task_list and the output-schema check that precede any spawn. An
+    exception there fails the tool call in Hermes too, so malformed model output never crashes the harness
+    and never invents a child.
+    """
+    import copy
+    try:
+        import tools.delegate_tool  # noqa: F401  registers the delegate_task schema used by coercion
+        from tools.arg_coercion import coerce_tool_args
+        from tools.delegate_tool_tasks import _coerce_task_schemas, _normalize_task_list
+        coerced = coerce_tool_args('delegate_task', copy.deepcopy(args))
+        action = coerced.get('action')
+        if action is not None and str(action).strip().lower() not in {'', 'spawn'}:
+            return []
+        limit = json.loads((DECLARED / 'configs.json').read_text())['B-native']['delegation']['max_concurrent_children']
+        task_list, error = _normalize_task_list(coerced.get('goal'), coerced.get('context'), coerced.get('tasks'),
+                                                coerced.get('output_schema'), 'leaf', limit)
+        if error:
+            return []
+        _, schema_error = _coerce_task_schemas(task_list, coerced.get('output_schema'))
+        return [] if schema_error else task_list
+    except ImportError:
+        raise
+    except Exception:
+        return []
 
 
 def graded_child(children):
@@ -308,6 +335,10 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     write_json(run / 'controls.json', dict(reads=control_rows, pytest=dict(
         exit_code=check.returncode, stdout=check.stdout.replace(key, '[REDACTED]'))))
+    # A sandbox that fails its own preflight never sees a model call (DECLARED: a breach stops this identity).
+    reads_ok = control_rows[0]['success'] and all(r['denied'] and not r['success'] for r in control_rows[1:])
+    if not (reads_ok and check.returncode == 0 and 'pytest ' in check.stdout):
+        raise SandboxBreach('Sandbox controls failed before any model call; see ' + str(run / 'controls.json'))
     all_usage, output, root, seen = [], [], None, set()
     for turn in case['turns'][:turn_limit]:
         invocation = run / 'turns' / str(turn['index'])
@@ -381,7 +412,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                                                           any(c['child_session_id'] == sid for c in children)}))
         # Quota pauses the whole schedule; keep receipts and never auto-rerun a failed session.
         record['child_usage'] = child_metrics
-        record['quota_stop'] = quota_exhausted(usage)
+        record['quota_stop'] = quota_exhausted(usage, status, parents=status_gated_sessions(usage, children))
         record['invocation'] = str(invocation)
         output.append(record)
         if not root:

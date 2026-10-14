@@ -173,7 +173,8 @@ def analyze(rows, *, cases=None, dropped_cases=()):
                 result['per_turn'][str(index)][arm][key] = dict(pairs=values, mean=mean([v['difference'] for v in values]))
     result['routing'], result['d3_uptake'], result['per_role'], result['descriptive'] = {}, {}, {}, {}
     for arm in ARMS:
-        own = [r for r in rows if r['arm'] == arm]
+        # Summaries describe the same paired cases as the contrasts; dropped cases never leak in.
+        own = [r for r in rows if r['arm'] == arm and r['case'] in paired_cases]
         result['routing'][arm] = dict(Counter(r.get('routing', 'unspecified') for r in own))
         waits = [w for r in own for w in r.get('assign_wait_seconds', [])]
         if arm != 'B-native':

@@ -173,3 +173,16 @@ def test_report_discloses_dropped_cases(monkeypatch, dropped):
     lines = analysis.report(result).splitlines()
     expected = f"Paired cases analyzed: {10-len(dropped)} of 10; dropped: {', '.join(dropped) or 'none'}"
     assert lines[lines.index(result['verdict']) + 1] == expected
+
+
+def test_dropped_cases_never_reach_exploratory_summaries(monkeypatch):
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    rows = dataset()
+    for r in rows:
+        if r['case'] == 'case0':
+            r.update(routing='wrong', assign_wait_seconds=[0] * 9, n_children=7)
+    result = analysis.analyze(rows, dropped_cases=['case0'])
+    assert 'wrong' not in result['routing']['C']
+    assert result['d3_uptake']['C']['assigns'] == 9 * 6
+    assert result['descriptive']['C']['n_children'] == 1
+    assert result['per_role']['C']['scout']['n'] == 9 * 2

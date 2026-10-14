@@ -8,7 +8,7 @@ from pathlib import Path
 
 from bench.slice2.hermes import records
 from bench.slice3.analysis import analyze, mean, report, score_turn
-from bench.slice3.session import ARMS, DECLARED, _run_session, write_json
+from bench.slice3.session import ARMS, DECLARED, SandboxBreach, _run_session, write_json
 
 SEED = 1403
 
@@ -140,6 +140,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     if fake_base_url is None and executor is None:
         frozen_identity.verify_hermes()
     directory = Path(directory)
+    # A verified sandbox breach stops this identity for every phase, resume and rerun (DECLARED).
+    breach = directory.parent / 'sandbox-breach.json'
+    if breach.exists() and json.loads(breach.read_text()).get('identity') == ident:
+        raise ValueError('Sandbox breach recorded for this identity; it stops (see ' + str(breach) + ')')
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
                if phase == 'qualify' else schedule(DEV if phase == 'calibrate' else SCORED))
@@ -173,7 +177,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         return cached
 
     def final_invalid(value, attempt):
-        return attempt == 2 and (value['quota_stop'] or any(t.get('infra_invalid') for t in value['turns']))
+        return attempt == 2 and (value['quota_stop'] or bool(value.get('harness_fault'))
+                                 or any(t.get('infra_invalid') for t in value['turns']))
 
     def cell(item):
         cell_root = directory / (item['case'] + '-' + item['arm'])
@@ -183,7 +188,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             old = json.loads(prior.read_text())
             if old.get('identity') != ident:
                 raise ValueError('Rerun target comes from a different identity')
-            eligible = old['quota_stop'] if retry_reason == 'quota' else any(t['infra_invalid'] for t in old['turns'])
+            if old.get('sandbox_breach'):
+                raise ValueError('A sandbox breach stops this identity; it is never rerun')
+            eligible = old['quota_stop'] if retry_reason == 'quota' else (
+                bool(old.get('harness_fault')) or any(t['infra_invalid'] for t in old['turns']))
             if not eligible:
                 raise ValueError('No independent evidence supports the requested rerun')
         receipt, attempt = (cell_root / 'attempt2/session.json', 2) if retry else latest_receipt(item)
@@ -192,8 +200,20 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             return read_receipt(receipt)
         if dest.exists():
             raise ValueError('Incomplete attempt requires orchestrator disposition; no automatic rerun')
-        turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
-                        turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
+        try:
+            turns = execute(item['case'], item['arm'], dest, fake_base_url=fake_base_url,
+                            turn_timeout=turn_timeout, turn_limit=2 if phase == 'qualify' else None, attempt=attempt)
+        except Exception as error:
+            # A harness fault before the receipt: keep the evidence, record the fault so the orchestrator can
+            # authorize the one rerun (confirmed-infra), and still stop the phase.
+            dest.mkdir(parents=True, exist_ok=True)
+            breached = isinstance(error, SandboxBreach)
+            write_json(receipt, dict(turns=[], scores=[], quota_stop=False, identity=ident, sandbox_breach=breached,
+                                     harness_fault={'error_class': type(error).__name__}))
+            if breached:
+                write_json(directory.parent / 'sandbox-breach.json',
+                           dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
+            raise
         scores = []
         oracle = load_oracle(item['case'])
         pristine = load_case(item['case'])['workspace']
@@ -240,7 +260,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         if not receipt.exists():
             continue
         value = read_receipt(receipt)
-        if attempt == 1 and any(t.get('infra_invalid') for t in value['turns']):
+        if attempt == 1 and (value.get('harness_fault') or any(t.get('infra_invalid') for t in value['turns'])):
             pending.append(item['case'] + ':' + item['arm'])
         if final_invalid(value, attempt):
             dropped_cases.add(item['case'])
@@ -256,8 +276,13 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         result['identity'] = ident
         write_json(directory.parent / 'qualification.json', result)
     elif phase == 'calibrate':
-        result = calibrate(graded)
-        result['identity'] = ident
+        # ITT: a scheduled turn that never ran (a session stopped early) counts as a failure, never vanishes.
+        roles = {(i['case'], i['arm'], t['index']): t['role'] for i in planned for t in load_oracle(i['case'])['turns']}
+        present = {(r['case'], r['arm'], r['turn']) for r in graded}
+        missing = [dict(case=c, arm=a, turn=t, role=role, attempt=None, status='missing', adherence_all=0,
+                        adherence_rules=0, success=0) for (c, a, t), role in sorted(roles.items()) if (c, a, t) not in present]
+        result = calibrate(graded + missing)
+        result.update(identity=ident, scheduled_turns=len(roles), missing_turns=len(missing))
         if quota_stop:
             result.update(status='PAUSED')
         elif pending:
@@ -302,6 +327,9 @@ def main(argv=None):
         dispositions_path = args.input.parent / 'dispositions.json'
         if dispositions_path.exists():
             dispositions = json.loads(dispositions_path.read_text())
+            row_identities = {row.get('identity') for row in value}
+            if row_identities and dispositions.get('identity') not in row_identities:
+                raise SystemExit('dispositions.json comes from a different identity than the metrics')
             if dispositions['pending']:
                 raise SystemExit('pending infrastructure dispositions: ' + ', '.join(dispositions['pending']))
             missing = sorted(set(dispositions['dropped_cases']) - set(args.drop_case))
