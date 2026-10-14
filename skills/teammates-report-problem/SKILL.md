@@ -33,6 +33,7 @@ Safe reproduction for this plugin:
 
 Never edit or patch the installed plugin's files to work around the problem.
 If the diagnostics show a setup issue with a known fix, offer the fix first. The user may not need a report at all.
+If they show the problem is in Hermes itself rather than this plugin, point the user to https://github.com/NousResearch/hermes-agent/issues and stop; this repository is only for the Hermes Teammates plugin.
 
 ## 4. Collect the facts
 
