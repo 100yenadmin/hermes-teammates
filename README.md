@@ -180,11 +180,15 @@ The reply stays within 16,000 characters, measured as JSON with non-ASCII text l
 definition would not fit, its instructions are shortened and `instructions_clipped` is true.
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
-use `mode="all"` for fan-in. The wait is bounded to 0–60 seconds. Unknown or cross-conversation IDs
+use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs
 return `unknown_run` before waiting. Finished rows omit `goal` and share a summary budget: per-run budget is
 `max(1000, 24000 // number_of_done_runs)`. `summary_clipped` reports any cut; `teammate_check` keeps its full
 goal and 8,000-character summary budget. Wait skips blocking Kanban handoff retries; the monitor and later
 `teammate_check` still produce the handoff outcome.
+Hermes interrupts (`/stop` or a new user message) end a wait promptly, returning `interrupted: true` and
+`timed_out: false` with the current finished and pending runs; the teammates keep running. Replies omit
+`interrupted` otherwise. Hermes's default tool-call timeout (`tools.sequential_call`) is 420 seconds;
+if you lowered it, keep `wait_seconds` below your timeout. `teammate_check` remains bounded to 0–60 seconds.
 
 ### Completion notices (not available yet)
 

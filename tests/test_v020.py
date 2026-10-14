@@ -81,7 +81,7 @@ def test_wait_timeout_unknown_and_scope(rig):
 
 
 @pytest.mark.parametrize('ids,mode,seconds', [([], 'any', 0), (['x']*2, 'any', 0),
-    (['x']*17, 'any', 0), (['x'], 'bad', 0), (['x'], 'any', -1), (['x'], 'any', 61)])
+    (['x']*17, 'any', 0), (['x'], 'bad', 0), (['x'], 'any', -1), (['x'], 'any', 301)])
 def test_wait_validation(rig, ids, mode, seconds):
     assert rig.service.wait('owner', ids, mode, seconds)['error'] == 'invalid_wait'
 

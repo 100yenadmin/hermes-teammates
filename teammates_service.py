@@ -408,13 +408,16 @@ class TeammatesService:
         if (not isinstance(run_ids, list) or not 1 <= len(run_ids) <= 16 or
                 not all(isinstance(i, str) and i for i in run_ids) or len(set(run_ids)) != len(run_ids) or
                 mode not in ('any', 'all') or type(wait_seconds) not in (int, float) or
-                not 0 <= wait_seconds <= 60):
+                not 0 <= wait_seconds <= 300):
             return error('invalid_wait')
         for run_id in run_ids:
             if self._get(session_id, run_id) is None:
                 return error('unknown_run', f'unknown run: {run_id}')
         deadline = time.monotonic() + wait_seconds
+        interrupt = getattr(self.host, 'interrupted', None)
+        interrupted = False
         while True:
+            interrupted = interrupted or bool(callable(interrupt) and interrupt())
             with self._condition:
                 generation = self._generation
             done, pending = [], []
@@ -428,15 +431,20 @@ class TeammatesService:
                     done.append(row)
             complete = bool(done) if mode == 'any' else not pending
             remaining = deadline - time.monotonic()
-            if complete or remaining <= 0:
+            interrupted = interrupted or bool(callable(interrupt) and interrupt())
+            if interrupted or complete or remaining <= 0:
                 summary_budget = max(1000, 24000 // len(done)) if done else 8000
                 done = [self._public_run(self._get(session_id, row['run_id']), summary_budget) for row in done]
                 for row in done:
                     row.pop('goal', None)
-                return dict(ok=True, done=done, pending=pending, timed_out=not complete)
+                reply = dict(ok=True, done=done, pending=pending, timed_out=not complete and not interrupted)
+                if interrupted:
+                    reply['interrupted'] = True
+                return reply
             with self._condition:
                 if generation == self._generation:
                     self._condition.wait(timeout=min(1, remaining))
+            interrupted = interrupted or bool(callable(interrupt) and interrupt())
 
     def _unknown(self, row, *, notify=False, _skip_handoff=False):
         with self.store_factory() as store:
