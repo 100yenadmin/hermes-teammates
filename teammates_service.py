@@ -203,6 +203,8 @@ class TeammatesService:
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
                kanban_task=None, parent_agent=None, wait_seconds=0):
+        if wait_seconds is None:  # an explicit null from the model means the default
+            wait_seconds = 0
         if type(wait_seconds) not in (int, float) or not 0 <= wait_seconds <= 300:
             return error('invalid_assign', 'wait_seconds must be a number from 0 to 300')
         stripe = int.from_bytes(hashlib.sha256(str(session_id).encode()).digest()[:8], 'big') % 64

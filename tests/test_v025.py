@@ -53,7 +53,7 @@ def test_assign_wait_schema(plugin):
     assert 'Pass wait_seconds to get the result in the same call.' in spec['description']
 
 
-@pytest.mark.parametrize('args,seconds', [({}, 0), ({'wait_seconds': 0}, 0), ({'wait_seconds': 0.5}, 0.5)])
+@pytest.mark.parametrize('args,seconds', [({}, 0), ({'wait_seconds': 0}, 0), ({'wait_seconds': 0.5}, 0.5), ({'wait_seconds': None}, None)])
 def test_handler_forwards_wait_seconds(plugin, args, seconds):
     from hermes_teammates.teammates_tools import handler
     service = SimpleNamespace(assign=Mock(return_value={'ok': True}))
@@ -62,7 +62,7 @@ def test_handler_forwards_wait_seconds(plugin, args, seconds):
     assert service.assign.call_args.kwargs['wait_seconds'] == seconds
 
 
-@pytest.mark.parametrize('kwargs', [{}, {'wait_seconds': 0}])
+@pytest.mark.parametrize('kwargs', [{}, {'wait_seconds': 0}, {'wait_seconds': None}])
 def test_default_launch_reply_unchanged(rig, monkeypatch, kwargs):
     launch = {'ok': True, 'run_id': 'tm_fake', 'teammate': 'worker', 'status': 'running',
               'provider': 'fake', 'model': 'fake-model', 'unsupported': [], 'kanban_task': None}
@@ -74,7 +74,7 @@ def test_default_launch_reply_unchanged(rig, monkeypatch, kwargs):
     wait.assert_not_called()
 
 
-@pytest.mark.parametrize('seconds', [-1, 301, '30', True, None, float('nan')])
+@pytest.mark.parametrize('seconds', [-1, 301, '30', True, float('nan'), float('inf')])
 def test_invalid_wait_never_launches(rig, seconds):
     reply = rig.service.assign('owner', 'worker', 'goal', wait_seconds=seconds)
     assert reply == {'ok': False, 'error': 'invalid_assign',
