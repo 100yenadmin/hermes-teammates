@@ -134,7 +134,8 @@ def wait_seconds(value):
 
 
 def assign_wait_seconds(calls):
-    return [wait_seconds(c['args'].get('wait_seconds', 0)) for c in calls
+    # Malformed (non-object) arguments stay unknown: Hermes coerces them before running the call.
+    return [wait_seconds(c['args'].get('wait_seconds', 0)) if isinstance(c['args'], dict) else None for c in calls
             if c['tool'] == 'teammate_assign']
 
 
@@ -204,7 +205,8 @@ def extract_children(calls, events, rows, messages, ledger):
                                  mechanism=c['tool'], teammate=row.get('teammate', args.get('teammate')),
                                  goal=task.get('goal', ''), context=task.get('context', ''),
                                  output_schema=task.get('output_schema', args.get('output_schema')),
-                                 wait_seconds=wait_seconds(args.get('wait_seconds', 0)), child_session_id=sid,
+                                 wait_seconds=wait_seconds(args.get('wait_seconds', 0)) if isinstance(c['args'], dict) else None,
+                                 child_session_id=sid,
                                  terminal=terminal, final_text=final, receipts=child_receipts(events, sid),
                                  parent_received_text=received, summary_clipped=clipped))
     return children
@@ -254,6 +256,7 @@ def _take(events, used, candidates):
 
 
 def _task_dicts(args):
+    args = args if isinstance(args, dict) else {}
     tasks = args.get('tasks')
     if isinstance(tasks, str):
         tasks = parsed(tasks.strip(), None)
@@ -263,6 +266,7 @@ def _task_dicts(args):
 
 def requested_goals(args):
     """Goal strings a delegate_task call asked for, read leniently; used only to tell overlapping calls apart."""
+    args = args if isinstance(args, dict) else {}
     goals, pending = set(), [args.get('goal'), args.get('tasks')]
     while pending:
         value = pending.pop()

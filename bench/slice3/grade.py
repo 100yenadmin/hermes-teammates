@@ -139,7 +139,8 @@ def _red_receipt(receipts, filename):
     for receipt in receipts:
         if receipt.get('tool') != 'terminal':
             continue
-        command = receipt.get('args', {}).get('command', '')
+        args = receipt.get('args')
+        command = (args if isinstance(args, dict) else {}).get('command', '')
         if not isinstance(command, str) or 'pytest' not in command or filename not in command:
             continue
         result = receipt.get('result_text', '')
@@ -201,8 +202,9 @@ def _invokes_pytest(command):
 
 def _node_receipt(receipts, node):
     for receipt in receipts:
+        args = receipt.get('args')
         if (receipt.get('tool') != 'terminal'
-                or not _invokes_pytest(receipt.get('args', {}).get('command', ''))):
+                or not _invokes_pytest((args if isinstance(args, dict) else {}).get('command', ''))):
             continue
         result = receipt.get('result_text', '')
         try:
