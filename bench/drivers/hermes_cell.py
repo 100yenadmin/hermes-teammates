@@ -87,6 +87,7 @@ def sandbox_profile(run):
     metadata = ' '.join(f'(literal {json.dumps(p)})' for p in sorted(parents))
     return ('(version 1)\n(allow default)\n(deny file-read*)\n'
             f'(allow file-read* {reads})\n(allow file-read-metadata {metadata})\n'
+            '(allow file-read-metadata (literal "/var"))\n'
             '(deny file-write*)\n'
             f'(allow file-write* (subpath {json.dumps(str(run.resolve()))}) '
             '(literal "/dev/null") (literal "/dev/zero") (literal "/dev/dtracehelper") '

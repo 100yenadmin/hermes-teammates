@@ -16,8 +16,11 @@ from bench.slice2.run import run_phase
 
 
 class RecipeServer:
-    def __init__(self, arm, run):
+    def __init__(self, arm, run, failure=None):
         self.arm, self.run = arm, run
+        # Hermes probes a failed 5xx stream once without streaming inside the same
+        # hooked request. Fail that probe too, so one physical attempt reaches its error hook.
+        self.failure, self.parent_failures_left = failure, 2 if failure == 'once' else 0
         self.requests, self.errors = [], []
         self.counts, self.lock = {}, threading.Lock()
         self.barrier = threading.Barrier(4)
@@ -62,14 +65,28 @@ class RecipeServer:
         user = [m['content'] for m in messages if m['role'] == 'user'][-1]
         with self.lock:
             step = self.counts.get(user, 0)
-            if body.get('tools'):
+            parent = 'MECHANISM' in user
+            fail = self.failure == 'always' or (parent and body.get('tools') and self.parent_failures_left > 0)
+            if fail:
+                self.parent_failures_left -= 1
+            elif body.get('tools'):
                 self.counts[user] = step + 1
         parent = 'MECHANISM' in user
         tools = [m for m in messages if m['role'] == 'tool']
         self.requests.append({'parent': parent, 'tools': len(tools), 'step': step,
+                              'failed': bool(fail),
                               'schemas': len(body.get('tools') or []),
                               'leaf_goal': 'Review the public service' in user,
                               'denial_summary': any('Permission denied' in m.get('content', '') for m in tools)})
+        if fail:
+            data = b'{"error":{"message":"synthetic provider unavailable","type":"server_error"}}'
+            handler.send_response(401 if self.failure == 'always' else 503)
+            handler.send_header('Retry-After', '0')
+            handler.send_header('Content-Type', 'application/json')
+            handler.send_header('Content-Length', str(len(data)))
+            handler.end_headers()
+            handler.wfile.write(data)
+            return
         probes = [hermes.TASK/'hidden/oracles.json', hermes.ROOT/'bench/slice2/proofs.py',
                   hermes.ROOT/'bench/declared/slice2/DECLARED.md',
                   hermes.ROOT/'bench/results/slice1/REPORT.md', self.run.parent/'outside-control']
@@ -145,13 +162,13 @@ class RecipeServer:
         handler.wfile.flush()
 
 
-def exercise_arm(arm, base, monkeypatch):
+def exercise_arm(arm, base, monkeypatch, failure=None):
     oracle_present = (hermes.TASK/'hidden/oracles.json').is_file()
     run = base/arm
     (run/'work/src').mkdir(parents=True)
     (run/'work/README.md').write_text('Tiny staged synthetic case; review src/service.py.\n')
     (run/'work/src/service.py').write_text('def service():\n    return 1\n')
-    fake = RecipeServer(arm, run)
+    fake = RecipeServer(arm, run, failure)
     monkeypatch.setenv('SLICE2_LIVE', '1')
     monkeypatch.setenv('GLM_API_KEY', 'bench-not-a-secret')
     launch = dict(arm=arm, phase='qualification', config=config(arm), recipe=recipe(arm),
@@ -168,7 +185,7 @@ def exercise_arm(arm, base, monkeypatch):
     assert result['metrics']['complete']
     assert len(result['children']) == 4
     assert {r['session_id'] for r in result['accounting']['requests']} == set(result['accounting']['lineage'])
-    assert all(r['prompt_tokens'] == 10 for r in result['accounting']['requests'])
+    assert all(r['prompt_tokens'] == 10 for r in result['accounting']['requests'] if not r['error'])
     assert result['parent_allowed_read']
     events = hermes.records(run/'events.jsonl')
     classified = json.loads((run/'classified-tool-receipts.json').read_text())
@@ -226,7 +243,7 @@ def exercise_arm(arm, base, monkeypatch):
 
 @pytest.mark.skipif(not (hermes.HERMES/'.venv/bin/python').exists() or sys.platform != 'darwin',
                     reason='pinned Hermes/macOS sandbox absent (CI)')
-def test_real_live_executor_fake_openai(tmp_path, monkeypatch):
+def test_real_live_executor_fake_openai(tmp_path, monkeypatch, selected_tree):
     oracle_present = (hermes.TASK/'hidden/oracles.json').is_file()
     base = Path(os.environ.get('SLICE2_E2E_ARTIFACTS', str(tmp_path)))
     batches = [exercise_arm(arm, base, monkeypatch) for arm in ARMS]

@@ -22,17 +22,17 @@
   ],
   "files": {
     "__init__.py": "7defcbda216165ea5936f60b44fc7a900e415be1398641f7a47c8e935be54031",
-    "bench/declared/slice2/DECLARED.md": "2fc9397f27c847d2c75524fdbc5446e963c34807508b91cda7d990a076b4f9cb",
+    "bench/declared/slice2/DECLARED.md": "890ba14e3cca5a444383e647d5235b6aac10f3f9e30bf4f7ed3c4cc5f3cb45cc",
     "bench/declared/slice2/configs.json": "c6b9ea5e1dc38a986d7043c80b1ad486d80154290addb604199452eab1ad752c",
     "bench/declared/slice2/judge-controls.json": "55d2d74d2859194fd3aaeb06d6f62575f4ac02b36f66b690fce3738706eef3d9",
     "bench/declared/slice2/recipes.json": "b76e43178d6a8ca61b9ab7765a6471af115d9031569bfb6038939fe57189a6a3",
     "bench/declared/slice2/schedule.json": "16b6ae54c9286833c98a35e74a0611c2189ce31fbd66d98d23e78f0a889d5d5d",
     "bench/slice2/__init__.py": "8bd0f8eb7d56bd4252d6aa82d5a5c6de8bfe161ea98e933dc20d2818d4e2c97f",
-    "bench/slice2/accounting.py": "459e722ffa488844b97c447f3ba164e3e0ad8f70eb3abc9644d4c806a40908b1",
+    "bench/slice2/accounting.py": "1c461807b40e0bf7ccad2be9d135378acecf5a79cf5083f851383378ed2427f5",
     "bench/slice2/audit.py": "7ed2ab9937b9334c6778e4367caa5ee693416f50faa39e45745c52d612ef386b",
     "bench/slice2/budget.py": "13d8b9d17e9a9764fa819e129917e99ade696a411ad7292bb9ae9e7ef9eb2ae5",
     "bench/slice2/grade.py": "55009740dc10bbd3faf5e545d56dae6eed3cd23504637fd626daa72aba1ba4a1",
-    "bench/slice2/hermes.py": "691038dcd9c0139b8190903e5517375a1773f598317199cad609f37e607c8c06",
+    "bench/slice2/hermes.py": "a30ec132bc4f250d61b195bed17393b86bfabffd8c06f9a1c8900cebbd6ad07b",
     "bench/slice2/proofs.py": "b1f7a5c351b9022d31012caa925e5aa01baab79a3256b43ac354017fa97c8d6f",
     "bench/slice2/protocol.py": "3e9ab4879acd956d436940e247f18aae3100c9cd2e55a88f61aeefc819d773ef",
     "bench/slice2/run.py": "ad8ce77cdd59a193ba7c563c9f25d660f7f4762dc5bc06a567ad584fb19ded26",
@@ -128,6 +128,7 @@
     "teammates_host.py": "542f0b4cd49dc0d6ff456549047c81945d36af2800bebf95816c73dcbad39bf8",
     "teammates_service.py": "fb3378832992b51db7463ff3e387233c18b59d9d8f90c040a6cb40249137be9a",
     "teammates_store.py": "d98a750b3683281a7382a6be2bb642be3eac38696418d48e40d228ff11f1068c",
-    "teammates_tools.py": "8e74ddce96842321a4cf025c9eb0299eedf441e80cefcf619d4ebfa65d8ea587"
+    "teammates_tools.py": "8e74ddce96842321a4cf025c9eb0299eedf441e80cefcf619d4ebfa65d8ea587",
+    "bench/drivers/hermes_cell.py": "9a7ca9efe2509d73a0f31ad27885aa2d0ef5f2ac95155a0d33149b7d24401fc1"
   }
 }
