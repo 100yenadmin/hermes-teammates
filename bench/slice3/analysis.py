@@ -193,7 +193,9 @@ def analyze(rows, *, cases=None, dropped_cases=()):
 
 
 def report(analysis):
-    lines = ['# Slice 3', '', analysis['verdict'], '',
+    scheduled, dropped = analysis['scheduled_cases'], analysis['dropped_cases']
+    lines = ['# Slice 3', '', analysis['verdict'],
+             f"Paired cases analyzed: {len(scheduled)-len(dropped)} of {len(scheduled)}; dropped: {', '.join(dropped) or 'none'}", '',
              'Offline metrics do not establish live qualification.', '',
              '| Contrast | Bar | State | Point | 95% bounds | Higher / lower / equal |',
              '|---|---|---|---|---|---|']

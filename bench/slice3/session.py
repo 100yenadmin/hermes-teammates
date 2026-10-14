@@ -19,7 +19,7 @@ from bench.drivers import hermes_cell as driver
 from bench.slice2.hermes import records
 from bench.slice2.protocol import ROOT, RUNTIME
 from bench.slice3.accounting import (infrastructure_invalid, invocation_metrics,
-                                     parent_set, read_state, reconcile)
+                                     parent_set, quota_exhausted, read_state, reconcile)
 from bench.slice3.runtime_probe import bounded, expand, parsed
 from bench.slice3.sandbox import sandbox_profile
 
@@ -199,6 +199,17 @@ def graded_child(children):
     return next((c['order'] for c in reversed(children) if c['terminal'] and c['child_session_id']), None)
 
 
+def status_gated_sessions(usage, children):
+    """Sessions whose exhausted retries count as infrastructure only when the turn itself failed.
+
+    Only the graded child's exhaustion invalidates an otherwise completed turn; a parent that recovered by
+    re-delegating to another child is model behaviour, never grounds for a rerun.
+    """
+    graded = graded_child(children)
+    graded_sid = next((c['child_session_id'] for c in children if c['order'] == graded), None)
+    return {e.get('session_id') for e in usage} - {graded_sid}
+
+
 def config_for(arm, roster):
     config = json.loads((DECLARED / 'configs.json').read_text())[arm]
     if config.get('skills', {}).get('auto_load') or any(config.get('delegation', {}).get(k) for k in ('provider', 'model')):
@@ -311,9 +322,6 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                    '--max-turns', '40', '--provider', 'zai', '--model', 'glm-5.3']
         if root:
             command += ['--resume', root]
-        elif output:
-            # No session was persisted by the first invocation: never silently start a replacement conversation.
-            raise RuntimeError('Cannot resume: first turn did not persist a root session')
         started, timeout, exception = time.monotonic(), False, None
         try:
             process = subprocess.Popen(command, cwd=run / 'work', env=env, stdout=subprocess.PIPE,
@@ -354,7 +362,8 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         agents = [e for e in events if e.get('kind') == 'agent']
         status = 'timeout' if timeout else 'error' if code or final.get('is_error') or not final.get('text') else 'ok'
         record = dict(case=case_id, arm=arm, turn=turn['index'], attempt=attempt, session_id=root, status=status,
-                      infra_invalid=infrastructure_invalid(status, usage, exception, bool(final.get('text'))),
+                      infra_invalid=infrastructure_invalid(status, usage, exception, bool(final.get('text')),
+                                                    parents=status_gated_sessions(usage, children)),
                       parent=metrics, children=children, graded_child=graded_child(children),
                       delta=workspace_delta(before, after), parent_reply=final.get('text', ''), wall_s=time.monotonic()-started,
                       inventories=dict(parent_tools=[e for e in agents if e.get('session_id') in parents],
@@ -365,13 +374,14 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                                                           any(c['child_session_id'] == sid for c in children)}))
         # Quota pauses the whole schedule; keep receipts and never auto-rerun a failed session.
         record['child_usage'] = child_metrics
-        record['quota_stop'] = any(driver.QUOTA.search(str(e.get('http_status', '')) + ' ' + str(e.get('error_type', '')))
-                                   for e in usage if e.get('error'))
+        record['quota_stop'] = quota_exhausted(usage)
         record['invocation'] = str(invocation)
         output.append(record)
+        if not root:
+            record['stopped'] = 'no_root_session'
         with (run.parent / 'turns.jsonl').open('a') as out:
             out.write(json.dumps(record) + '\n')
-        if record['quota_stop']:
+        if not root or record['quota_stop']:
             break
     rows, _, _ = read_state(run / 'hermes/state.db')
     write_json(run.parent / 'reconciliation.json', reconcile(all_usage, rows, root))

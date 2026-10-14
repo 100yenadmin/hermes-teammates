@@ -6,8 +6,10 @@ and receipts from different identities never combine.
 """
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
+from bench.drivers.hermes_cell import HERMES, HERMES_SHA
 from bench.slice2.protocol import ROOT, RUNTIME
 
 IDENTITY = ROOT / 'bench/declared/slice3/identity.json'
@@ -15,6 +17,16 @@ HARNESS = ('bench/drivers/hermes_cell.py', 'bench/slice2/accounting.py', 'bench/
            'bench/slice2/protocol.py', 'bench/slice2/stats.py')
 DECLARED = ('bench/declared/slice3/DECLARED.md', 'bench/declared/slice3/configs.json',
             'bench/declared/slice3/schedule.json', 'bench/tasks/t2/manifest.json')
+
+
+def verify_hermes(hermes=HERMES, sha=HERMES_SHA):
+    revision = subprocess.check_output(['git', '-C', str(hermes), 'rev-parse', 'HEAD'], text=True).strip()
+    if revision != sha:
+        raise ValueError(f'Hermes revision mismatch: {revision}; expected {sha}')
+    dirty = subprocess.check_output(['git', '-C', str(hermes), 'status', '--porcelain',
+                                     '--untracked-files=no'], text=True).strip()
+    if dirty:
+        raise ValueError('Hermes tracked checkout is dirty')
 
 
 def covered(root=ROOT):

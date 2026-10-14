@@ -164,3 +164,12 @@ def test_calibration_checks_each_role():
         if r['role'] == 'scout':
             r['success'] = 1
     assert calibrate(rows)['status'] == 'FAIL'
+
+
+@pytest.mark.parametrize('dropped', [[], ['case0', 'case2']])
+def test_report_discloses_dropped_cases(monkeypatch, dropped):
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    result = analysis.analyze(dataset(), dropped_cases=dropped)
+    lines = analysis.report(result).splitlines()
+    expected = f"Paired cases analyzed: {10-len(dropped)} of 10; dropped: {', '.join(dropped) or 'none'}"
+    assert lines[lines.index(result['verdict']) + 1] == expected

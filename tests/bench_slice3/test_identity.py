@@ -1,6 +1,33 @@
 import json
+import subprocess
+
+import pytest
 
 from bench.slice3 import identity
+
+
+def test_hermes_revision_and_tracked_dirt(tmp_path):
+    def git(*args):
+        return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', '-C', str(tmp_path),
+                                        *args], text=True).strip()
+    git('init', '-q')
+    git('config', 'user.name', 'Benchmark')
+    git('config', 'user.email', 'bench@example.invalid')
+    tracked = tmp_path / 'tracked.txt'
+    tracked.write_text('baseline\n')
+    git('add', 'tracked.txt')
+    git('commit', '-qm', 'Synthetic baseline')
+    sha = git('rev-parse', 'HEAD')
+    identity.verify_hermes(hermes=tmp_path, sha=sha)
+    (tmp_path / 'untracked.txt').write_text('ignored\n')
+    identity.verify_hermes(hermes=tmp_path, sha=sha)
+    tracked.write_text('changed\n')
+    with pytest.raises(ValueError, match='dirty'):
+        identity.verify_hermes(hermes=tmp_path, sha=sha)
+    git('add', 'tracked.txt')
+    git('commit', '-qm', 'Synthetic next revision')
+    with pytest.raises(ValueError, match='revision'):
+        identity.verify_hermes(hermes=tmp_path, sha=sha)
 
 
 def test_frozen_identity_matches_tree():

@@ -3,6 +3,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from bench.drivers.hermes_cell import QUOTA
 from bench.slice2.accounting import BUCKETS, descendants, is_error, request_key, sum_bucket
 
 SHORT = ('input', 'output', 'cache_read', 'cache_write', 'reasoning')
@@ -103,18 +104,28 @@ def reconcile(invocations, rows, root):
                 per_invocation=[invocation_metrics(e, parents) for e in invocations])
 
 
-def infrastructure_invalid(status, receipts, harness_exception=None, model_output=False):
+def unrecovered(receipts):
+    last = {}
+    for e in receipts:
+        if e.get('kind') == 'usage' and not e.get('aux_task'):
+            last[e.get('session_id')] = e
+    return [e for e in last.values() if is_error(e)]
+
+
+def quota_exhausted(receipts):
+    return any(QUOTA.search(str(e.get('http_status', '')) + ' ' + str(e.get('error_type', '')))
+               for e in unrecovered(receipts))
+
+
+def infrastructure_invalid(status, receipts, harness_exception=None, model_output=False, *, parents=None):
     if harness_exception is not None and not model_output:
         return dict(reason='harness_exception', evidence={'error_class': type(harness_exception).__name__})
-    # A later success means retries recovered; silence/timeout/unknown never imply infrastructure.
-    for e in reversed(receipts):
-        if e.get('kind') != 'usage' or e.get('aux_task'):
-            continue
-        if not is_error(e):
-            return None
+    # Recovery belongs to each session; another session's success cannot mask it.
+    for e in unrecovered(receipts):
         code = e.get('http_status')
         if (e.get('retry_exhausted') is True and type(code) is int
-                and (code == 429 or 500 <= code <= 599) and status != 'ok'):
+                and (code == 429 or 500 <= code <= 599)
+                and (status != 'ok' or parents is not None and e.get('session_id') not in parents)):
             return dict(reason='provider_retries_exhausted', evidence={
                 'http_status': code, 'error_class': e.get('error_type'),
                 'attempt': e.get('attempt'), 'retry': e.get('retry')})

@@ -134,6 +134,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     from bench.slice3 import identity as frozen_identity
     # A live run (the real executor) also needs every hidden fixture file; injected executors never read them.
     ident = frozen_identity.verify(require_hidden=executor is None) if fake_base_url is None else None
+    if fake_base_url is None and executor is None:
+        frozen_identity.verify_hermes()
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     planned = ([dict(case=DEV[0], arm=arm, batch=i+1, start_order=1, seed=SEED) for i, arm in enumerate(ARMS)]
@@ -233,6 +235,10 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         write_json(directory.parent / 'calibration.json', result)
     else:
         result = dict(status='PAUSED' if quota_stop else 'COMPLETE', turns=len(graded), identity=ident)
+        checker_errors = [{k: row[k] for k in ('case', 'arm', 'turn')}
+                          for row in graded if 'checker_error' in row]
+        if checker_errors:
+            result.update(status='CHECKER_ERROR', checker_errors=checker_errors)
     return result
 
 
@@ -258,6 +264,9 @@ def main(argv=None):
     if args.phase == 'analyze' and len({row.get('identity') for row in value}) > 1:
         raise SystemExit('metrics mix rows from different identities')
     if args.phase == 'analyze':
+        checker_errors = sum('checker_error' in row for row in value)
+        if checker_errors:
+            raise SystemExit(f'{checker_errors} metrics rows carry checker_error')
         from bench.slice3.cases import SCORED
         write_json(args.output, analyze(value, cases=SCORED, dropped_cases=args.drop_case))
     else:

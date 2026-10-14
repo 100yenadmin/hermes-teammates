@@ -7,6 +7,61 @@ from bench.slice3.run import qualification, run_phase, schedule
 from bench.slice3.session import ARMS, write_json
 
 
+def test_run_phase_checks_hermes_only_for_live(tmp_path, lane_f, monkeypatch):
+    from bench.slice3 import identity, run
+    monkeypatch.setattr(identity, 'verify', lambda **kw: 'frozen')
+    def reject():
+        raise ValueError('Hermes revision sentinel')
+    monkeypatch.setattr(identity, 'verify_hermes', reject, raising=False)
+    def empty_executor(case, arm, directory, **kwargs):
+        directory.mkdir(parents=True)
+        return []
+    monkeypatch.setattr(run, '_run_session', empty_executor)
+    with pytest.raises(ValueError, match='Hermes revision sentinel'):
+        run_phase('calibrate', tmp_path / 'live')
+    run_phase('calibrate', tmp_path / 'fake', fake_base_url='http://127.0.0.1:1')
+    run_phase('calibrate', tmp_path / 'injected', executor=empty_executor)
+
+
+def test_scored_checker_exception_is_not_complete(tmp_path, lane_f, monkeypatch):
+    from bench.slice3 import identity, run
+    monkeypatch.setattr(identity, 'verify', lambda **kw: 'frozen')
+    declared = tmp_path / 'scored-declared'
+    declared.mkdir()
+    (declared / 'DECLARED.md').write_text('synthetic')
+    write_json(declared / 'schedule.json', schedule(lane_f.SCORED))
+    monkeypatch.setattr(run, 'DECLARED', declared)
+    for name in ('qualification', 'calibration', 'admission'):
+        write_json(tmp_path / (name + '.json'), dict(status='PASS', identity='frozen'))
+    def executor(case, arm, directory, **kw):
+        invocation = directory / 'run/turns/1'
+        (invocation / 'after').mkdir(parents=True)
+        return [dict(case=case, arm=arm, turn=1, attempt=1, status='error',
+                     invocation=str(invocation), parent=dict(api_calls=0))]
+    def broken_checker(*args):
+        raise RuntimeError('synthetic checker failure')
+    monkeypatch.setattr(run, 'score_turn', broken_checker)
+    result = run_phase('scored', tmp_path / 'scored', executor=executor)
+    assert result['status'] == 'CHECKER_ERROR'
+    rows = json.loads((tmp_path / 'scored/metrics.json').read_text())
+    assert result['checker_errors'] == [{k: row[k] for k in ('case', 'arm', 'turn')} for row in rows]
+    assert len(rows) == 30 and all(row['success'] == 0 and row['checker_error'] == 'RuntimeError' for row in rows)
+    monkeypatch.setattr(run, 'run_phase', lambda *a, **kw: result)
+    assert run.main(['scored', '--directory', str(tmp_path)]) == 1
+
+
+def test_analyze_refuses_checker_errors(tmp_path, monkeypatch):
+    from bench.slice3 import analysis
+    from bench.slice3.run import main
+    monkeypatch.setattr(analysis, 'RESAMPLES', 20)
+    rows = tmp_path / 'metrics.json'
+    rows.write_text(json.dumps([dict(case='01-lantern', arm='C', turn=i, identity='a', checker_error='ValueError',
+        status='error', success=0, adherence_all=0, adherence_rules=0, parent_calls=0) for i in (1, 2)]))
+    with pytest.raises(SystemExit, match='2.*checker_error'):
+        main(['analyze', '--directory', str(tmp_path), '--input', str(rows), '--output', str(tmp_path / 'out.json')])
+    assert not (tmp_path / 'out.json').exists()
+
+
 def test_quota_pause_explicit_single_rerun_and_retained_spend(tmp_path, lane_f):
     calls = []
     def executor(case, arm, directory, **kw):

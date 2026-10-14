@@ -192,3 +192,44 @@ def test_setup_never_copies_bytecode_caches(tmp_path, lane_f, monkeypatch):
     copied = {str(p.relative_to(tmp_path / 'run/work')) for p in (tmp_path / 'run/work').rglob('*')}
     assert 'src/tiny.py' in copied
     assert not any('__pycache__' in name or name.endswith('.pyc') for name in copied)
+
+
+def test_rootless_first_turn_is_recorded_and_reconciled(tmp_path, lane_f, monkeypatch):
+    from types import SimpleNamespace
+    def setup(case, arm, run):
+        for name in ('work', 'home', 'hermes', 'probe', 'tmp', 'turns'):
+            (run / name).mkdir(parents=True)
+        return tmp_path / 'synthetic-venv'
+    monkeypatch.setattr(session, 'setup', setup)
+    monkeypatch.setattr(session.subprocess, 'run', lambda *a, **kw:
+                        SimpleNamespace(returncode=0, stdout='pytest 9.1.1', stderr=b''))
+    launches = []
+    def popen(*args, **kwargs):
+        launches.append(args)
+        raise OSError('synthetic launch fault')
+    monkeypatch.setattr(session.subprocess, 'Popen', popen)
+    monkeypatch.setattr(session, 'read_state', lambda path: ([], [], {}))
+    directory = tmp_path / 'rootless'
+    turns = session._run_session('dev0', 'C', directory, fake_base_url='http://127.0.0.1:1')
+    assert len(launches) == len(turns) == 1
+    assert turns[0]['status'] == 'error' and turns[0]['stopped'] == 'no_root_session'
+    assert turns[0]['infra_invalid']['reason'] == 'harness_exception'
+    assert json.loads((directory / 'turns.jsonl').read_text()) == turns[0]
+    assert json.loads((directory / 'reconciliation.json').read_text())['pass_'] is False
+
+
+def test_only_the_graded_child_exhaustion_invalidates_a_completed_turn():
+    from bench.slice3.accounting import infrastructure_invalid
+    exhausted = lambda sid: dict(kind='usage', session_id=sid, error=True, http_status=503, retry_exhausted=True)
+    ok = lambda sid: dict(kind='usage', session_id=sid, input_tokens=1)
+    children = [dict(order=1, terminal=True, child_session_id='c1'), dict(order=2, terminal=True, child_session_id='c2')]
+    # c1 exhausted, the parent re-delegated to c2 (graded) which finished: model behaviour, not infrastructure.
+    usage = [ok('p'), exhausted('c1'), ok('c2'), ok('p')]
+    assert infrastructure_invalid('ok', usage, parents=session.status_gated_sessions(usage, children)) is None
+    # The graded child itself exhausted: infrastructure even though the parent replied.
+    usage = [ok('p'), ok('c1'), exhausted('c2'), ok('p')]
+    assert infrastructure_invalid('ok', usage, parents=session.status_gated_sessions(usage, children))['reason'] == \
+        'provider_retries_exhausted'
+    # A failed turn still counts any session's exhaustion.
+    usage = [ok('p'), exhausted('c1'), ok('c2'), ok('p')]
+    assert infrastructure_invalid('error', usage, parents=session.status_gated_sessions(usage, children))

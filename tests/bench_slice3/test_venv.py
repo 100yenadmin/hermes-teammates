@@ -75,7 +75,7 @@ def test_warm_venv_does_not_install(tmp_path, monkeypatch, version):
     calls = fake_environment(monkeypatch, root,
                              {'pytest': version, 'iniconfig': '2.0', 'packaging': '25', 'pluggy': '1.5', 'pygments': '2.21.0'},
                              hermes_version=version)
-    assert venv.ensure_bench_python(root) == root.resolve()
+    assert venv.ensure_bench_python(root, version=version) == root.resolve()
     assert not calls
 
 
@@ -143,3 +143,23 @@ def test_version_helper_uses_current_hermes_ci_interpreter_when_host_tree_absent
         return '9.1.1\n'
     monkeypatch.setattr(venv.subprocess, 'check_output', output)
     assert venv.hermes_pytest_version() == '9.1.1'
+
+
+def test_real_hermes_must_match_frozen_pytest(tmp_path, monkeypatch):
+    root = tmp_path / 'venv'
+    calls = fake_environment(monkeypatch, root, {}, hermes_version='8.3.5')
+    with pytest.raises(RuntimeError, match=r'8\.3\.5.*9\.1\.1'):
+        venv.ensure_bench_python(root)
+    assert not calls
+
+
+def test_missing_host_uses_frozen_version_without_probing_ci_pytest(tmp_path, monkeypatch):
+    root = tmp_path / 'venv'
+    (root / 'bin').mkdir(parents=True)
+    (root / 'bin/python').touch()
+    monkeypatch.setattr(venv, 'HERMES', tmp_path / 'absent-hermes')
+    def output(command, **kwargs):
+        assert command[0] == str(root / 'bin/python'), 'must not probe CI pytest version'
+        return json.dumps({'pytest': '9.1.1'})
+    monkeypatch.setattr(venv.subprocess, 'check_output', output)
+    assert venv.ensure_bench_python(root) == root.resolve()

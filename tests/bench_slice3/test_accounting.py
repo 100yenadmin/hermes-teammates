@@ -6,6 +6,7 @@ import pytest
 from bench.slice3.accounting import (BUCKETS, infrastructure_invalid, invocation_metrics,
                                      parent_set, read_state, reconcile)
 from bench.slice3.session import canonical_calls, extract_children, graded_child, turn_calls
+from bench.slice3 import accounting
 
 
 def receipt(sid, rid, kind, amount=10, **extra):
@@ -100,6 +101,33 @@ def test_infrastructure_requires_independent_evidence():
     assert infrastructure_invalid('error', [exhausted | dict(http_status=401)]) is None
     assert infrastructure_invalid('error', [], ValueError())['reason'] == 'harness_exception'
     assert infrastructure_invalid('error', [], ValueError(), model_output=True) is None
+
+
+def test_child_exhaustion_survives_parent_success():
+    failed = receipt('child', '1', 'usage') | dict(error=True, http_status=503,
+        retry_exhausted=True, error_type='ServerError')
+    events = [failed, receipt('p', '2', 'usage')]
+    assert infrastructure_invalid('error', events)['reason'] == 'provider_retries_exhausted'
+    assert infrastructure_invalid('ok', events, parents={'p'})['evidence']['http_status'] == 503
+    assert infrastructure_invalid('ok', events) is None
+    assert infrastructure_invalid('ok', [failed], parents={'child'}) is None
+
+
+def test_recovered_quota_does_not_stop_or_invalidate():
+    failed = receipt('p', '1', 'usage') | dict(error=True, http_status=429,
+        retry_exhausted=True, error_type='RateLimitError')
+    events = [failed, receipt('p', '2', 'usage')]
+    assert infrastructure_invalid('error', events) is None
+    assert not accounting.quota_exhausted(events)
+
+
+@pytest.mark.parametrize('retry_exhausted', [False, True])
+def test_unrecovered_quota_stops_per_session(retry_exhausted):
+    failed = receipt('child', '1', 'usage') | dict(error=True, http_status=429,
+        retry_exhausted=retry_exhausted, error_type='RateLimitError')
+    assert accounting.quota_exhausted([failed, receipt('p', '2', 'usage')])
+    assert not accounting.quota_exhausted([failed | dict(aux_task='title')])
+    assert not accounting.quota_exhausted([failed | dict(kind='request_start')])
 
 
 def test_normalized_deferred_batch_keeps_outer_entry_identity():
