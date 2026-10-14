@@ -37,13 +37,14 @@ SPECS = {
         {'run_id': _RUN_ID, 'wait_seconds': _p('integer', 'Seconds to wait for completion, 0-60.', minimum=0, maximum=60)},
         ['run_id']),
     'teammate_wait': (
-        'Wait for any or all runs in this conversation. Returns finished results and pending statuses at the deadline. '
+        'Wait 0-300 s (default 30) for any or all runs in this conversation. Returns finished results and pending '
+        'statuses at the deadline, or promptly on a Hermes interrupt with interrupted=true and timed_out=false. '
         'Finished rows omit goal and share a summary budget; summary_clipped, summary_chars, role_hash and tokens_* '
         'receipts are included. Kanban handoffs run via the monitor or teammate_check.',
         {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string', 'minLength': 1}, minItems=1, maxItems=16,
                        uniqueItems=True),
          'mode': _p('string', 'Completion rule.', enum=['any', 'all'], default='any'),
-         'wait_seconds': _p('number', 'Seconds to wait.', minimum=0, maximum=60, default=30)}, ['run_ids']),
+         'wait_seconds': _p('number', 'Seconds to wait, 0-300.', minimum=0, maximum=300, default=30)}, ['run_ids']),
     'teammate_message': (
         'Send a short course correction to a running teammate. It arrives at the next step without stopping the '
         'teammate. Some Hermes builds cannot steer plugin-launched teammates and answer unsupported.',

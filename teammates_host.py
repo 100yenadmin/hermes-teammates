@@ -56,6 +56,15 @@ class HermesHost:
     def launch_request(self, **kwargs):
         return self.request_class()(**kwargs)
 
+    def interrupted(self):
+        if self.isolated:
+            return False
+        try:
+            from tools.interrupt import is_interrupted
+            return is_interrupted()
+        except Exception:
+            return False
+
     @staticmethod
     def delegation_settings():
         values, defaults, explicit = {}, {}, None

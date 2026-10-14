@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 (2026-10-14)
+
+- `teammate_wait` accepts waits of 0–300 seconds; the default stays 30 seconds and `teammate_check` stays at 0–60 seconds (#40).
+- Waits return promptly on Hermes interrupts (`/stop` or a new user message), with `interrupted: true`, `timed_out: false` and the current finished and pending runs. Ordinary replies keep their existing shape; interrupting a wait does not cancel its teammates.
+
 ## 0.2.3 (2026-10-14)
 
 - Blank model, route and reasoning settings count as unset before checking their length, so long whitespace-only values no longer invalidate a teammate.
