@@ -1,70 +1,62 @@
-"""Admission counters.
+"""Job admission quotas.
 
-All durations are integer ticks; all identifiers are strings.
 The caller owns persistence. These helpers do not perform I/O.
+Contracts below describe the supported input domain.
 Validation belongs to the public entry points below.
 """
 
-def admit(count, limit=37):
-    """Reject a new item once the limit is reached.
+def admit(count, limit=20):
+    """Reject a job once the limit is reached.
 
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
     """
-    if count < 0:
-        raise ValueError('negative count')
-    if count >= limit:
-        return False
-    return True
+    return count < limit
 
 
 def spare(count, limit):
-    """Count unused places.
+    """Unused job slots.
 
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
     """
     return max(0, limit - count)
-
-
-def utilization(count, limit):
-    """Utilization as a fraction.
-
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
-    """
-    if limit <= 0:
-        raise ValueError('nonpositive limit')
-    return count / limit
-
-
-def release(count, amount=1):
-    """Release places without a negative total.
-
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
-    """
-    if amount < 0:
-        raise ValueError('negative release')
-    return max(0, count - amount)
 
 
 def reserve(count, amount, limit):
     """Reserve a batch atomically.
 
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
     """
-    if amount < 0:
-        raise ValueError('negative amount')
     return count + amount if count + amount <= limit else count
 
 
-def within(count, low, high):
-    """Check the inclusive permitted range.
+def release(count, amount):
+    """Release slots without a negative total.
 
-    This operation is deterministic and leaves its inputs unchanged.
-    Values returned here may be stored by the application.
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
+    """
+    return max(0, count - amount)
+
+
+def within(count, low, high):
+    """Inclusive quota range.
+
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
     """
     return low <= count <= high
+
+
+def copy_items(values=None):
+    """Return a fresh list from an optional list or tuple.
+
+    The result may be consumed by other library operations.
+    Consult this contract before changing edge-case behavior.
+    """
+    if values is None:
+        return []
+    return list(values)
 

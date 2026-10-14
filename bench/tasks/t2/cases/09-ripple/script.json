@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived ripple resources, display codes, and admission counters.",
+  "blurb": "It provides optional configuration, warehouse stock, region selection, physical unit conversions.",
   "id": "09-ripple",
-  "project": "Ripple leases",
+  "project": "Ripple toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "Would you merge patches/admission.diff for optional settings? Check what happens when a flag is absent."
     },
     {
       "index": 2,
-      "text": "What is the duration, in ticks, for the ripple foreground lease? Please check the docs."
+      "text": "Which version is used by the ripple primary event schema?"
     },
     {
       "index": 3,
-      "text": "BUG-158: A resource still authorizes work at exactly its expiry tick (178). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "BUG-158: Two seconds is reported as 0.002 milliseconds rather than 2000 milliseconds. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
     },
     {
       "index": 5,
-      "text": "BUG-159: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "What ordering policy does the ripple primary dispatch queue follow?"
     },
     {
       "index": 6,
-      "text": "Which code identifies the ripple foreground display in the documentation?"
+      "text": "BUG-159: Removing four units from a stock of nine reports thirteen units instead of five. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

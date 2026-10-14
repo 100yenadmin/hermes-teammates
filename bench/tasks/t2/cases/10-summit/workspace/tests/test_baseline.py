@@ -1,33 +1,33 @@
-from summit import windows, catalog, quotas, formats
+from summit import notifications, quotas, rate_limit, retries
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_notifications_0():
+    assert notifications.queue('x') == ['x'] and notifications.queue('y') == ['y']
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_notifications_1():
+    assert notifications.urgent(3)
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_quotas_0():
+    assert quotas.admit(19)
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'summit': 'display'}, 'summit') == 'display'
+def test_quotas_1():
+    assert quotas.spare(2, 5) == 3
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_rate_limit_0():
+    assert rate_limit.allowed(2, 3)
 
 
-def test_quota_boundary():
-    assert quotas.admit(36) and not quotas.admit(37)
+def test_rate_limit_1():
+    assert rate_limit.remaining(2, 3) == 1
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_retries_0():
+    assert retries.delay(2) == 4
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_retries_1():
+    assert retries.retryable(503)

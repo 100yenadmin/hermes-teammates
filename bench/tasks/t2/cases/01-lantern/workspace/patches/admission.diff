@@ -1,11 +1,18 @@
---- a/src/lantern/quotas.py
-+++ b/src/lantern/quotas.py
-@@ -13,7 +13,7 @@
+--- a/src/lantern/notifications.py
++++ b/src/lantern/notifications.py
+@@ -5,13 +5,13 @@
+ Validation belongs to the public entry points below.
+ """
+ 
+-def queue(item, pending=None):
++def queue(item, pending=[]):
+     """Return a new queue with one item without leaking across calls.
+ 
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+-    items = [] if pending is None else list(pending)
++    items = pending
+     items.append(item)
+     return items
  

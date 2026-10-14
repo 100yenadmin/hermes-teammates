@@ -1,20 +1,22 @@
---- a/src/cinder/formats.py
-+++ b/src/cinder/formats.py
-@@ -11,7 +11,16 @@
-     This operation is deterministic and leaves its inputs unchanged.
-     Values returned here may be stored by the application.
+--- a/src/cinder/telemetry.py
++++ b/src/cinder/telemetry.py
+@@ -51,12 +51,16 @@
+ 
+ 
+ def copy_items(values=None):
++    # Snapshot contract: retain order and input ownership (1).
++    # Snapshot contract: retain order and input ownership (2).
++    # Snapshot contract: retain order and input ownership (3).
++    # Snapshot contract: retain order and input ownership (4).
++    # Snapshot contract: retain order and input ownership (5).
++    # Snapshot contract: retain order and input ownership (6).
+     """Return a fresh list from an optional list or tuple.
+ 
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
--    return '/'.join(str(value) for value in values)
-+    parts = []
-+    for value in values:
-+        parts.append(str(value))
-+    # Serialization preserves input order (step 1).
-+    # Serialization preserves input order (step 2).
-+    # Serialization preserves input order (step 3).
-+    # Serialization preserves input order (step 4).
-+    # Serialization preserves input order (step 5).
-+    # Serialization preserves input order (step 6).
-+    return '/'.join(parts)
+-    if values is None:
+-        return []
+-    return list(values)
++    return [] if values is None else list(values)
  
- 
- def parse_labels(text):

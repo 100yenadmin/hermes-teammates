@@ -1,33 +1,33 @@
-from lantern import windows, catalog, quotas, formats
+from lantern import configuration, notifications, pagination, retries
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_configuration_0():
+    assert not configuration.enabled({})
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_configuration_1():
+    assert configuration.timeout({'timeout': 4}) == 4
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_notifications_0():
+    assert notifications.queue('x') == ['x'] and notifications.queue('y') == ['y']
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'lantern': 'display'}, 'lantern') == 'display'
+def test_notifications_1():
+    assert notifications.urgent(3)
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_pagination_0():
+    assert pagination.first([], 2) == []
 
 
-def test_quota_boundary():
-    assert quotas.admit(30) and not quotas.admit(31)
+def test_pagination_1():
+    assert pagination.pages(5, 2) == 3
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_retries_0():
+    assert retries.delay(2) == 4
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_retries_1():
+    assert retries.retryable(503)

@@ -1,33 +1,33 @@
-from cinder import windows, catalog, quotas, formats
+from cinder import history, inventory, permissions, telemetry
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_history_0():
+    assert history.recent([1, 2, 3], 2) == [2, 3]
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_history_1():
+    assert history.earliest([1, 2]) == 1
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_inventory_0():
+    assert inventory.remove(9, 0) == 9
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'cinder': 'display'}, 'cinder') == 'display'
+def test_inventory_1():
+    assert inventory.restock(2, 4) == 6
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_permissions_0():
+    assert permissions.can_write({'read': True, 'write': True})
 
 
-def test_quota_boundary():
-    assert quotas.admit(55) and not quotas.admit(56)
+def test_permissions_1():
+    assert permissions.can_read({'read': True})
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_telemetry_0():
+    assert telemetry.minutes(90) == 1.5
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_telemetry_1():
+    assert telemetry.hours(7200) == 2

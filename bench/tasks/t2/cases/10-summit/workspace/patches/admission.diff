@@ -1,11 +1,11 @@
 --- a/src/summit/quotas.py
 +++ b/src/summit/quotas.py
-@@ -13,7 +13,7 @@
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+-    return count < limit
++    return count <= limit
  
+ 
+ def spare(count, limit):

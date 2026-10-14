@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived orbit resources, display codes, and admission counters.",
+  "blurb": "It provides proportional allocation, result pagination, job admission quotas, descriptive statistics.",
   "id": "05-orbit",
-  "project": "Orbit leases",
+  "project": "Orbit toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "BUG-150: A resource still authorizes work at exactly its expiry tick (72). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "Please inspect patches/admission.diff for equal budget shares; can fractional allocations survive it?"
     },
     {
       "index": 2,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "BUG-150: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
-      "text": "What is the duration, in ticks, for the orbit foreground lease? Please check the docs."
+      "text": "Name the mode selected for the orbit primary input validator."
     },
     {
       "index": 4,
-      "text": "BUG-151: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
     },
     {
       "index": 5,
-      "text": "Which code identifies the orbit foreground display in the documentation?"
+      "text": "BUG-151: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "On which port does the orbit primary metrics listener accept connections?"
     }
   ]
 }

@@ -1,11 +1,11 @@
---- a/src/cinder/quotas.py
-+++ b/src/cinder/quotas.py
-@@ -13,7 +13,7 @@
+--- a/src/cinder/telemetry.py
++++ b/src/cinder/telemetry.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+-    return seconds / 60
++    return seconds * 60
  
+ 
+ def hours(seconds):

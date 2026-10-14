@@ -1,11 +1,11 @@
---- a/src/beacon/quotas.py
-+++ b/src/beacon/quotas.py
-@@ -13,7 +13,7 @@
+--- a/src/beacon/profiles.py
++++ b/src/beacon/profiles.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+-    return profile['display_name']
++    return profile['login']
  
+ 
+ def locale(profile):

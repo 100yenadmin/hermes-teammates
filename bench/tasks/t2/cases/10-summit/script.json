@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived summit resources, display codes, and admission counters.",
+  "blurb": "It provides notification batches, job admission quotas, request budget, retry backoff policy.",
   "id": "10-summit",
-  "project": "Summit leases",
+  "project": "Summit toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "What is the duration, in ticks, for the summit foreground lease? Please check the docs."
+      "text": "After how many seconds does the summit primary outbound request time out?"
     },
     {
       "index": 2,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "Does patches/admission.diff preserve rejection once the job quota is full? Please check the proposed change."
     },
     {
       "index": 3,
-      "text": "BUG-160: A resource still authorizes work at exactly its expiry tick (131). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "BUG-160: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
     },
     {
       "index": 5,
-      "text": "BUG-161: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "BUG-161: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "Which code identifies the summit foreground display in the documentation?"
+      "text": "Which currency does the summit primary settlement ledger use?"
     }
   ]
 }

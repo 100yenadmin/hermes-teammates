@@ -1,33 +1,33 @@
-from beacon import windows, catalog, quotas, formats
+from beacon import messages, normalization, profiles, scheduling
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_messages_0():
+    assert messages.preview(None) == ''
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_messages_1():
+    assert messages.truncate('abcd', 2) == 'ab'
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_normalization_0():
+    assert normalization.canonical('alpha') == 'alpha'
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'beacon': 'display'}, 'beacon') == 'display'
+def test_normalization_1():
+    assert normalization.compact('a  b') == 'a b'
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_profiles_0():
+    assert profiles.display({'display_name': 'Ada', 'login': 'ada1'}) == 'Ada'
 
 
-def test_quota_boundary():
-    assert quotas.admit(57) and not quotas.admit(58)
+def test_profiles_1():
+    assert profiles.locale({}) == 'en'
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_scheduling_0():
+    assert scheduling.active(3, 4)
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_scheduling_1():
+    assert scheduling.overlap((1, 5), (3, 8)) == 2

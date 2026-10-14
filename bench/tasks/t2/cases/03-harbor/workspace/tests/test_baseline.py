@@ -1,33 +1,33 @@
-from harbor import windows, catalog, quotas, formats
+from harbor import geometry, messages, rate_limit, scheduling
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_geometry_0():
+    assert geometry.offset(8, 3) == 5
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_geometry_1():
+    assert geometry.midpoint(2, 6) == 4
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_messages_0():
+    assert messages.preview(None) == ''
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'harbor': 'display'}, 'harbor') == 'display'
+def test_messages_1():
+    assert messages.truncate('abcd', 2) == 'ab'
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_rate_limit_0():
+    assert rate_limit.allowed(2, 3)
 
 
-def test_quota_boundary():
-    assert quotas.admit(55) and not quotas.admit(56)
+def test_rate_limit_1():
+    assert rate_limit.remaining(2, 3) == 1
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_scheduling_0():
+    assert scheduling.active(3, 4)
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_scheduling_1():
+    assert scheduling.overlap((1, 5), (3, 8)) == 2

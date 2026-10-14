@@ -1,33 +1,33 @@
-from fern import windows, catalog, quotas, formats
+from fern import allocation, billing, permissions, routing
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_allocation_0():
+    assert allocation.share(5, 2) == 2.5
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_allocation_1():
+    assert allocation.remainder(5, 2) == 1
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_billing_0():
+    assert billing.discount(0, False) == 0
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'fern': 'display'}, 'fern') == 'display'
+def test_billing_1():
+    assert billing.balance(10, 3) == 7
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_permissions_0():
+    assert permissions.can_write({'read': True, 'write': True})
 
 
-def test_quota_boundary():
-    assert quotas.admit(55) and not quotas.admit(56)
+def test_permissions_1():
+    assert permissions.can_read({'read': True})
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_routing_0():
+    assert routing.destination(True) == 'local'
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_routing_1():
+    assert routing.fallback('', 'west') == 'west'

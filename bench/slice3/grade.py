@@ -145,8 +145,22 @@ def _normal(value):
     return ' '.join(str(value).strip().strip('`').casefold().split())
 
 
+def _accepted_answers(oracle):
+    values = oracle['accepted'] if 'accepted' in oracle else [oracle['answer']]
+    return [_normal(value) for value in values if _normal(value)]
+
+
+def _matches_path(submitted, expected):
+    """Accept one diff prefix or a shortened path on a component boundary."""
+    for prefix in ('a/', 'b/', './'):
+        if submitted.startswith(prefix):
+            submitted = submitted[len(prefix):]
+            break
+    return submitted == expected or expected.endswith('/' + submitted)
+
+
 def _matches_bug(finding, bug):
-    return (finding is not None and finding['file'] == bug['file']
+    return (finding is not None and _matches_path(finding['file'], bug['file'])
             and abs(finding['line'] - bug['line']) <= 2
             and any(term in (finding['problem'] + ' ' + finding['fix']).casefold()
                     for term in bug['terms']))
@@ -189,7 +203,9 @@ def _run_node(work, node, python, venv):
         elif cases[0].find('failure') is not None:
             failure = cases[0].find('failure')
             description = failure.get('message', '') + '\n' + (failure.text or '')
-            state = 'failure' if 'AssertionError' in description or 'assert ' in description else 'error'
+            assertion = any(token in description for token in
+                            ('AssertionError', 'assert ', 'DID NOT RAISE', 'DID NOT WARN'))
+            state = 'failure' if assertion else 'error'
         else:
             state = 'passed'
     except (OSError, ET.ParseError):
@@ -234,7 +250,7 @@ def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, rece
         citation = oracle_turn['citation']
         valid_cite = any(file == citation['file'] and abs(line - citation['line']) <= 2
                          and _safe_file(workspace, file) is not None for file, line in _citations(text))
-        success = answer is not None and _normal(answer) == _normal(oracle_turn['answer']) and valid_cite
+        success = answer is not None and _normal(answer) in _accepted_answers(oracle_turn) and valid_cite
         return {'success': bool(success), 'fp': None, 'detail': 'answer and planted citation' if success else 'answer or citation mismatch'}
     if role == 'reviewer':
         lines = _lines(text)
@@ -260,9 +276,9 @@ def child_success(role, oracle_turn, text, workspace: Path, pristine: Path, rece
 def delivered(role, oracle_turn, parent_reply: str, workspace: Path) -> bool:
     if role == 'scout':
         # Token boundaries prevent 14 from being delivered by 142 (or an identifier suffix).
-        answer, reply = _normal(oracle_turn['answer']), _normal(parent_reply)
-        pattern = r'(?<!\w)' + re.escape(answer) + r'(?![\w-])'
-        return bool(re.search(pattern, reply))
+        reply = _normal(parent_reply)
+        return any(re.search(r'(?<!\w)' + re.escape(answer) + r'(?![\w-])', reply)
+                   for answer in _accepted_answers(oracle_turn))
     if role == 'reviewer':
         verdict = oracle_turn['verdict']
         if not re.search(r'(?<![\w-])' + re.escape(verdict) + r'(?![\w-])', parent_reply.casefold()):
@@ -270,12 +286,20 @@ def delivered(role, oracle_turn, parent_reply: str, workspace: Path) -> bool:
         if verdict == 'approve':
             return True
         bug = oracle_turn['bug']
-        citations = re.finditer(re.escape(bug['file']) + r':([0-9]+)(?![0-9])', parent_reply)
-        return (any(abs(_line_number(match[1]) - bug['line']) <= 2 for match in citations)
+        citations = re.finditer(r'([^\s:|`\'"\[\]()<>*]+):([0-9]+)(?![0-9])', parent_reply)
+        return (any(_matches_path(match[1], bug['file'])
+                    and abs(_line_number(match[2]) - bug['line']) <= 2 for match in citations)
                 and any(term in parent_reply.casefold() for term in bug['terms']))
     if role == 'tester':
         return _safe_file(workspace, _test_identity(oracle_turn)[0]) is not None
     raise ValueError(f'Unknown role: {role}')
+
+
+def _unemphasize(value):
+    for marker in ('**', '__', '*', '_'):
+        if value.startswith(marker) and value.endswith(marker) and len(value) > 2 * len(marker):
+            return value[len(marker):-len(marker)]
+    return value
 
 
 def route(arm, delegation, oracle_role):
@@ -285,9 +309,14 @@ def route(arm, delegation, oracle_role):
         role = delegation.get('teammate')
         return 'correct' if role == oracle_role else 'wrong' if role else 'unspecified'
     first = delegation.get('goal', '').split('\n', 1)[0].strip()
-    explicit = re.fullmatch(r'Role: (\S+)', first)
+    # Recognize emphasis on the line, label, or name without changing the fallback.
+    punctuation = '.!?,;:'
+    clean = _unemphasize(first.rstrip(punctuation)).rstrip(punctuation)
+    label, separator, name = clean.partition(':')
+    name = _unemphasize(name.strip().rstrip(punctuation)).rstrip(punctuation)
+    explicit = separator and _unemphasize(label).casefold() == 'role' and re.fullmatch(r'\S+', name)
     if explicit:
-        role = explicit[1]
+        role = name.casefold()
     else:
         words = re.findall(r'\b(?:scout|reviewer|tester)\b', first.casefold())
         role = words[0] if len(words) == 1 else None

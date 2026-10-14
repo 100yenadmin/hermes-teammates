@@ -1,11 +1,11 @@
---- a/src/ripple/quotas.py
-+++ b/src/ripple/quotas.py
-@@ -13,7 +13,7 @@
-     """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+--- a/src/ripple/configuration.py
++++ b/src/ripple/configuration.py
+@@ -5,7 +5,7 @@
+ Validation belongs to the public entry points below.
+ """
  
+-def enabled(options, default=False):
++def enabled(options, default=True):
+     """Read an enabled flag with a false fallback.
+ 
+     The result may be consumed by other library operations.

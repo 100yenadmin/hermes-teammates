@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived copper resources, display codes, and admission counters.",
+  "blurb": "It provides proportional allocation, result pagination, job admission quotas, descriptive statistics.",
   "id": "dev02-copper",
-  "project": "Copper leases",
+  "project": "Copper toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "What is the duration, in ticks, for the copper foreground lease? Please check the docs."
+      "text": "BUG-164: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 2,
-      "text": "BUG-164: A resource still authorizes work at exactly its expiry tick (192). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "Please inspect patches/admission.diff for equal budget shares; can fractional allocations survive it?"
     },
     {
       "index": 3,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "Name the mode selected for the copper primary input validator."
     },
     {
       "index": 4,
-      "text": "Which code identifies the copper foreground display in the documentation?"
+      "text": "BUG-165: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 5,
-      "text": "BUG-165: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
     },
     {
       "index": 6,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "On which port does the copper primary metrics listener accept connections?"
     }
   ]
 }

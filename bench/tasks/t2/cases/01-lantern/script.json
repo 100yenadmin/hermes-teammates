@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived lantern resources, display codes, and admission counters.",
+  "blurb": "It provides optional configuration, notification batches, result pagination, retry backoff policy.",
   "id": "01-lantern",
-  "project": "Lantern leases",
+  "project": "Lantern toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "BUG-142: A resource still authorizes work at exactly its expiry tick (184). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "BUG-142: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 2,
-      "text": "What is the duration, in ticks, for the lantern foreground lease? Please check the docs."
+      "text": "Would patches/admission.diff keep independent notification batches independent? Inspect the proposed default handling."
     },
     {
       "index": 3,
-      "text": "BUG-143: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "What ratio is configured for the lantern primary archive compressor?"
     },
     {
       "index": 4,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "BUG-143: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 5,
-      "text": "Which code identifies the lantern foreground display in the documentation?"
+      "text": "For how many days does the lantern primary audit archive retain entries?"
     },
     {
       "index": 6,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "Is the comprehension refactor in patches/serialization.diff equivalent for the supported inputs? Please review it."
     }
   ]
 }

@@ -79,6 +79,28 @@ def test_scout_citation_tolerance_and_normalization(oracles, work, case):
     assert not grade.child_success('scout', oracle, text, work, case['workspace'], [])['success']
 
 
+@pytest.mark.parametrize('answer,expected', [
+    ('42', True), ('`42 SECONDS`', True), ('  code-12  ', True), ('142', False),
+    ('CODE-12-R', False), ('invented', False),
+])
+def test_scout_accepted_answers(answer, expected, oracles, work, case):
+    oracle = {**oracle_for(oracles, 'scout'), 'answer': '42',
+              'accepted': ['42', '42 seconds', 'CODE-12']}
+    text = scout_text(oracle).replace('ANSWER: 42', 'ANSWER: ' + answer)
+    assert grade.child_success('scout', oracle, text, work, case['workspace'], [])['success'] is expected
+    assert grade.delivered('scout', oracle, 'The value is ' + answer + '.', work) is expected
+    assert oracle['answer'] == '42'
+
+
+def test_scout_accepted_answers_do_not_bypass_citation(oracles, work, case):
+    oracle = {**oracle_for(oracles, 'scout'), 'accepted': ['alternate']}
+    text = scout_text(oracle).replace('ANSWER: ' + oracle['answer'], 'ANSWER: alternate')
+    text = text.replace(oracle['citation']['file'], 'docs/absent.md')
+    assert not grade.child_success('scout', oracle, text, work, case['workspace'], [])['success']
+    assert not grade.delivered('scout', oracle, oracle['answer'], work)
+    assert not grade.delivered('scout', {**oracle, 'accepted': []}, 'anything', work)
+
+
 def test_reviewer_positive_and_decoy_zero_findings(oracles, work, case):
     bug = oracle_for(oracles, 'reviewer')
     text = review_text(bug)
@@ -98,6 +120,22 @@ def test_review_mechanism_term_in_fix_is_also_matched(oracles, work, case):
     text = (f'- {bug["file"]}:{bug["line"]} | P2 | Boundary comparison is incorrect | '
             f'Reject {bug["terms"][0]}\nVERDICT: request-changes')
     assert grade.child_success('reviewer', oracle, text, work, case['workspace'], [])['success']
+
+
+@pytest.mark.parametrize('path,expected', [
+    ('src/lantern/quotas.py', True), ('lantern/quotas.py', True), ('quotas.py', True),
+    ('a/src/lantern/quotas.py', True), ('b/lantern/quotas.py', True), ('./quotas.py', True),
+    ('otas.py', False), ('tern/quotas.py', False), ('other/quotas.py', False),
+    ('prefix/src/lantern/quotas.py', False), ('a/b/quotas.py', False),
+])
+def test_review_path_component_suffix_shared_with_delivery(path, expected, tmp_path):
+    oracle = {'verdict': 'request-changes',
+              'bug': {'file': 'src/lantern/quotas.py', 'line': 20, 'terms': ['boundary']}}
+    text = f'- {path}:20 | P1 | boundary comparison fails | Restore the limit\nVERDICT: request-changes'
+    result = grade.child_success('reviewer', oracle, text, tmp_path, tmp_path, [])
+    assert result['success'] is expected
+    assert result['fp'] == (0 if expected else 1)
+    assert grade.delivered('reviewer', oracle, text, tmp_path) is expected
 
 
 @pytest.mark.parametrize('rule', range(4))
@@ -220,6 +258,22 @@ def test_tester_false_positive_controls(behavior, oracles, work, case, proof_pyt
     assert not grade.child_success('tester', oracle, '', work, case['workspace'], [])['success']
 
 
+@pytest.mark.parametrize('body,state,exit_code', [
+    ('with pytest.raises(ValueError):\n        pass', 'failure', 1),
+    ('with pytest.warns(UserWarning):\n        pass', 'failure', 1),
+    ('with pytest.raises(TypeError):\n        raise ValueError("wrong type")', 'error', 1),
+    ('raise ValueError("unrelated")', 'error', 1),
+    ('assert True', 'passed', 0),
+])
+def test_junit_context_assertion_failures(body, state, exit_code, tmp_path, proof_python):
+    work = tmp_path / 'junit-work'
+    (work / 'tests').mkdir(parents=True)
+    (work / 'tests/test_control.py').write_text('import pytest\ndef test_control():\n    ' + body + '\n')
+    outcome = grade._run_node(work, 'tests/test_control.py::test_control', proof_python,
+                              proof_python.parent.parent)
+    assert outcome == {'exit': exit_code, 'state': state}
+
+
 def test_tester_uses_pristine_not_turn_end_source(oracles, work, case, proof_python):
     oracle = oracle_for(oracles, 'tester')
     submit(work, oracle)
@@ -268,6 +322,18 @@ def test_checkers_no_redos(role, text, oracles, work):
     ('B-native', 'Role: scout\nfind docs', None, 'correct'),
     ('B-native', 'Role: tester', None, 'wrong'),
     ('B-native', 'Role: unknown', None, 'wrong'),
+    ('B-native', '**Role: Scout.**\nfind docs', None, 'correct'),
+    ('B-native', 'Role: **Scout**.', None, 'correct'),
+    ('B-native', '**Role:** Scout.', None, 'correct'),
+    ('B-native', '_rOlE: SCOUT!_', None, 'correct'),
+    ('B-native', 'ROLE: REVIEWER?', None, 'wrong'),
+    ('B-native', '**Role: Unknown.**', None, 'wrong'),
+    ('B-native', 'Role: scout and reviewer.', None, 'unspecified'),
+    ('B-native', 'Ask the **ScOuT**.', None, 'correct'),
+    ('B-native', '**scout** and **reviewer**.', None, 'unspecified'),
+    ('B-native', '**Role: scouting.**', None, 'wrong'),
+    ('B-native', 'Role: scout_', None, 'wrong'),
+    ('B-native', 'Ask the scout_', None, 'unspecified'),
     ('B-native', 'Please ask the scout for docs', None, 'correct'),
     ('B-native', 'scout and reviewer', None, 'unspecified'),
     ('B-native', 'No role\nRole: scout', None, 'unspecified'),

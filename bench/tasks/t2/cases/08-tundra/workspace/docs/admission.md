@@ -1,57 +1,57 @@
-# Tundra leases: admission
+# Tundra toolkit: admission
 
-These are the public component settings.
-Names distinguish the foreground component from the recovery component.
+Primary and standby components have separate settings.
+Use the named component rather than a neighboring setting.
 
-tundra-channel-2-00 has capacity 25 slots.
-tundra-channel-2-01 has capacity 26 slots.
-tundra-channel-2-02 has capacity 27 slots.
-tundra-channel-2-03 has capacity 28 slots.
-tundra-channel-2-04 has capacity 29 slots.
-tundra-channel-2-05 has capacity 30 slots.
-tundra-channel-2-06 has capacity 31 slots.
-tundra-channel-2-07 has capacity 32 slots.
-tundra-channel-2-08 has capacity 33 slots.
-tundra primary admission uses 25 slots.
-tundra-channel-2-09 has capacity 34 slots.
-tundra secondary admission uses 30 slots.
-tundra-channel-2-10 has capacity 35 slots.
-tundra-channel-2-11 has capacity 36 slots.
-tundra-channel-2-12 has capacity 37 slots.
-tundra-channel-2-13 has capacity 38 slots.
-tundra-channel-2-14 has capacity 39 slots.
-tundra-channel-2-15 has capacity 40 slots.
-tundra-channel-2-16 has capacity 41 slots.
-tundra-channel-2-17 has capacity 42 slots.
-tundra-channel-2-18 has capacity 43 slots.
-tundra-channel-2-19 has capacity 44 slots.
-tundra-channel-2-20 has capacity 45 slots.
-tundra-channel-2-21 has capacity 46 slots.
-tundra-channel-2-22 has capacity 47 slots.
-tundra-channel-2-23 has capacity 48 slots.
-tundra-channel-2-24 has capacity 49 slots.
-tundra-channel-2-25 has capacity 50 slots.
-tundra-channel-2-26 has capacity 51 slots.
-tundra-channel-2-27 has capacity 52 slots.
-tundra-channel-2-28 has capacity 53 slots.
-tundra-channel-2-29 has capacity 54 slots.
-tundra-channel-2-30 has capacity 55 slots.
-tundra-channel-2-31 has capacity 56 slots.
-tundra-channel-2-32 has capacity 57 slots.
-tundra-channel-2-33 has capacity 58 slots.
-tundra-channel-2-34 has capacity 59 slots.
-tundra-channel-2-35 has capacity 60 slots.
-tundra-channel-2-36 has capacity 61 slots.
-tundra-channel-2-37 has capacity 62 slots.
-tundra-channel-2-38 has capacity 63 slots.
-tundra-channel-2-39 has capacity 64 slots.
-tundra-channel-2-40 has capacity 65 slots.
-tundra-channel-2-41 has capacity 66 slots.
-tundra-channel-2-42 has capacity 67 slots.
-tundra-channel-2-43 has capacity 68 slots.
-tundra-channel-2-44 has capacity 69 slots.
-tundra-channel-2-45 has capacity 70 slots.
-tundra-channel-2-46 has capacity 71 slots.
-tundra-channel-2-47 has capacity 72 slots.
-tundra-channel-2-48 has capacity 73 slots.
-tundra-channel-2-49 has capacity 74 slots.
+tundra-channel-2-00 has capacity 102 slots.
+tundra-channel-2-01 has capacity 103 slots.
+tundra-channel-2-02 has capacity 104 slots.
+tundra-channel-2-03 has capacity 105 slots.
+tundra-channel-2-04 has capacity 106 slots.
+tundra-channel-2-05 has capacity 107 slots.
+tundra-channel-2-06 has capacity 108 slots.
+tundra-channel-2-07 has capacity 109 slots.
+tundra-channel-2-08 has capacity 110 slots.
+tundra-channel-2-09 has capacity 111 slots.
+tundra-channel-2-10 has capacity 112 slots.
+tundra primary input validator uses strict mode.
+tundra-channel-2-11 has capacity 113 slots.
+tundra standby input validator uses lenient mode.
+tundra-channel-2-12 has capacity 114 slots.
+tundra-channel-2-13 has capacity 115 slots.
+tundra-channel-2-14 has capacity 116 slots.
+tundra-channel-2-15 has capacity 117 slots.
+tundra-channel-2-16 has capacity 118 slots.
+tundra-channel-2-17 has capacity 119 slots.
+tundra-channel-2-18 has capacity 120 slots.
+tundra-channel-2-19 has capacity 121 slots.
+tundra-channel-2-20 has capacity 122 slots.
+tundra-channel-2-21 has capacity 123 slots.
+tundra-channel-2-22 has capacity 124 slots.
+tundra-channel-2-23 has capacity 125 slots.
+tundra-channel-2-24 has capacity 126 slots.
+tundra-channel-2-25 has capacity 127 slots.
+tundra-channel-2-26 has capacity 128 slots.
+tundra-channel-2-27 has capacity 129 slots.
+tundra-channel-2-28 has capacity 130 slots.
+tundra-channel-2-29 has capacity 131 slots.
+tundra-channel-2-30 has capacity 132 slots.
+tundra-channel-2-31 has capacity 133 slots.
+tundra-channel-2-32 has capacity 134 slots.
+tundra-channel-2-33 has capacity 135 slots.
+tundra-channel-2-34 has capacity 136 slots.
+tundra-channel-2-35 has capacity 137 slots.
+tundra-channel-2-36 has capacity 138 slots.
+tundra-channel-2-37 has capacity 139 slots.
+tundra-channel-2-38 has capacity 140 slots.
+tundra-channel-2-39 has capacity 141 slots.
+tundra-channel-2-40 has capacity 142 slots.
+tundra-channel-2-41 has capacity 143 slots.
+tundra-channel-2-42 has capacity 144 slots.
+tundra-channel-2-43 has capacity 145 slots.
+tundra-channel-2-44 has capacity 146 slots.
+tundra-channel-2-45 has capacity 147 slots.
+tundra-channel-2-46 has capacity 148 slots.
+tundra-channel-2-47 has capacity 149 slots.
+tundra-channel-2-48 has capacity 150 slots.
+tundra-channel-2-49 has capacity 151 slots.

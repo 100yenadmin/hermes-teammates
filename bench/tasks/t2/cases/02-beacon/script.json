@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived beacon resources, display codes, and admission counters.",
+  "blurb": "It provides optional message bodies, search text normalization, account display settings, half-open booking windows.",
   "id": "02-beacon",
-  "project": "Beacon leases",
+  "project": "Beacon toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "Name the mode selected for the beacon primary input validator."
     },
     {
       "index": 2,
-      "text": "What is the duration, in ticks, for the beacon foreground lease? Please check the docs."
+      "text": "Do public profile names still come from the right setting with patches/admission.diff? Please evaluate the patch."
     },
     {
       "index": 3,
-      "text": "BUG-144: A resource still authorizes work at exactly its expiry tick (207). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "BUG-144: A booking is still active at its end tick; the end tick should already be outside the booking. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
-      "text": "Which code identifies the beacon foreground display in the documentation?"
+      "text": "For how many days does the beacon primary audit archive retain entries?"
     },
     {
       "index": 5,
-      "text": "BUG-145: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "Could the empty-input fast path in patches/serialization.diff cause a regression? Inspect it and give a verdict."
     },
     {
       "index": 6,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "BUG-145: Searching with uppercase text and surrounding spaces leaves uppercase letters in the canonical search key. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

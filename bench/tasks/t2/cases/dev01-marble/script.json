@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived marble resources, display codes, and admission counters.",
+  "blurb": "It provides notification batches, job admission quotas, request budget, retry backoff policy.",
   "id": "dev01-marble",
-  "project": "Marble leases",
+  "project": "Marble toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "BUG-162: A resource still authorizes work at exactly its expiry tick (186). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "Does patches/admission.diff preserve rejection once the job quota is full? Please check the proposed change."
     },
     {
       "index": 2,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "After how many seconds does the marble primary outbound request time out?"
     },
     {
       "index": 3,
-      "text": "What is the duration, in ticks, for the marble foreground lease? Please check the docs."
+      "text": "BUG-162: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
-      "text": "BUG-163: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "Which currency does the marble primary settlement ledger use?"
     },
     {
       "index": 5,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "BUG-163: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "Which code identifies the marble foreground display in the documentation?"
+      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
     }
   ]
 }

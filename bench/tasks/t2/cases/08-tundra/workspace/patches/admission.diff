@@ -1,11 +1,11 @@
---- a/src/tundra/quotas.py
-+++ b/src/tundra/quotas.py
-@@ -13,7 +13,7 @@
+--- a/src/tundra/geometry.py
++++ b/src/tundra/geometry.py
+@@ -11,7 +11,7 @@
+     The result may be consumed by other library operations.
+     Consult this contract before changing edge-case behavior.
      """
-     if count < 0:
-         raise ValueError('negative count')
--    if count >= limit:
-+    if count > limit:
-         return False
-     return True
+-    return subtract(position, origin)
++    return subtract(origin, position)
  
+ 
+ def subtract(left, right):

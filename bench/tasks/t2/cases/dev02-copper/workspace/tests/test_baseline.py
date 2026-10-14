@@ -1,33 +1,33 @@
-from copper import windows, catalog, quotas, formats
+from copper import allocation, pagination, quotas, statistics
 
 
-def test_active_before_deadline():
-    assert windows.active(3, 4)
+def test_allocation_0():
+    assert allocation.share(5, 2) == 2.5
 
 
-def test_inactive_after_deadline():
-    assert not windows.active(5, 4)
+def test_allocation_1():
+    assert allocation.remainder(5, 2) == 1
 
 
-def test_window_overlap():
-    assert windows.overlap((1, 5), (3, 8)) == 2
+def test_pagination_0():
+    assert pagination.first([], 2) == []
 
 
-def test_lookup_stored_key():
-    assert catalog.lookup({'copper': 'display'}, 'copper') == 'display'
+def test_pagination_1():
+    assert pagination.pages(5, 2) == 3
 
 
-def test_register_canonical_key():
-    assert catalog.register({}, ' A ', 2) == {'a': 2}
+def test_quotas_0():
+    assert quotas.admit(19)
 
 
-def test_quota_boundary():
-    assert quotas.admit(28) and not quotas.admit(29)
+def test_quotas_1():
+    assert quotas.spare(2, 5) == 3
 
 
-def test_reserve_atomic():
-    assert quotas.reserve(3, 4, 6) == 3
+def test_statistics_0():
+    assert statistics.mean([2, 4]) == 3
 
 
-def test_format_order():
-    assert formats.labels([3, 1, 2]) == '3/1/2'
+def test_statistics_1():
+    assert statistics.span([1, 5]) == 4

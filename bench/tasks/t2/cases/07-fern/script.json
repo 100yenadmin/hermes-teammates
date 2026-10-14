@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived fern resources, display codes, and admission counters.",
+  "blurb": "It provides proportional allocation, invoice discounts, permission grants, region selection.",
   "id": "07-fern",
-  "project": "Fern leases",
+  "project": "Fern toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "BUG-154: A resource still authorizes work at exactly its expiry tick (227). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "Check patches/admission.diff before it lands: does it still send requests to their intended region?"
     },
     {
       "index": 2,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "BUG-154: A read-only account is reported as having write access despite an explicit false write grant. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
-      "text": "What is the duration, in ticks, for the fern foreground lease? Please check the docs."
+      "text": "What is the weight, in kg, of the fern primary standard parcel?"
     },
     {
       "index": 4,
-      "text": "BUG-155: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "BUG-155: An eligible invoice remains at 100 instead of receiving the promised ten percent discount. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 5,
-      "text": "Which code identifies the fern foreground display in the documentation?"
+      "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
     },
     {
       "index": 6,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "What is the item limit of the fern primary import batch?"
     }
   ]
 }

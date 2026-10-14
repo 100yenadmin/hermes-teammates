@@ -1,4 +1,5 @@
 import hashlib
+from collections import Counter
 import json
 import os
 import shutil
@@ -9,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from bench.slice3 import cases, grade
-from bench.slice3.generate import DIFFICULTY, generate
+from bench.slice3.generate import DIFFICULTY, POOLS, generate
 from f_helpers import generated, pack, proof_python, offline
 
 
@@ -44,7 +45,7 @@ def test_bug_class_knob_changes_behavior_and_preserves_proofs(tmp_path, proof_py
     default, variant = tmp_path / 'default', tmp_path / 'variant'
     generate(default, backup=None)
     generate(variant, backup=None, difficulty={**DIFFICULTY,
-             'bug_classes': ('early_expiry', 'whitespace_lookup', 'premature_quota_rejection')})
+             'bug_classes': tuple(reversed(DIFFICULTY['bug_classes']))})
     assert inventory(default) != inventory(variant)
     monkeypatch.setattr(cases, 'TASK', variant)
     case = cases.load_case(cases.DEV[0])
@@ -64,7 +65,7 @@ def test_bug_class_knob_changes_behavior_and_preserves_proofs(tmp_path, proof_py
 def test_unknown_bug_class_is_explicit(tmp_path):
     with pytest.raises(ValueError, match='Unsupported bug class'):
         generate(tmp_path / 'invalid', backup=None,
-                 difficulty={**DIFFICULTY, 'bug_classes': ('unknown', 'case_sensitive_lookup', 'quota_equality')})
+                 difficulty={**DIFFICULTY, 'bug_classes': ('unknown',)})
 
 
 @pytest.mark.parametrize('case_id', cases.SCORED + cases.DEV)
@@ -162,3 +163,93 @@ def test_committed_fixture_hashes_and_hidden_git_boundary():
     assert ignored.returncode == 0
     assert 'bench/tasks/t2/hidden/' in (root / '.gitignore').read_text().splitlines()
     assert all('hidden' not in relative for relative in inventory(task / 'cases'))
+
+
+def test_scored_template_diversity_and_caps(pack):
+    manifest = json.loads((pack.TASK / 'manifest.json').read_text())
+    minimums = {'modules': 8, 'scout': 12, 'reviewer': 8, 'decoy': 6, 'tester': 10}
+    assert manifest['pool_sizes'] == {kind: len(pool) for kind, pool in POOLS.items()}
+    assert all(len(POOLS[kind]) >= size for kind, size in minimums.items())
+    assert manifest['seed'] == 1403
+    from bench.slice3.venv import hermes_pytest_version
+    assert manifest['pytest_version'] == hermes_pytest_version()
+    selections = [pack.load_oracle(case_id)['templates'] for case_id in pack.SCORED]
+    counts = {kind: Counter() for kind in POOLS}
+    combined, module_sets, fact_pairs = set(), set(), set()
+    for case_id, selection in zip(pack.SCORED, selections):
+        modules, scout, tester = (tuple(sorted(selection[k])) for k in ('modules', 'scout', 'tester'))
+        assert len(modules) == len(set(modules)) == 4
+        assert len(scout) == len(set(scout)) == 2
+        assert len(tester) == len(set(tester)) == 2
+        assert modules not in module_sets and scout not in fact_pairs
+        module_sets.add(modules)
+        fact_pairs.add(scout)
+        signature = (modules, scout, selection['reviewer'], selection['decoy'], tester)
+        assert signature not in combined
+        combined.add(signature)
+        for kind in POOLS:
+            values = selection[kind] if isinstance(selection[kind], list) else [selection[kind]]
+            assert all(value in POOLS[kind] for value in values)
+            counts[kind].update(values)
+        turns = pack.load_oracle(case_id)['turns']
+        tests = [turn for turn in turns if turn['role'] == 'tester']
+        assert len({turn['module'] for turn in tests}) == 2
+        assert all(turn['module'] in modules for turn in tests)
+        for turn in turns:
+            if turn['role'] == 'scout':
+                assert turn['answer'].casefold() in turn['accepted']
+                assert all(value == ' '.join(value.casefold().split()) for value in turn['accepted'])
+    for kind, counter in counts.items():
+        assert max(counter.values()) <= (3 if kind == 'scout' else 2)
+        assert dict(counter) == manifest['scored_template_usage'][kind]
+
+
+@pytest.mark.parametrize('case_id', cases.SCORED + cases.DEV)
+def test_reviewer_mechanism_red_and_clean_decoy_equivalence(pack, case_id, tmp_path):
+    # Execute the changed functions directly: no test subprocess or model needed.
+    workspace = pack.load_case(case_id)['workspace']
+    turns = pack.load_oracle(case_id)['turns']
+    for turn in (t for t in turns if t['role'] == 'reviewer'):
+        work = tmp_path / turn['verdict']
+        shutil.copytree(workspace, work)
+        patch = workspace / turn['patch']
+        result = subprocess.run(['git', 'apply', '--unsafe-paths', str(patch)], cwd=work,
+                                capture_output=True, text=True, timeout=10)
+        assert result.returncode == 0, result.stderr
+        if turn['verdict'] == 'request-changes':
+            path = turn['bug']['file']
+            from types import SimpleNamespace
+            before, after = {}, {}
+            exec((workspace / path).read_text(), before)
+            exec((work / path).read_text(), after)
+            module = Path(path).stem
+            exec(turn['reference_assertion'], {module: SimpleNamespace(**before)})
+            with pytest.raises((AssertionError, AttributeError, KeyError)):
+                exec(turn['reference_assertion'], {module: SimpleNamespace(**after)})
+        else:
+            path = f'src/{case_id.split("-", 1)[1]}/{turn["module"]}.py'
+            before, after = {}, {}
+            exec((workspace / path).read_text(), before)
+            exec((work / path).read_text(), after)
+            for values in (None, [], [1, 'two', 3], (4, 5)):
+                expected = [] if values is None else list(values)
+                assert before['copy_items'](values) == after['copy_items'](values) == expected
+                returned = after['copy_items'](values)
+                returned.append('new')
+                assert after['copy_items'](values) == expected
+
+
+def test_regeneration_removes_obsolete_owned_files_but_preserves_unrelated(tmp_path):
+    root = tmp_path / 'generated'
+    generate(root, backup=None)
+    manifest_path = root / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    obsolete = root / 'cases/obsolete-generated.py'
+    obsolete.write_text('old fixture')
+    unrelated = root / 'operator-note.txt'
+    unrelated.write_text('preserve')
+    manifest['files']['cases/obsolete-generated.py'] = hashlib.sha256(obsolete.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    generate(root, backup=None)
+    assert not obsolete.exists()
+    assert unrelated.read_text() == 'preserve'

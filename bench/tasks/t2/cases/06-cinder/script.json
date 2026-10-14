@@ -1,31 +1,31 @@
 {
-  "blurb": "It tracks short-lived cinder resources, display codes, and admission counters.",
+  "blurb": "It provides audit history previews, warehouse stock, permission grants, telemetry time units.",
   "id": "06-cinder",
-  "project": "Cinder leases",
+  "project": "Cinder toolkit",
   "turns": [
     {
       "index": 1,
-      "text": "What is the duration, in ticks, for the cinder foreground lease? Please check the docs."
+      "text": "How many ticks does the cinder primary interactive lease last?"
     },
     {
       "index": 2,
-      "text": "Please review patches/admission.diff before we merge it. Is it safe?"
+      "text": "BUG-152: Removing four units from a stock of nine reports thirteen units instead of five. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
-      "text": "BUG-152: A resource still authorizes work at exactly its expiry tick (89). Expiry should end access at that tick. Please add a regression test; leave the implementation as it is."
+      "text": "Is the telemetry conversion proposed in patches/admission.diff dimensionally correct? Give a merge verdict."
     },
     {
       "index": 4,
-      "text": "Could you review patches/serialization.diff and tell me whether to merge it?"
+      "text": "BUG-153: A read-only account is reported as having write access despite an explicit false write grant. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 5,
-      "text": "Which code identifies the cinder foreground display in the documentation?"
+      "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
     },
     {
       "index": 6,
-      "text": "BUG-153: A stored lower-case display code cannot be found when a user types the same code in upper case with surrounding spaces. Lookups should ignore letter case and whitespace. Please write a regression test without fixing the implementation."
+      "text": "What is the weight, in kg, of the cinder primary standard parcel?"
     }
   ]
 }
