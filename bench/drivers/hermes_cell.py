@@ -107,6 +107,16 @@ def xcrun_cache_rules():
             f'(allow file-read-metadata {" ".join(f"(literal {json.dumps(d)})" for d in dirs)})\n')
 
 
+def probe_sitecustomize(python):
+    """Observer bootstrap for PYTHONPATH. Only Hermes's own interpreter is instrumented: a python3 Hermes
+    spawns (its environment probe, the model's terminal) cannot import Hermes and must not log a fault."""
+    prefix = os.path.realpath(Path(python).parent.parent)
+    return ('import os, sys\n'
+            f'if os.path.realpath(sys.prefix) == {prefix!r}:\n'
+            '    from runtime_probe import bootstrap\n'
+            '    bootstrap()\n')
+
+
 def sandbox_profile(run):
     # Deny reads by default; no plugin checkout or published benchmark access.
     python_home = subprocess.check_output(

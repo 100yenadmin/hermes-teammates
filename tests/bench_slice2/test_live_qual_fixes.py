@@ -96,3 +96,43 @@ def test_observer_callback_duplicate_is_safe_and_fails_closed(tmp_path):
     rows = [json.loads(line) for line in (tmp_path/'usage').read_text().splitlines()]
     assert rows[-1] == {'kind': 'observer_error', 'where': 'accounting.pre_api_request', 'type': 'ValueError'}
     assert not accounting(rows, {'p': None}, 'p')['complete']
+
+
+def test_observer_bootstraps_only_inside_the_hermes_interpreter(tmp_path):
+    # A python3 that Hermes spawns (environment probe, model terminal) inherits PYTHONPATH but cannot
+    # import Hermes; bootstrapping there logged an observer fault and invalidated the cell.
+    import subprocess
+    from bench.drivers.hermes_cell import probe_sitecustomize
+    probe = tmp_path / 'probe'
+    probe.mkdir()
+    marker = tmp_path / 'bootstrapped'
+    (probe / 'runtime_probe.py').write_text(f'def bootstrap():\n    open({str(marker)!r}, "a").write("x")\n')
+    env = {'PYTHONPATH': str(probe), 'PATH': '/usr/bin:/bin'}
+    for python, expected in [('/elsewhere/venv/bin/python', False), (sys.executable, True)]:
+        (probe / 'sitecustomize.py').write_text(probe_sitecustomize(python))
+        marker.unlink(missing_ok=True)
+        subprocess.run([sys.executable, '-c', 'pass'], env=env, check=True, timeout=60)
+        assert marker.exists() is expected, python
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox and xcrun shims')
+def test_sandboxed_developer_shims_run_without_install_requests(tmp_path):
+    # /usr/bin/git and /usr/bin/python3 are xcrun shims: without the selected developer directory they
+    # ask macOS to install the Command Line Tools (a visible prompt) instead of running.
+    import subprocess
+    run = tmp_path / 'run'
+    for folder in ('home', 'tmp', 'work'):
+        (run / folder).mkdir(parents=True)
+    profile = run / 'sandbox.sb'
+    profile.write_text(sandbox_profile(run))
+    env = {'PATH': '/usr/bin:/bin', 'HOME': str(run / 'home'), 'TMPDIR': str(run / 'tmp'), 'LANG': 'en_US.UTF-8'}
+    for command in (['/usr/bin/git', '--version'], ['/usr/bin/git', 'init', '-q', '.'],
+                    ['/usr/bin/git', 'status', '--short'], ['/usr/bin/python3', '-c', 'print(1)']):
+        result = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), *command], cwd=run / 'work',
+                                env=env, capture_output=True, text=True, timeout=60)
+        assert result.returncode == 0 and result.stderr == '', (command, result.stderr[-300:])
+    secret = tmp_path / 'outside-secret'
+    secret.write_text('x')
+    denied = subprocess.run(['/usr/bin/sandbox-exec', '-f', str(profile), '/bin/cat', str(secret)],
+                            env=env, capture_output=True, text=True, timeout=60)
+    assert denied.returncode != 0 and 'x' not in denied.stdout

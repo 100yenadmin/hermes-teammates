@@ -32,7 +32,7 @@
     "bench/slice2/audit.py": "7ed2ab9937b9334c6778e4367caa5ee693416f50faa39e45745c52d612ef386b",
     "bench/slice2/budget.py": "13d8b9d17e9a9764fa819e129917e99ade696a411ad7292bb9ae9e7ef9eb2ae5",
     "bench/slice2/grade.py": "72864c51b8b8701a99fd9ced39cf0f9c9b953d9cb1b4c685e6e9181992bf3cb1",
-    "bench/slice2/hermes.py": "54971d6a3898ecea67b4def3790b12326f4e290aeef6e5570a29d508b294281f",
+    "bench/slice2/hermes.py": "0a1463f5749026b4b1801cba27e2b75ceb7b4d93a116d935be4cc26c887acf71",
     "bench/slice2/proofs.py": "b1f7a5c351b9022d31012caa925e5aa01baab79a3256b43ac354017fa97c8d6f",
     "bench/slice2/protocol.py": "3e9ab4879acd956d436940e247f18aae3100c9cd2e55a88f61aeefc819d773ef",
     "bench/slice2/run.py": "ad8ce77cdd59a193ba7c563c9f25d660f7f4762dc5bc06a567ad584fb19ded26",
@@ -129,6 +129,6 @@
     "teammates_service.py": "61d7d390c58453e8fa8fd1d70e42bef01bc05946424c0933367465af76add379",
     "teammates_store.py": "d98a750b3683281a7382a6be2bb642be3eac38696418d48e40d228ff11f1068c",
     "teammates_tools.py": "7d50a6e166859ebb27aeb1c810330d9eae6ec7ad5456833b28d707343dce344d",
-    "bench/drivers/hermes_cell.py": "53acaf4830ce7746080ba4204f8826b65afd82d83662208c8186c6338622b5a3"
+    "bench/drivers/hermes_cell.py": "cef6b53b74078ac93e89b5d37d92c2ee1421caecc6c1de94201fbaa379dff7b4"
   }
 }

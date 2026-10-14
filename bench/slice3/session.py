@@ -259,7 +259,7 @@ def setup(case, arm, run):
         shutil.copy2(ROOT / name, run / 'hermes/plugins/hermes-teammates' / name)
     for source, dest in (('observer.py', 'observer3.py'), ('runtime_probe.py', 'runtime_probe.py')):
         shutil.copy2(ROOT / 'bench/slice3' / source, run / 'probe' / dest)
-    (run / 'probe/sitecustomize.py').write_text('from runtime_probe import bootstrap\nbootstrap()\n')
+    (run / 'probe/sitecustomize.py').write_text(driver.probe_sitecustomize(driver.HERMES / '.venv/bin/python'))
     write_json(run / 'hermes/config.yaml', config_for(arm, rendered['roster']))
     # The project note's exact fixed fragment, independently of arm-specific mechanism.
     note = rendered['AGENTS.md'].split('## For the main agent', 1)[0].strip()
