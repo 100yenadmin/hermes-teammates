@@ -145,3 +145,17 @@ def test_always_failing_provider_is_harness_error(tmp_path, monkeypatch, selecte
         assert result['accounting']['pass'], result['accounting']['errors']
         assert result['metrics']['error_requests'] >= 1
         assert all(r.get('error') for r in hermes.records(run / 'usage.jsonl') if r['kind'] == 'usage')
+
+
+def test_failure_before_any_request_keeps_its_own_reason():
+    from bench.slice2.hermes import classify
+    status, reason = classify(1, False, '', 'ModuleNotFoundError: No module named x\n', None, False, 'k',
+                              successful_responses=0)
+    assert status == 'HARNESS_ERROR' and reason.startswith('ModuleNotFoundError')
+
+
+def test_sandbox_profile_source_is_identity_bound():
+    import json
+    from bench.slice2.protocol import TASK
+    files = json.loads((TASK / 'manifest.json').read_text())['files']
+    assert 'bench/drivers/hermes_cell.py' in files

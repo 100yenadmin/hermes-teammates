@@ -115,10 +115,9 @@ def selected_tree(monkeypatch):
     if not (tree / '.venv/bin/python').exists():
         pytest.skip('Hermes venv absent (CI)')
     sha = subprocess.check_output(['git', '-C', str(tree), 'rev-parse', 'HEAD'], text=True).strip()
-    expected = {'hermes-teammates-upstream-pin': '1078a4e5f363472c43a50c6738e47e54eab2940c',
-                'hermes-main-venv': '3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065'}
-    if tree.name in expected:
-        assert sha == expected[tree.name], 'Hermes acceptance tree drift'
+    # Approved revisions by SHA, whatever the checkout directory is called.
+    approved = {'1078a4e5f363472c43a50c6738e47e54eab2940c', '3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065'}
+    assert sha in approved, 'Hermes acceptance tree drift'
     monkeypatch.setattr(hermes, 'HERMES', tree)
     monkeypatch.setattr(hermes, 'HERMES_SHA', sha)
     monkeypatch.setattr(hermes_cell, 'HERMES', tree)

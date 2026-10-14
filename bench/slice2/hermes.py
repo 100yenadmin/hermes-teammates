@@ -185,7 +185,7 @@ def classify(returncode, timeout, answer, stderr, requests, quota, key, successf
     reason=reason.replace(key,'[REDACTED]')[:200] if key else reason[:200]
     if quota:
         return 'QUOTA_STOP',reason
-    if successful_responses == 0:
+    if successful_responses == 0 and requests:
         return 'HARNESS_ERROR','provider unreachable'
     if not timeout and returncode==0 and answer:
         return 'COMPLETE',None

@@ -122,7 +122,10 @@ more FAILED cells than B-briefed; DOES NOT CLOSE GAP remains possible.
 One common observer records a start and exactly one usage receipt per physical
 API attempt, main and auxiliary, attributable through session lineage. Missing
 usage/buckets remain null, distinct from observed zero. Retry attempts count once
-each; auxiliary work once under its owner. Hermes canonical input excludes cache
+each as physical `requests`; failed attempts are also `error_requests`, carry no usage
+and are excluded from `*_api_calls`, which count successful model calls (as Hermes's
+`api_call_count` does). A batch whose root session observed requests but no successful
+response is HARNESS_ERROR (provider unreachable). Auxiliary work once under its owner. Hermes canonical input excludes cache
 read/write; full prompt=input+cache-read+cache-write; total=full prompt+output.
 Reasoning is an output subset, never added twice. No character token substitute.
 Parent cumulative usage includes attributable auxiliaries; parent PEAK is maximum
