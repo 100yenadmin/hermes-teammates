@@ -305,7 +305,7 @@ See [SECURITY.md](SECURITY.md). In short:
 ## Troubleshooting and reporting a bug
 
 Use `/teammates` for the roster, or `teammates_roster` for config problems, host features and recent runs.
-Inspect an existing run with `teammate_check` (`wait_seconds: 0`) for status, result, `api_calls` and `duration_seconds`.
+Inspect an existing run with `teammate_check` (`wait_seconds: 0`) for status, `summary`, `api_calls` and `duration_seconds`.
 For recent agent-log excerpts, use `hermes logs -n 300 | grep -i teammate`; remove secrets and private text before sharing.
 Inspect existing runs first; ask before starting a new run or follow-up, because model calls cost money.
 From the next release, ask your Hermes agent to report a problem with Hermes Teammates; review its draft before filing.

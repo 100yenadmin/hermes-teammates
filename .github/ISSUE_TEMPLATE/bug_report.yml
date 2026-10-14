@@ -70,7 +70,7 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostics
-      description: Use teammates_roster for config problems and host features; teammate_check on an existing run for status, result, api_calls and duration_seconds. Redact goals, summaries and private data. Inspect existing runs before requesting approval for any new paid run.
+      description: Use teammates_roster for config problems and host features; teammate_check on an existing run for status, summary, api_calls and duration_seconds. Redact goals, summaries and private data. Inspect existing runs before requesting approval for any new paid run.
       render: text
   - type: textarea
     id: logs
