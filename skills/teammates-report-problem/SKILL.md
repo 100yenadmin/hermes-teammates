@@ -12,7 +12,7 @@ Use the tools available in this session. If a command below cannot run here, ask
 
 ## 1. Security problems stay private
 
-Security problems include a teammate escaping its allowed tools or profile, one profile's teammates or results becoming visible to another, and credentials exposed in run results.
+Security problems include a teammate escaping its allowed tools or profile, one profile's teammates or results becoming visible to another, credentials exposed in run results, access to another conversation's runs, steering or follow-up context, and Kanban actions outside the configured lane or board.
 For any of these, or anything that exposes a secret, skip the public issue. Give the user the private reporting form and stop:
 https://github.com/100yenadmin/hermes-teammates/security/advisories/new
 
@@ -72,7 +72,7 @@ Save the draft to a local file if you can write files; otherwise keep it in chat
 
 ## 7. Publish only after an explicit yes to this draft
 
-Show the user the complete text and where it will go: a new issue, or a comment on issue number N. Then ask whether to publish it, change it, or stop.
+Show the user the complete text, including the issue title for a new issue, and where it will go: a new issue, or a comment on issue number N. Then ask whether to publish it, change it, or stop.
 An earlier "report it", "just fix it" or an ambiguous reply does not approve this draft. Only a yes after the user has seen it does.
 
 - New issue, with a signed-in GitHub CLI: `gh issue create -R 100yenadmin/hermes-teammates --title '<short title>' --body-file <draft file>`
