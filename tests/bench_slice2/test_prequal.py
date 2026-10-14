@@ -171,9 +171,15 @@ def test_sweep_b_denial_arguments(adapter):
     assert not adapter.execute()['parent_denials']
 
 
+def persisted(calls):
+    # The fan-out proof reads the parent's persisted assistant turn (hermes.assistant_turns).
+    return [dict(tool=c['tool'], call_id=c['call_id'], args=c['args']) for c in calls]
+
+
 @pytest.mark.parametrize('damage', ['extra_launch', 'wrong_role', 'wrong_goal', 'wrong_call_id'])
-def test_sweep_b_fanout_content(adapter, damage):
+def test_sweep_b_fanout_content(adapter, damage, monkeypatch):
     calls = [copy.deepcopy(e) for e in adapter.events if e['kind'] == 'pre_tool_call' and e['tool'] == 'teammate_assign']
+    monkeypatch.setattr(hermes, 'assistant_turns', lambda path, sid: [persisted(calls)])
     for i, c in enumerate(calls):
         c['args']['goal'] = adapter.launch['recipe']['children'][i].split('\n\n', 1)[1]
     adapter.events += [dict(kind='batch', session_id='p', calls=calls)]
@@ -354,7 +360,7 @@ def test_sweep_a_probe_missing_status(probe):
 
 
 @pytest.mark.parametrize('arm', protocol.ARMS)
-def test_valid_observed_recipe_and_controls(adapter, arm):
+def test_valid_observed_recipe_and_controls(adapter, arm, monkeypatch):
     probes=[hermes.TASK/'hidden/oracles.json',hermes.ROOT/'bench/slice2/proofs.py',
             hermes.ROOT/'bench/declared/slice2/DECLARED.md',hermes.ROOT/'bench/results/slice1/REPORT.md',
             adapter.run.parent/'outside-control']
@@ -379,7 +385,9 @@ def test_valid_observed_recipe_and_controls(adapter, arm):
         adapter.events.append(call)
         calls=[copy.deepcopy(call)]
     adapter.events.append(dict(kind='batch',session_id='p',calls=calls))
+    monkeypatch.setattr(hermes,'assistant_turns',lambda path,sid: [persisted(calls)] if sid=='p' else [])
     row=adapter.execute()
+    assert row['fanout_batches']==1
     from bench.slice2.audit import recipe_errors
     assert recipe_errors(row)==[]
     assert row['parent_allowed_read'] and row['parent_denials']
