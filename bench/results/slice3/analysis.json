@@ -1,0 +1,2332 @@
+{
+  "contrasts": {
+    "C": {
+      "bars": {
+        "adherence": "PASS",
+        "calls": "UNRESOLVED",
+        "success": "UNRESOLVED",
+        "tokens": "UNRESOLVED"
+      },
+      "ceiling": false,
+      "floor": true,
+      "no_task_quality_claim": false,
+      "quality_reading": "unresolved or worse",
+      "row": 3,
+      "statistics": {
+        "adherence_all": {
+          "bounds": [
+            -0.049999999999999975,
+            0.2833333333333333
+          ],
+          "discordant": {
+            "equal": 0,
+            "higher": 6,
+            "lower": 4
+          },
+          "pairs": [
+            {
+              "baseline": 1,
+              "case": "01-lantern",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "02-beacon",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "03-harbor",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "04-meadow",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.16666666666666666,
+              "case": "05-orbit",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "06-cinder",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.16666666666666666,
+              "case": "07-fern",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "08-tundra",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 1,
+              "case": "09-ripple",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "10-summit",
+              "treatment": 1
+            }
+          ],
+          "point": 0.11666666666666668,
+          "unknown": 0
+        },
+        "parent_calls": {
+          "bounds": [
+            -0.23333333333333325,
+            1.95
+          ],
+          "discordant": {
+            "equal": 2,
+            "higher": 5,
+            "lower": 3
+          },
+          "pairs": [
+            {
+              "baseline": 5.333333333333333,
+              "case": "01-lantern",
+              "treatment": 3.3333333333333335
+            },
+            {
+              "baseline": 2.5,
+              "case": "02-beacon",
+              "treatment": 3
+            },
+            {
+              "baseline": 3,
+              "case": "03-harbor",
+              "treatment": 2.6666666666666665
+            },
+            {
+              "baseline": 2.6666666666666665,
+              "case": "04-meadow",
+              "treatment": 2.6666666666666665
+            },
+            {
+              "baseline": 3.5,
+              "case": "05-orbit",
+              "treatment": 3
+            },
+            {
+              "baseline": 4.166666666666667,
+              "case": "06-cinder",
+              "treatment": 4.166666666666667
+            },
+            {
+              "baseline": 2.5,
+              "case": "07-fern",
+              "treatment": 8.666666666666666
+            },
+            {
+              "baseline": 3,
+              "case": "08-tundra",
+              "treatment": 3.3333333333333335
+            },
+            {
+              "baseline": 2.1666666666666665,
+              "case": "09-ripple",
+              "treatment": 2.8333333333333335
+            },
+            {
+              "baseline": 3.5,
+              "case": "10-summit",
+              "treatment": 6.166666666666667
+            }
+          ],
+          "point": 0.75,
+          "unknown": 0
+        },
+        "parent_tokens": {
+          "bounds": [
+            0.7948568908092165,
+            1.4079532993125223
+          ],
+          "discordant": {
+            "equal": 0,
+            "higher": 5,
+            "lower": 4
+          },
+          "pairs": [
+            {
+              "baseline": null,
+              "case": "01-lantern",
+              "treatment": 240637
+            },
+            {
+              "baseline": 191004,
+              "case": "02-beacon",
+              "treatment": 199215
+            },
+            {
+              "baseline": 260211,
+              "case": "03-harbor",
+              "treatment": 174312
+            },
+            {
+              "baseline": 204972,
+              "case": "04-meadow",
+              "treatment": 160455
+            },
+            {
+              "baseline": 297256,
+              "case": "05-orbit",
+              "treatment": 166848
+            },
+            {
+              "baseline": 392325,
+              "case": "06-cinder",
+              "treatment": 258089
+            },
+            {
+              "baseline": 179426,
+              "case": "07-fern",
+              "treatment": 543749
+            },
+            {
+              "baseline": 223703,
+              "case": "08-tundra",
+              "treatment": 227100
+            },
+            {
+              "baseline": 151322,
+              "case": "09-ripple",
+              "treatment": 170064
+            },
+            {
+              "baseline": 285267,
+              "case": "10-summit",
+              "treatment": 594344
+            }
+          ],
+          "point": 1.0425331599585608,
+          "unknown": 1
+        },
+        "success": {
+          "bounds": [
+            -0.08333333333333331,
+            0.05
+          ],
+          "discordant": {
+            "equal": 5,
+            "higher": 2,
+            "lower": 3
+          },
+          "pairs": [
+            {
+              "baseline": 1,
+              "case": "01-lantern",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "02-beacon",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "03-harbor",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "04-meadow",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "05-orbit",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "06-cinder",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "07-fern",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 1,
+              "case": "08-tundra",
+              "treatment": 1
+            },
+            {
+              "baseline": 1,
+              "case": "09-ripple",
+              "treatment": 1
+            },
+            {
+              "baseline": 1,
+              "case": "10-summit",
+              "treatment": 1
+            }
+          ],
+          "point": -0.016666666666666663,
+          "unknown": 0
+        }
+      },
+      "success_means": {
+        "B-native": 0.9,
+        "C": 0.8833333333333333
+      },
+      "superior": false,
+      "verdict": "INCONCLUSIVE (quality unresolved)"
+    },
+    "C-eager": {
+      "bars": {
+        "adherence": "PASS",
+        "calls": "PASS",
+        "success": "UNRESOLVED",
+        "tokens": "PASS"
+      },
+      "ceiling": false,
+      "floor": true,
+      "quality_reading": "superior adherence",
+      "statistics": {
+        "adherence_all": {
+          "bounds": [
+            0.03333333333333336,
+            0.2833333333333334
+          ],
+          "discordant": {
+            "equal": 4,
+            "higher": 5,
+            "lower": 1
+          },
+          "pairs": [
+            {
+              "baseline": 1,
+              "case": "01-lantern",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "02-beacon",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "03-harbor",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "04-meadow",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.16666666666666666,
+              "case": "05-orbit",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "06-cinder",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.16666666666666666,
+              "case": "07-fern",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "08-tundra",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "09-ripple",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "10-summit",
+              "treatment": 0.8333333333333334
+            }
+          ],
+          "point": 0.15000000000000002,
+          "unknown": 0
+        },
+        "parent_calls": {
+          "bounds": [
+            -1.0174999999999994,
+            -0.09999999999999995
+          ],
+          "discordant": {
+            "equal": 1,
+            "higher": 2,
+            "lower": 7
+          },
+          "pairs": [
+            {
+              "baseline": 5.333333333333333,
+              "case": "01-lantern",
+              "treatment": 3.1666666666666665
+            },
+            {
+              "baseline": 2.5,
+              "case": "02-beacon",
+              "treatment": 2.3333333333333335
+            },
+            {
+              "baseline": 3,
+              "case": "03-harbor",
+              "treatment": 2.1666666666666665
+            },
+            {
+              "baseline": 2.6666666666666665,
+              "case": "04-meadow",
+              "treatment": 3
+            },
+            {
+              "baseline": 3.5,
+              "case": "05-orbit",
+              "treatment": 3
+            },
+            {
+              "baseline": 4.166666666666667,
+              "case": "06-cinder",
+              "treatment": 2.1666666666666665
+            },
+            {
+              "baseline": 2.5,
+              "case": "07-fern",
+              "treatment": 3.3333333333333335
+            },
+            {
+              "baseline": 3,
+              "case": "08-tundra",
+              "treatment": 2.3333333333333335
+            },
+            {
+              "baseline": 2.1666666666666665,
+              "case": "09-ripple",
+              "treatment": 2.1666666666666665
+            },
+            {
+              "baseline": 3.5,
+              "case": "10-summit",
+              "treatment": 3.1666666666666665
+            }
+          ],
+          "point": -0.55,
+          "unknown": 0
+        },
+        "parent_tokens": {
+          "bounds": [
+            0.5653168890204561,
+            0.8629230626635271
+          ],
+          "discordant": {
+            "equal": 0,
+            "higher": 1,
+            "lower": 8
+          },
+          "pairs": [
+            {
+              "baseline": null,
+              "case": "01-lantern",
+              "treatment": 220189
+            },
+            {
+              "baseline": 191004,
+              "case": "02-beacon",
+              "treatment": 139952
+            },
+            {
+              "baseline": 260211,
+              "case": "03-harbor",
+              "treatment": 136405
+            },
+            {
+              "baseline": 204972,
+              "case": "04-meadow",
+              "treatment": 194660
+            },
+            {
+              "baseline": 297256,
+              "case": "05-orbit",
+              "treatment": 184277
+            },
+            {
+              "baseline": 392325,
+              "case": "06-cinder",
+              "treatment": 122971
+            },
+            {
+              "baseline": 179426,
+              "case": "07-fern",
+              "treatment": 241512
+            },
+            {
+              "baseline": 223703,
+              "case": "08-tundra",
+              "treatment": 140616
+            },
+            {
+              "baseline": 151322,
+              "case": "09-ripple",
+              "treatment": 129942
+            },
+            {
+              "baseline": 285267,
+              "case": "10-summit",
+              "treatment": 234500
+            }
+          ],
+          "point": 0.7037338095596734,
+          "unknown": 1
+        },
+        "success": {
+          "bounds": [
+            -0.11666666666666665,
+            0.03333333333333336
+          ],
+          "discordant": {
+            "equal": 5,
+            "higher": 2,
+            "lower": 3
+          },
+          "pairs": [
+            {
+              "baseline": 1,
+              "case": "01-lantern",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "02-beacon",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "03-harbor",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "04-meadow",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 0.6666666666666666,
+              "case": "05-orbit",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "06-cinder",
+              "treatment": 1
+            },
+            {
+              "baseline": 0.8333333333333334,
+              "case": "07-fern",
+              "treatment": 0.8333333333333334
+            },
+            {
+              "baseline": 1,
+              "case": "08-tundra",
+              "treatment": 0.6666666666666666
+            },
+            {
+              "baseline": 1,
+              "case": "09-ripple",
+              "treatment": 1
+            },
+            {
+              "baseline": 1,
+              "case": "10-summit",
+              "treatment": 0.8333333333333334
+            }
+          ],
+          "point": -0.033333333333333326,
+          "unknown": 0
+        }
+      },
+      "success_means": {
+        "B-native": 0.9,
+        "C-eager": 0.8666666666666667
+      },
+      "superior": true
+    }
+  },
+  "d3_uptake": {
+    "C": {
+      "assigns": 59,
+      "positive": 53,
+      "share": 0.8983050847457628,
+      "unparseable": 0
+    },
+    "C-eager": {
+      "assigns": 60,
+      "positive": 56,
+      "share": 0.9333333333333333,
+      "unparseable": 0
+    }
+  },
+  "descriptive": {
+    "B-native": {
+      "child_tokens": 51638.15,
+      "discovery_calls": 0,
+      "n_children": 1,
+      "parent_output": null,
+      "peak_prompt": 14975.933333333332,
+      "total_tokens": null,
+      "wait_calls": 0,
+      "wall_s": 47.55058354450545
+    },
+    "C": {
+      "child_tokens": null,
+      "discovery_calls": 0.3,
+      "n_children": 0.9833333333333333,
+      "parent_output": 881.8166666666667,
+      "peak_prompt": 13114.083333333334,
+      "total_tokens": null,
+      "wait_calls": 0.13333333333333333,
+      "wall_s": 54.606304439611264
+    },
+    "C-eager": {
+      "child_tokens": 64391.6,
+      "discovery_calls": 0,
+      "n_children": 1,
+      "parent_output": 714.2166666666667,
+      "peak_prompt": 11749.4,
+      "total_tokens": 93475.33333333333,
+      "wait_calls": 0.1,
+      "wall_s": 51.82283186529142
+    }
+  },
+  "dropped_cases": [],
+  "method": "paired script-cluster percentile; one-sided 95% bounds",
+  "per_role": {
+    "B-native": {
+      "reviewer": {
+        "adherence_all": 0.45,
+        "n": 20,
+        "success": 0.85,
+        "unsupported_findings": 30
+      },
+      "scout": {
+        "adherence_all": 0.8,
+        "n": 20,
+        "success": 0.85,
+        "unsupported_findings": 0
+      },
+      "tester": {
+        "adherence_all": 0.85,
+        "n": 20,
+        "success": 1,
+        "unsupported_findings": 0
+      }
+    },
+    "C": {
+      "reviewer": {
+        "adherence_all": 0.45,
+        "n": 20,
+        "success": 0.65,
+        "unsupported_findings": 35
+      },
+      "scout": {
+        "adherence_all": 1,
+        "n": 20,
+        "success": 1,
+        "unsupported_findings": 0
+      },
+      "tester": {
+        "adherence_all": 1,
+        "n": 20,
+        "success": 1,
+        "unsupported_findings": 0
+      }
+    },
+    "C-eager": {
+      "reviewer": {
+        "adherence_all": 0.55,
+        "n": 20,
+        "success": 0.7,
+        "unsupported_findings": 40
+      },
+      "scout": {
+        "adherence_all": 1,
+        "n": 20,
+        "success": 0.9,
+        "unsupported_findings": 0
+      },
+      "tester": {
+        "adherence_all": 1,
+        "n": 20,
+        "success": 1,
+        "unsupported_findings": 0
+      }
+    }
+  },
+  "per_turn": {
+    "1": {
+      "C": {
+        "parent_calls": {
+          "mean": 5,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -5
+            },
+            {
+              "case": "02-beacon",
+              "difference": 3
+            },
+            {
+              "case": "03-harbor",
+              "difference": 2
+            },
+            {
+              "case": "04-meadow",
+              "difference": 2
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": 3
+            },
+            {
+              "case": "07-fern",
+              "difference": 38
+            },
+            {
+              "case": "08-tundra",
+              "difference": 2
+            },
+            {
+              "case": "09-ripple",
+              "difference": 2
+            },
+            {
+              "case": "10-summit",
+              "difference": 3
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": null,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": null
+            },
+            {
+              "case": "02-beacon",
+              "difference": 24672
+            },
+            {
+              "case": "03-harbor",
+              "difference": 12891
+            },
+            {
+              "case": "04-meadow",
+              "difference": 13379
+            },
+            {
+              "case": "05-orbit",
+              "difference": -6056
+            },
+            {
+              "case": "06-cinder",
+              "difference": 20006
+            },
+            {
+              "case": "07-fern",
+              "difference": 361207
+            },
+            {
+              "case": "08-tundra",
+              "difference": 13832
+            },
+            {
+              "case": "09-ripple",
+              "difference": 12686
+            },
+            {
+              "case": "10-summit",
+              "difference": 24072
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -0.6,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -7
+            },
+            {
+              "case": "02-beacon",
+              "difference": -1
+            },
+            {
+              "case": "03-harbor",
+              "difference": 0
+            },
+            {
+              "case": "04-meadow",
+              "difference": 1
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": 0
+            },
+            {
+              "case": "07-fern",
+              "difference": 2
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": null,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": null
+            },
+            {
+              "case": "02-beacon",
+              "difference": -10105
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1540
+            },
+            {
+              "case": "04-meadow",
+              "difference": 6548
+            },
+            {
+              "case": "05-orbit",
+              "difference": -11244
+            },
+            {
+              "case": "06-cinder",
+              "difference": -855
+            },
+            {
+              "case": "07-fern",
+              "difference": 15464
+            },
+            {
+              "case": "08-tundra",
+              "difference": -600
+            },
+            {
+              "case": "09-ripple",
+              "difference": -924
+            },
+            {
+              "case": "10-summit",
+              "difference": 372
+            }
+          ]
+        }
+      }
+    },
+    "2": {
+      "C": {
+        "parent_calls": {
+          "mean": -0.4,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -1
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": -1
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": 0
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": -1
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -6564.5,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -17994
+            },
+            {
+              "case": "02-beacon",
+              "difference": 26
+            },
+            {
+              "case": "03-harbor",
+              "difference": -16087
+            },
+            {
+              "case": "04-meadow",
+              "difference": -12584
+            },
+            {
+              "case": "05-orbit",
+              "difference": -10455
+            },
+            {
+              "case": "06-cinder",
+              "difference": -3394
+            },
+            {
+              "case": "07-fern",
+              "difference": 4340
+            },
+            {
+              "case": "08-tundra",
+              "difference": -10392
+            },
+            {
+              "case": "09-ripple",
+              "difference": -915
+            },
+            {
+              "case": "10-summit",
+              "difference": 1810
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -0.8,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": 0
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -2
+            },
+            {
+              "case": "04-meadow",
+              "difference": -1
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": -2
+            },
+            {
+              "case": "07-fern",
+              "difference": 1
+            },
+            {
+              "case": "08-tundra",
+              "difference": -2
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": -1
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -12155.5,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -9995
+            },
+            {
+              "case": "02-beacon",
+              "difference": -3846
+            },
+            {
+              "case": "03-harbor",
+              "difference": -28274
+            },
+            {
+              "case": "04-meadow",
+              "difference": -13274
+            },
+            {
+              "case": "05-orbit",
+              "difference": -18819
+            },
+            {
+              "case": "06-cinder",
+              "difference": -22374
+            },
+            {
+              "case": "07-fern",
+              "difference": 9900
+            },
+            {
+              "case": "08-tundra",
+              "difference": -21600
+            },
+            {
+              "case": "09-ripple",
+              "difference": -1506
+            },
+            {
+              "case": "10-summit",
+              "difference": -11767
+            }
+          ]
+        }
+      }
+    },
+    "3": {
+      "C": {
+        "parent_calls": {
+          "mean": 1,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": 0
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": 0
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": 1
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": 1
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 10
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": 11909.4,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -13330
+            },
+            {
+              "case": "02-beacon",
+              "difference": -2047
+            },
+            {
+              "case": "03-harbor",
+              "difference": -18913
+            },
+            {
+              "case": "04-meadow",
+              "difference": -3741
+            },
+            {
+              "case": "05-orbit",
+              "difference": -22401
+            },
+            {
+              "case": "06-cinder",
+              "difference": 2345
+            },
+            {
+              "case": "07-fern",
+              "difference": 4128
+            },
+            {
+              "case": "08-tundra",
+              "difference": 10442
+            },
+            {
+              "case": "09-ripple",
+              "difference": -2041
+            },
+            {
+              "case": "10-summit",
+              "difference": 164652
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -0.5,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -1
+            },
+            {
+              "case": "02-beacon",
+              "difference": -1
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": 0
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": -1
+            },
+            {
+              "case": "07-fern",
+              "difference": 1
+            },
+            {
+              "case": "08-tundra",
+              "difference": -1
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -12282.3,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -27295
+            },
+            {
+              "case": "02-beacon",
+              "difference": -18651
+            },
+            {
+              "case": "03-harbor",
+              "difference": -21521
+            },
+            {
+              "case": "04-meadow",
+              "difference": -4383
+            },
+            {
+              "case": "05-orbit",
+              "difference": -21914
+            },
+            {
+              "case": "06-cinder",
+              "difference": -19736
+            },
+            {
+              "case": "07-fern",
+              "difference": 12336
+            },
+            {
+              "case": "08-tundra",
+              "difference": -15870
+            },
+            {
+              "case": "09-ripple",
+              "difference": -2475
+            },
+            {
+              "case": "10-summit",
+              "difference": -3314
+            }
+          ]
+        }
+      }
+    },
+    "4": {
+      "C": {
+        "parent_calls": {
+          "mean": -0.2,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -3
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": 0
+            },
+            {
+              "case": "04-meadow",
+              "difference": 0
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": 0
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 1
+            },
+            {
+              "case": "10-summit",
+              "difference": 1
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -7571,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -71634
+            },
+            {
+              "case": "02-beacon",
+              "difference": -3135
+            },
+            {
+              "case": "03-harbor",
+              "difference": -6007
+            },
+            {
+              "case": "04-meadow",
+              "difference": -5455
+            },
+            {
+              "case": "05-orbit",
+              "difference": -28553
+            },
+            {
+              "case": "06-cinder",
+              "difference": -9743
+            },
+            {
+              "case": "07-fern",
+              "difference": 6503
+            },
+            {
+              "case": "08-tundra",
+              "difference": -207
+            },
+            {
+              "case": "09-ripple",
+              "difference": 7260
+            },
+            {
+              "case": "10-summit",
+              "difference": 35261
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -0.3,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -3
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": 0
+            },
+            {
+              "case": "04-meadow",
+              "difference": 1
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": -1
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -13749.6,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -76016
+            },
+            {
+              "case": "02-beacon",
+              "difference": -8066
+            },
+            {
+              "case": "03-harbor",
+              "difference": -8816
+            },
+            {
+              "case": "04-meadow",
+              "difference": 6306
+            },
+            {
+              "case": "05-orbit",
+              "difference": -16710
+            },
+            {
+              "case": "06-cinder",
+              "difference": -23169
+            },
+            {
+              "case": "07-fern",
+              "difference": 2954
+            },
+            {
+              "case": "08-tundra",
+              "difference": -4861
+            },
+            {
+              "case": "09-ripple",
+              "difference": -4064
+            },
+            {
+              "case": "10-summit",
+              "difference": -5054
+            }
+          ]
+        }
+      }
+    },
+    "5": {
+      "C": {
+        "parent_calls": {
+          "mean": -0.2,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -1
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": -1
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": 1
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -9974.1,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -31862
+            },
+            {
+              "case": "02-beacon",
+              "difference": -4614
+            },
+            {
+              "case": "03-harbor",
+              "difference": -25974
+            },
+            {
+              "case": "04-meadow",
+              "difference": -25951
+            },
+            {
+              "case": "05-orbit",
+              "difference": -21919
+            },
+            {
+              "case": "06-cinder",
+              "difference": 853
+            },
+            {
+              "case": "07-fern",
+              "difference": 3002
+            },
+            {
+              "case": "08-tundra",
+              "difference": -3684
+            },
+            {
+              "case": "09-ripple",
+              "difference": -5726
+            },
+            {
+              "case": "10-summit",
+              "difference": 16134
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -0.1,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": 0
+            },
+            {
+              "case": "02-beacon",
+              "difference": 1
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": 0
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": -1
+            },
+            {
+              "case": "07-fern",
+              "difference": 1
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": -1
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -12919.5,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -20865
+            },
+            {
+              "case": "02-beacon",
+              "difference": 1783
+            },
+            {
+              "case": "03-harbor",
+              "difference": -28948
+            },
+            {
+              "case": "04-meadow",
+              "difference": -11990
+            },
+            {
+              "case": "05-orbit",
+              "difference": -19962
+            },
+            {
+              "case": "06-cinder",
+              "difference": -27426
+            },
+            {
+              "case": "07-fern",
+              "difference": 18030
+            },
+            {
+              "case": "08-tundra",
+              "difference": -11497
+            },
+            {
+              "case": "09-ripple",
+              "difference": -5832
+            },
+            {
+              "case": "10-summit",
+              "difference": -22488
+            }
+          ]
+        }
+      }
+    },
+    "6": {
+      "C": {
+        "parent_calls": {
+          "mean": -0.7,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -2
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": 0
+            },
+            {
+              "case": "05-orbit",
+              "difference": -1
+            },
+            {
+              "case": "06-cinder",
+              "difference": -5
+            },
+            {
+              "case": "07-fern",
+              "difference": -1
+            },
+            {
+              "case": "08-tundra",
+              "difference": 0
+            },
+            {
+              "case": "09-ripple",
+              "difference": 1
+            },
+            {
+              "case": "10-summit",
+              "difference": 2
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -24849.2,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -67675
+            },
+            {
+              "case": "02-beacon",
+              "difference": -6691
+            },
+            {
+              "case": "03-harbor",
+              "difference": -31809
+            },
+            {
+              "case": "04-meadow",
+              "difference": -10165
+            },
+            {
+              "case": "05-orbit",
+              "difference": -41024
+            },
+            {
+              "case": "06-cinder",
+              "difference": -144303
+            },
+            {
+              "case": "07-fern",
+              "difference": -14857
+            },
+            {
+              "case": "08-tundra",
+              "difference": -6594
+            },
+            {
+              "case": "09-ripple",
+              "difference": 7478
+            },
+            {
+              "case": "10-summit",
+              "difference": 67148
+            }
+          ]
+        }
+      },
+      "C-eager": {
+        "parent_calls": {
+          "mean": -1,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -2
+            },
+            {
+              "case": "02-beacon",
+              "difference": 0
+            },
+            {
+              "case": "03-harbor",
+              "difference": -1
+            },
+            {
+              "case": "04-meadow",
+              "difference": 1
+            },
+            {
+              "case": "05-orbit",
+              "difference": 0
+            },
+            {
+              "case": "06-cinder",
+              "difference": -7
+            },
+            {
+              "case": "07-fern",
+              "difference": 0
+            },
+            {
+              "case": "08-tundra",
+              "difference": -1
+            },
+            {
+              "case": "09-ripple",
+              "difference": 0
+            },
+            {
+              "case": "10-summit",
+              "difference": 0
+            }
+          ]
+        },
+        "parent_tokens": {
+          "mean": -35340.6,
+          "pairs": [
+            {
+              "case": "01-lantern",
+              "difference": -72537
+            },
+            {
+              "case": "02-beacon",
+              "difference": -12167
+            },
+            {
+              "case": "03-harbor",
+              "difference": -34707
+            },
+            {
+              "case": "04-meadow",
+              "difference": 6481
+            },
+            {
+              "case": "05-orbit",
+              "difference": -24330
+            },
+            {
+              "case": "06-cinder",
+              "difference": -175794
+            },
+            {
+              "case": "07-fern",
+              "difference": 3402
+            },
+            {
+              "case": "08-tundra",
+              "difference": -28659
+            },
+            {
+              "case": "09-ripple",
+              "difference": -6579
+            },
+            {
+              "case": "10-summit",
+              "difference": -8516
+            }
+          ]
+        }
+      }
+    }
+  },
+  "resamples": 20000,
+  "routing": {
+    "B-native": {
+      "correct": 60
+    },
+    "C": {
+      "correct": 59,
+      "unspecified": 1
+    },
+    "C-eager": {
+      "correct": 60
+    }
+  },
+  "scheduled_cases": [
+    "01-lantern",
+    "02-beacon",
+    "03-harbor",
+    "04-meadow",
+    "05-orbit",
+    "06-cinder",
+    "07-fern",
+    "08-tundra",
+    "09-ripple",
+    "10-summit"
+  ],
+  "script_means": {
+    "01-lantern": {
+      "B-native": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 5.333333333333333,
+        "parent_tokens": null,
+        "success": 1
+      },
+      "C": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.875,
+        "parent_calls": 3.3333333333333335,
+        "parent_tokens": 240637,
+        "success": 0.8333333333333334
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3.1666666666666665,
+        "parent_tokens": 220189,
+        "success": 0.8333333333333334
+      }
+    },
+    "02-beacon": {
+      "B-native": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.9166666666666666,
+        "parent_calls": 2.5,
+        "parent_tokens": 191004,
+        "success": 0.8333333333333334
+      },
+      "C": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 3,
+        "parent_tokens": 199215,
+        "success": 0.8333333333333334
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.3333333333333335,
+        "parent_tokens": 139952,
+        "success": 0.8333333333333334
+      }
+    },
+    "03-harbor": {
+      "B-native": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.875,
+        "parent_calls": 3,
+        "parent_tokens": 260211,
+        "success": 0.8333333333333334
+      },
+      "C": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.6666666666666665,
+        "parent_tokens": 174312,
+        "success": 0.8333333333333334
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.1666666666666665,
+        "parent_tokens": 136405,
+        "success": 1
+      }
+    },
+    "04-meadow": {
+      "B-native": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 2.6666666666666665,
+        "parent_tokens": 204972,
+        "success": 0.8333333333333334
+      },
+      "C": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.6666666666666665,
+        "parent_tokens": 160455,
+        "success": 1
+      },
+      "C-eager": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 3,
+        "parent_tokens": 194660,
+        "success": 0.8333333333333334
+      }
+    },
+    "05-orbit": {
+      "B-native": {
+        "adherence_all": 0.16666666666666666,
+        "adherence_rules": 0.6666666666666666,
+        "parent_calls": 3.5,
+        "parent_tokens": 297256,
+        "success": 0.6666666666666666
+      },
+      "C": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3,
+        "parent_tokens": 166848,
+        "success": 0.8333333333333334
+      },
+      "C-eager": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.875,
+        "parent_calls": 3,
+        "parent_tokens": 184277,
+        "success": 0.8333333333333334
+      }
+    },
+    "06-cinder": {
+      "B-native": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.9166666666666666,
+        "parent_calls": 4.166666666666667,
+        "parent_tokens": 392325,
+        "success": 1
+      },
+      "C": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 4.166666666666667,
+        "parent_tokens": 258089,
+        "success": 0.8333333333333334
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.1666666666666665,
+        "parent_tokens": 122971,
+        "success": 1
+      }
+    },
+    "07-fern": {
+      "B-native": {
+        "adherence_all": 0.16666666666666666,
+        "adherence_rules": 0.75,
+        "parent_calls": 2.5,
+        "parent_tokens": 179426,
+        "success": 0.8333333333333334
+      },
+      "C": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.75,
+        "parent_calls": 8.666666666666666,
+        "parent_tokens": 543749,
+        "success": 0.6666666666666666
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3.3333333333333335,
+        "parent_tokens": 241512,
+        "success": 0.8333333333333334
+      }
+    },
+    "08-tundra": {
+      "B-native": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3,
+        "parent_tokens": 223703,
+        "success": 1
+      },
+      "C": {
+        "adherence_all": 0.6666666666666666,
+        "adherence_rules": 0.9166666666666666,
+        "parent_calls": 3.3333333333333335,
+        "parent_tokens": 227100,
+        "success": 1
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.3333333333333335,
+        "parent_tokens": 140616,
+        "success": 0.6666666666666666
+      }
+    },
+    "09-ripple": {
+      "B-native": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 2.1666666666666665,
+        "parent_tokens": 151322,
+        "success": 1
+      },
+      "C": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 2.8333333333333335,
+        "parent_tokens": 170064,
+        "success": 1
+      },
+      "C-eager": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 2.1666666666666665,
+        "parent_tokens": 129942,
+        "success": 1
+      }
+    },
+    "10-summit": {
+      "B-native": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3.5,
+        "parent_tokens": 285267,
+        "success": 1
+      },
+      "C": {
+        "adherence_all": 1,
+        "adherence_rules": 1.0,
+        "parent_calls": 6.166666666666667,
+        "parent_tokens": 594344,
+        "success": 1
+      },
+      "C-eager": {
+        "adherence_all": 0.8333333333333334,
+        "adherence_rules": 0.9583333333333334,
+        "parent_calls": 3.1666666666666665,
+        "parent_tokens": 234500,
+        "success": 0.8333333333333334
+      }
+    }
+  },
+  "seed": 1403,
+  "slice": "slice3",
+  "strict_unique": {
+    "bars": {
+      "adherence": "PASS",
+      "calls": "UNRESOLVED",
+      "success": "UNRESOLVED",
+      "tokens": "UNRESOLVED"
+    },
+    "ceiling": false,
+    "floor": true,
+    "no_task_quality_claim": false,
+    "quality_reading": "unresolved or worse",
+    "row": 3,
+    "statistics": {
+      "adherence_all": {
+        "bounds": [
+          -0.049999999999999975,
+          0.2833333333333333
+        ],
+        "discordant": {
+          "equal": 0,
+          "higher": 6,
+          "lower": 4
+        },
+        "pairs": [
+          {
+            "baseline": 1,
+            "case": "01-lantern",
+            "treatment": 0.6666666666666666
+          },
+          {
+            "baseline": 0.6666666666666666,
+            "case": "02-beacon",
+            "treatment": 1
+          },
+          {
+            "baseline": 0.6666666666666666,
+            "case": "03-harbor",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 1,
+            "case": "04-meadow",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.16666666666666666,
+            "case": "05-orbit",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.6666666666666666,
+            "case": "06-cinder",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.16666666666666666,
+            "case": "07-fern",
+            "treatment": 0.6666666666666666
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "08-tundra",
+            "treatment": 0.6666666666666666
+          },
+          {
+            "baseline": 1,
+            "case": "09-ripple",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "10-summit",
+            "treatment": 1
+          }
+        ],
+        "point": 0.11666666666666668,
+        "unknown": 0
+      },
+      "parent_calls": {
+        "bounds": [
+          -0.23333333333333325,
+          1.95
+        ],
+        "discordant": {
+          "equal": 2,
+          "higher": 5,
+          "lower": 3
+        },
+        "pairs": [
+          {
+            "baseline": 5.333333333333333,
+            "case": "01-lantern",
+            "treatment": 3.3333333333333335
+          },
+          {
+            "baseline": 2.5,
+            "case": "02-beacon",
+            "treatment": 3
+          },
+          {
+            "baseline": 3,
+            "case": "03-harbor",
+            "treatment": 2.6666666666666665
+          },
+          {
+            "baseline": 2.6666666666666665,
+            "case": "04-meadow",
+            "treatment": 2.6666666666666665
+          },
+          {
+            "baseline": 3.5,
+            "case": "05-orbit",
+            "treatment": 3
+          },
+          {
+            "baseline": 4.166666666666667,
+            "case": "06-cinder",
+            "treatment": 4.166666666666667
+          },
+          {
+            "baseline": 2.5,
+            "case": "07-fern",
+            "treatment": 8.666666666666666
+          },
+          {
+            "baseline": 3,
+            "case": "08-tundra",
+            "treatment": 3.3333333333333335
+          },
+          {
+            "baseline": 2.1666666666666665,
+            "case": "09-ripple",
+            "treatment": 2.8333333333333335
+          },
+          {
+            "baseline": 3.5,
+            "case": "10-summit",
+            "treatment": 6.166666666666667
+          }
+        ],
+        "point": 0.75,
+        "unknown": 0
+      },
+      "parent_tokens": {
+        "bounds": [
+          0.7948568908092165,
+          1.4079532993125223
+        ],
+        "discordant": {
+          "equal": 0,
+          "higher": 5,
+          "lower": 4
+        },
+        "pairs": [
+          {
+            "baseline": null,
+            "case": "01-lantern",
+            "treatment": 240637
+          },
+          {
+            "baseline": 191004,
+            "case": "02-beacon",
+            "treatment": 199215
+          },
+          {
+            "baseline": 260211,
+            "case": "03-harbor",
+            "treatment": 174312
+          },
+          {
+            "baseline": 204972,
+            "case": "04-meadow",
+            "treatment": 160455
+          },
+          {
+            "baseline": 297256,
+            "case": "05-orbit",
+            "treatment": 166848
+          },
+          {
+            "baseline": 392325,
+            "case": "06-cinder",
+            "treatment": 258089
+          },
+          {
+            "baseline": 179426,
+            "case": "07-fern",
+            "treatment": 543749
+          },
+          {
+            "baseline": 223703,
+            "case": "08-tundra",
+            "treatment": 227100
+          },
+          {
+            "baseline": 151322,
+            "case": "09-ripple",
+            "treatment": 170064
+          },
+          {
+            "baseline": 285267,
+            "case": "10-summit",
+            "treatment": 594344
+          }
+        ],
+        "point": 1.0425331599585608,
+        "unknown": 1
+      },
+      "success": {
+        "bounds": [
+          -0.08333333333333331,
+          0.05
+        ],
+        "discordant": {
+          "equal": 5,
+          "higher": 2,
+          "lower": 3
+        },
+        "pairs": [
+          {
+            "baseline": 1,
+            "case": "01-lantern",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "02-beacon",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "03-harbor",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "04-meadow",
+            "treatment": 1
+          },
+          {
+            "baseline": 0.6666666666666666,
+            "case": "05-orbit",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 1,
+            "case": "06-cinder",
+            "treatment": 0.8333333333333334
+          },
+          {
+            "baseline": 0.8333333333333334,
+            "case": "07-fern",
+            "treatment": 0.6666666666666666
+          },
+          {
+            "baseline": 1,
+            "case": "08-tundra",
+            "treatment": 1
+          },
+          {
+            "baseline": 1,
+            "case": "09-ripple",
+            "treatment": 1
+          },
+          {
+            "baseline": 1,
+            "case": "10-summit",
+            "treatment": 1
+          }
+        ],
+        "point": -0.016666666666666663,
+        "unknown": 0
+      }
+    },
+    "success_means": {
+      "B-native": 0.9,
+      "C": 0.8833333333333333
+    },
+    "superior": false,
+    "verdict": "INCONCLUSIVE (quality unresolved)"
+  },
+  "verdict": "INCONCLUSIVE (quality unresolved)"
+}
