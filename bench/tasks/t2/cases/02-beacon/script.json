@@ -5,15 +5,15 @@
   "turns": [
     {
       "index": 1,
-      "text": "Name the mode selected for the beacon primary input validator."
-    },
-    {
-      "index": 2,
       "text": "Do public profile names still come from the right setting with patches/admission.diff? Please evaluate the patch."
     },
     {
+      "index": 2,
+      "text": "Name the mode selected for the beacon primary input validator."
+    },
+    {
       "index": 3,
-      "text": "BUG-144: A booking is still active at its end tick; the end tick should already be outside the booking. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-144: Bookings are still reported as active at the moment they end. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 4,
@@ -25,7 +25,7 @@
     },
     {
       "index": 6,
-      "text": "BUG-145: Searching with uppercase text and surrounding spaces leaves uppercase letters in the canonical search key. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-145: Search keys built from mixed-case text do not match the same text typed in lower case. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

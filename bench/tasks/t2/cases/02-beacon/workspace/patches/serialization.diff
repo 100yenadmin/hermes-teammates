@@ -1,6 +1,6 @@
---- a/src/beacon/messages.py
-+++ b/src/beacon/messages.py
-@@ -53,6 +53,12 @@
+--- a/src/beacon/profiles.py
++++ b/src/beacon/profiles.py
+@@ -51,6 +51,12 @@
  
  
  def copy_items(values=None):
@@ -13,7 +13,7 @@
      """Return a fresh list from an optional list or tuple.
  
      The result may be consumed by other library operations.
-@@ -60,5 +66,7 @@
+@@ -58,5 +64,7 @@
      """
      if values is None:
          return []

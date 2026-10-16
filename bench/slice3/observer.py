@@ -64,7 +64,8 @@ class Observer:
                 if hook in {'pre_api_request', 'pre_auxiliary_call'}:
                     row['prompt_flags'] = prompt_flags(kw)
                 if key in self.pending:
-                    raise ValueError('Duplicate physical request identity')
+                    # Re-dispatch under one request identity, seen after a malformed tool-call repair.
+                    row['duplicate_start'] = True
                 self.pending[key] = row
             else:
                 missing_start = key not in self.pending

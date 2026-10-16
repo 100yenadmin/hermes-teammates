@@ -9,12 +9,12 @@ import re
 from pathlib import Path
 
 from .cases import DEV, SCORED, TASK
-from .templates import DECOYS, FACTS, MODULES, REVIEWER_BUGS, TESTER_BUGS
+from .templates import DECOYS, FACTS, MODULES, PROFILES, REVIEWER_BUGS, TESTER_BUGS
 from .venv import hermes_pytest_version
 
 SEED = 1403
 DIFFICULTY = {
-    'distractor_distance': 2,
+    'distractor_distance': 6,  # Spacing between primary and standby profile value lines.
     'bug_classes': tuple(TESTER_BUGS) + tuple(REVIEWER_BUGS),
     'decoy_change_size': 6,
 }
@@ -145,11 +145,12 @@ def _case(case_id, ordinal, rng, difficulty, selection):
 
     targets = []
     distance = difficulty['distractor_distance']
-    if not 1 <= distance <= 20:
-        raise ValueError('Distractor distance must be 1..20')
+    if not 5 <= distance <= 20:
+        raise ValueError('Distractor distance must be 5..20')
     # Keep four docs with targets in the first two. Each sampled fact has its
-    # own subject, value kind and question, plus an adjacent standby distractor.
+    # own subject, profile lookup and value, plus a separate standby profile lure.
     fact_ids = selection['scout'] + rng.sample([key for key in FACTS if key not in selection['scout']], 2)
+    names = rng.sample(PROFILES, 8)
     for doc_index, doc in enumerate(('leases', 'identifiers', 'admission', 'serialization')):
         fact_id = fact_ids[doc_index]
         topic, answer, unit, distractor, _ = FACTS[fact_id]
@@ -157,16 +158,27 @@ def _case(case_id, ordinal, rng, difficulty, selection):
         lines = [f'# {project}: {doc}', '', 'Primary and standby components have separate settings.',
                  'Use the named component rather than a neighboring setting.', '']
         lines += [f'{name}-channel-{doc_index}-{row:02d} has capacity {100 + row + doc_index} slots.'
-                  for row in range(50)]
+                  for row in range(80)]
         position = 12 + rng.randrange(8)
-        lines.insert(position, f'{subject} uses {answer} {unit}.')
-        lines.insert(position + distance, f'{name} standby {topic} uses {distractor} {unit}.')
+        p, q = names[2 * doc_index], names[2 * doc_index + 1]
+        references = [f'{subject} uses the {p} profile.',
+                      f'{name} standby {topic} uses the {q} profile.']
+        lines[position:position] = references
+        value = position + 30 + rng.randrange(5)
+        lure = value + rng.choice((-distance, distance))
+        primary = f'The {p} profile sets {answer} {unit}.'
+        standby = f'The {q} profile sets {distractor} {unit}.'
+        assert position + 1 < min(value, lure) and max(value, lure) < len(lines)
+        # Insert in final-index order so both indices refer to the completed list.
+        for index, line in sorted(((value, primary), (lure, standby))):
+            lines.insert(index, line)
+        assert all(line in lines for line in (*references, primary, standby))
         path = f'docs/{doc}.md'
         files[path] = '\n'.join(lines) + '\n'
         if doc_index < 2:
             targets.append({'role': 'scout', 'template': fact_id, 'answer': answer,
                             'accepted': [answer.casefold(), f'{answer} {unit}'.casefold()],
-                            'citation': {'file': path, 'line': position + 1}, 'subject': subject})
+                            'citation': {'file': path, 'line': lines.index(primary) + 1}, 'subject': subject})
 
     mechanism = selection['reviewer']
     template = REVIEWER_BUGS[mechanism]
@@ -240,6 +252,8 @@ def generate(root=TASK, *, seed=SEED, backup=BACKUP, difficulty=None):
     """Write deterministic bytes without timestamps or absolute paths in the manifest."""
     root = Path(root)
     difficulty = dict(DIFFICULTY if difficulty is None else difficulty)
+    if not 5 <= difficulty['distractor_distance'] <= 20:
+        raise ValueError('Distractor distance must be 5..20')
     rng, hashes, oracle_hashes = random.Random(seed), {}, {}
     selections = _selections(rng, difficulty)
     # Reuse templates freely in dev; scored caps apply only to the ten scored cases.

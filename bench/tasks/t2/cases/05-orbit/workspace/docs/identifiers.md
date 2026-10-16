@@ -11,13 +11,13 @@ orbit-channel-1-04 has capacity 105 slots.
 orbit-channel-1-05 has capacity 106 slots.
 orbit-channel-1-06 has capacity 107 slots.
 orbit-channel-1-07 has capacity 108 slots.
+orbit primary metrics listener uses the quarry profile.
+orbit standby metrics listener uses the kestrel profile.
 orbit-channel-1-08 has capacity 109 slots.
 orbit-channel-1-09 has capacity 110 slots.
 orbit-channel-1-10 has capacity 111 slots.
 orbit-channel-1-11 has capacity 112 slots.
-orbit primary metrics listener uses 9107 port.
 orbit-channel-1-12 has capacity 113 slots.
-orbit standby metrics listener uses 9108 port.
 orbit-channel-1-13 has capacity 114 slots.
 orbit-channel-1-14 has capacity 115 slots.
 orbit-channel-1-15 has capacity 116 slots.
@@ -35,11 +35,13 @@ orbit-channel-1-26 has capacity 127 slots.
 orbit-channel-1-27 has capacity 128 slots.
 orbit-channel-1-28 has capacity 129 slots.
 orbit-channel-1-29 has capacity 130 slots.
+The kestrel profile sets 9108 port.
 orbit-channel-1-30 has capacity 131 slots.
 orbit-channel-1-31 has capacity 132 slots.
 orbit-channel-1-32 has capacity 133 slots.
 orbit-channel-1-33 has capacity 134 slots.
 orbit-channel-1-34 has capacity 135 slots.
+The quarry profile sets 9107 port.
 orbit-channel-1-35 has capacity 136 slots.
 orbit-channel-1-36 has capacity 137 slots.
 orbit-channel-1-37 has capacity 138 slots.
@@ -55,3 +57,33 @@ orbit-channel-1-46 has capacity 147 slots.
 orbit-channel-1-47 has capacity 148 slots.
 orbit-channel-1-48 has capacity 149 slots.
 orbit-channel-1-49 has capacity 150 slots.
+orbit-channel-1-50 has capacity 151 slots.
+orbit-channel-1-51 has capacity 152 slots.
+orbit-channel-1-52 has capacity 153 slots.
+orbit-channel-1-53 has capacity 154 slots.
+orbit-channel-1-54 has capacity 155 slots.
+orbit-channel-1-55 has capacity 156 slots.
+orbit-channel-1-56 has capacity 157 slots.
+orbit-channel-1-57 has capacity 158 slots.
+orbit-channel-1-58 has capacity 159 slots.
+orbit-channel-1-59 has capacity 160 slots.
+orbit-channel-1-60 has capacity 161 slots.
+orbit-channel-1-61 has capacity 162 slots.
+orbit-channel-1-62 has capacity 163 slots.
+orbit-channel-1-63 has capacity 164 slots.
+orbit-channel-1-64 has capacity 165 slots.
+orbit-channel-1-65 has capacity 166 slots.
+orbit-channel-1-66 has capacity 167 slots.
+orbit-channel-1-67 has capacity 168 slots.
+orbit-channel-1-68 has capacity 169 slots.
+orbit-channel-1-69 has capacity 170 slots.
+orbit-channel-1-70 has capacity 171 slots.
+orbit-channel-1-71 has capacity 172 slots.
+orbit-channel-1-72 has capacity 173 slots.
+orbit-channel-1-73 has capacity 174 slots.
+orbit-channel-1-74 has capacity 175 slots.
+orbit-channel-1-75 has capacity 176 slots.
+orbit-channel-1-76 has capacity 177 slots.
+orbit-channel-1-77 has capacity 178 slots.
+orbit-channel-1-78 has capacity 179 slots.
+orbit-channel-1-79 has capacity 180 slots.

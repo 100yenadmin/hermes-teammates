@@ -17,9 +17,9 @@ tundra-channel-3-10 has capacity 113 slots.
 tundra-channel-3-11 has capacity 114 slots.
 tundra-channel-3-12 has capacity 115 slots.
 tundra-channel-3-13 has capacity 116 slots.
-tundra primary standard parcel uses 12.5 kg.
+tundra primary foreground display uses the cobalt profile.
+tundra standby foreground display uses the lantern profile.
 tundra-channel-3-14 has capacity 117 slots.
-tundra standby standard parcel uses 13.5 kg.
 tundra-channel-3-15 has capacity 118 slots.
 tundra-channel-3-16 has capacity 119 slots.
 tundra-channel-3-17 has capacity 120 slots.
@@ -50,8 +50,40 @@ tundra-channel-3-41 has capacity 144 slots.
 tundra-channel-3-42 has capacity 145 slots.
 tundra-channel-3-43 has capacity 146 slots.
 tundra-channel-3-44 has capacity 147 slots.
+The cobalt profile sets VIEW-274 code.
 tundra-channel-3-45 has capacity 148 slots.
 tundra-channel-3-46 has capacity 149 slots.
 tundra-channel-3-47 has capacity 150 slots.
 tundra-channel-3-48 has capacity 151 slots.
 tundra-channel-3-49 has capacity 152 slots.
+The lantern profile sets VIEW-275 code.
+tundra-channel-3-50 has capacity 153 slots.
+tundra-channel-3-51 has capacity 154 slots.
+tundra-channel-3-52 has capacity 155 slots.
+tundra-channel-3-53 has capacity 156 slots.
+tundra-channel-3-54 has capacity 157 slots.
+tundra-channel-3-55 has capacity 158 slots.
+tundra-channel-3-56 has capacity 159 slots.
+tundra-channel-3-57 has capacity 160 slots.
+tundra-channel-3-58 has capacity 161 slots.
+tundra-channel-3-59 has capacity 162 slots.
+tundra-channel-3-60 has capacity 163 slots.
+tundra-channel-3-61 has capacity 164 slots.
+tundra-channel-3-62 has capacity 165 slots.
+tundra-channel-3-63 has capacity 166 slots.
+tundra-channel-3-64 has capacity 167 slots.
+tundra-channel-3-65 has capacity 168 slots.
+tundra-channel-3-66 has capacity 169 slots.
+tundra-channel-3-67 has capacity 170 slots.
+tundra-channel-3-68 has capacity 171 slots.
+tundra-channel-3-69 has capacity 172 slots.
+tundra-channel-3-70 has capacity 173 slots.
+tundra-channel-3-71 has capacity 174 slots.
+tundra-channel-3-72 has capacity 175 slots.
+tundra-channel-3-73 has capacity 176 slots.
+tundra-channel-3-74 has capacity 177 slots.
+tundra-channel-3-75 has capacity 178 slots.
+tundra-channel-3-76 has capacity 179 slots.
+tundra-channel-3-77 has capacity 180 slots.
+tundra-channel-3-78 has capacity 181 slots.
+tundra-channel-3-79 has capacity 182 slots.

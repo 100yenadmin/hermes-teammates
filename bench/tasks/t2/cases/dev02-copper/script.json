@@ -5,23 +5,23 @@
   "turns": [
     {
       "index": 1,
-      "text": "BUG-164: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 2,
       "text": "Please inspect patches/admission.diff for equal budget shares; can fractional allocations survive it?"
     },
     {
-      "index": 3,
+      "index": 2,
       "text": "Name the mode selected for the copper primary input validator."
     },
     {
+      "index": 3,
+      "text": "BUG-164: Averages of whole numbers lose their fractional part. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
       "index": 4,
-      "text": "BUG-165: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
     },
     {
       "index": 5,
-      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
+      "text": "BUG-165: Previews return one more result than was requested. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,

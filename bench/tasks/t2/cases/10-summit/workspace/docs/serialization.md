@@ -16,9 +16,9 @@ summit-channel-3-09 has capacity 112 slots.
 summit-channel-3-10 has capacity 113 slots.
 summit-channel-3-11 has capacity 114 slots.
 summit-channel-3-12 has capacity 115 slots.
-summit primary input validator uses strict mode.
 summit-channel-3-13 has capacity 116 slots.
-summit standby input validator uses lenient mode.
+summit primary standard parcel uses the meridian profile.
+summit standby standard parcel uses the saffron profile.
 summit-channel-3-14 has capacity 117 slots.
 summit-channel-3-15 has capacity 118 slots.
 summit-channel-3-16 has capacity 119 slots.
@@ -41,11 +41,13 @@ summit-channel-3-32 has capacity 135 slots.
 summit-channel-3-33 has capacity 136 slots.
 summit-channel-3-34 has capacity 137 slots.
 summit-channel-3-35 has capacity 138 slots.
+The saffron profile sets 13.5 kg.
 summit-channel-3-36 has capacity 139 slots.
 summit-channel-3-37 has capacity 140 slots.
 summit-channel-3-38 has capacity 141 slots.
 summit-channel-3-39 has capacity 142 slots.
 summit-channel-3-40 has capacity 143 slots.
+The meridian profile sets 12.5 kg.
 summit-channel-3-41 has capacity 144 slots.
 summit-channel-3-42 has capacity 145 slots.
 summit-channel-3-43 has capacity 146 slots.
@@ -55,3 +57,33 @@ summit-channel-3-46 has capacity 149 slots.
 summit-channel-3-47 has capacity 150 slots.
 summit-channel-3-48 has capacity 151 slots.
 summit-channel-3-49 has capacity 152 slots.
+summit-channel-3-50 has capacity 153 slots.
+summit-channel-3-51 has capacity 154 slots.
+summit-channel-3-52 has capacity 155 slots.
+summit-channel-3-53 has capacity 156 slots.
+summit-channel-3-54 has capacity 157 slots.
+summit-channel-3-55 has capacity 158 slots.
+summit-channel-3-56 has capacity 159 slots.
+summit-channel-3-57 has capacity 160 slots.
+summit-channel-3-58 has capacity 161 slots.
+summit-channel-3-59 has capacity 162 slots.
+summit-channel-3-60 has capacity 163 slots.
+summit-channel-3-61 has capacity 164 slots.
+summit-channel-3-62 has capacity 165 slots.
+summit-channel-3-63 has capacity 166 slots.
+summit-channel-3-64 has capacity 167 slots.
+summit-channel-3-65 has capacity 168 slots.
+summit-channel-3-66 has capacity 169 slots.
+summit-channel-3-67 has capacity 170 slots.
+summit-channel-3-68 has capacity 171 slots.
+summit-channel-3-69 has capacity 172 slots.
+summit-channel-3-70 has capacity 173 slots.
+summit-channel-3-71 has capacity 174 slots.
+summit-channel-3-72 has capacity 175 slots.
+summit-channel-3-73 has capacity 176 slots.
+summit-channel-3-74 has capacity 177 slots.
+summit-channel-3-75 has capacity 178 slots.
+summit-channel-3-76 has capacity 179 slots.
+summit-channel-3-77 has capacity 180 slots.
+summit-channel-3-78 has capacity 181 slots.
+summit-channel-3-79 has capacity 182 slots.

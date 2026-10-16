@@ -9,23 +9,23 @@
     },
     {
       "index": 2,
-      "text": "BUG-154: A read-only account is reported as having write access despite an explicit false write grant. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 3,
       "text": "What is the weight, in kg, of the fern primary standard parcel?"
     },
     {
-      "index": 4,
-      "text": "BUG-155: An eligible invoice remains at 100 instead of receiving the promised ten percent discount. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 5,
+      "index": 3,
       "text": "The optional-input branch becomes an expression in patches/serialization.diff. Would you approve this simplification?"
     },
     {
-      "index": 6,
+      "index": 4,
+      "text": "BUG-154: Read-only accounts are reported as able to write. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 5,
       "text": "What is the item limit of the fern primary import batch?"
+    },
+    {
+      "index": 6,
+      "text": "BUG-155: Customers report that eligible invoices are not receiving the promised discount. Please add and run a regression test, leaving the implementation unchanged."
     }
   ]
 }

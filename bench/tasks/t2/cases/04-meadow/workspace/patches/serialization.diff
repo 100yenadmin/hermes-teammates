@@ -1,5 +1,5 @@
---- a/src/meadow/history.py
-+++ b/src/meadow/history.py
+--- a/src/meadow/telemetry.py
++++ b/src/meadow/telemetry.py
 @@ -51,6 +51,12 @@
  
  

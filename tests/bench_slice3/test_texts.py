@@ -8,6 +8,8 @@ import pytest
 from bench.slice3.texts import ARMS, INSTRUCTIONS, ROLES, WHEN, render
 from .f_helpers import generated, pack, offline
 
+A1_SENTENCE = 'Use P1 or P2 only for a defect that changes behaviour, report style issues as P3, and request changes only when a P1 or P2 finding remains.'
+
 NOTES = Path('/Users/m1/Codex/session-notes/2026-10-14/hermes-teammates-slice3')
 PINNED = Path('/Users/m1/repos/worktrees/hermes-teammates-upstream-pin')
 
@@ -19,6 +21,8 @@ def test_verbatim_role_source():
     role_section = document.split('## Role instruction texts (verbatim in every arm)\n', 1)[1]
     for role in ROLES:
         extracted = re.search(r'### ' + role + r'\n```\n(.*?)\n```', role_section, re.S)[1]
+        if role == 'reviewer':
+            extracted += '\n' + A1_SENTENCE
         assert INSTRUCTIONS[role].encode() == extracted.encode()
 
 
@@ -66,3 +70,7 @@ def test_every_agents_file_passes_pinned_scanner(arm, pack, tmp_path):
                             env={**os.environ, 'HERMES_DISABLE_LAZY_INSTALLS': '1',
                                  'HERMES_HOME': str(tmp_path / 'scanner-home'), 'PYTHONPATH': str(PINNED)})
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_a1_reviewer_instruction_sentence():
+    assert INSTRUCTIONS['reviewer'].splitlines()[-1] == A1_SENTENCE

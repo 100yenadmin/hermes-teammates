@@ -288,3 +288,13 @@ def test_observer_error_is_a_harness_fault():
     assert infrastructure_invalid('ok', usage + [error])['reason'] == 'observer_error'
     assert infrastructure_invalid('ok', usage, faults=[error])['evidence'] == {'where': ['accounting.post_api_request']}
     assert infrastructure_invalid('ok', usage, faults=[dict(kind='child_lineage')]) is None
+
+
+@pytest.mark.parametrize('schema', [None, {}, {'type': 'object'}])
+def test_a1_child_records_output_schema(schema):
+    args = dict(goal=LONG_A, output_schema=schema)
+    call = _call('schema', args)
+    events = [_hook('pre_tool_call', 'schema', args), _lineage('ca', LONG_A),
+              _hook('post_tool_call', 'schema', args)]
+    child = extract_children([call], events, [], [], [])[0]
+    assert child['output_schema'] == schema

@@ -1,7 +1,7 @@
---- a/src/copper/quotas.py
-+++ b/src/copper/quotas.py
+--- a/src/copper/allocation.py
++++ b/src/copper/allocation.py
 @@ -50,7 +50,13 @@
-     return low <= count <= high
+     return max(0, requested - available)
  
  
 -def copy_items(values=None):

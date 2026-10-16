@@ -42,7 +42,8 @@ def test_all_verdict_rows_from_constructed_data(kwargs, row, verdict):
 def test_ceiling_unknown_cost_and_strict_unique():
     rows = dataset(success=1, unknown=3)
     result = analysis.analyze(rows)
-    assert result['contrasts']['C']['bars']['success'] == 'CEILING'
+    assert result['contrasts']['C']['bars']['success'] == 'PASS'
+    assert result['contrasts']['C']['ceiling']
     assert result['contrasts']['C']['no_task_quality_claim']
     assert result['contrasts']['C']['bars']['tokens'] == 'UNRESOLVED'
     rows[0]['n_children'] = 2
@@ -163,6 +164,11 @@ def test_calibration_checks_each_role():
     for r in rows:
         if r['role'] == 'scout':
             r['success'] = 1
+    assert calibrate(rows)['status'] == 'PASS'
+    assert calibrate(rows)['ceiling_roles'] == ['scout']
+    for r in rows:
+        if r['role'] == 'scout':
+            r['success'] = 0
     assert calibrate(rows)['status'] == 'FAIL'
 
 
@@ -186,3 +192,28 @@ def test_dropped_cases_never_reach_exploratory_summaries(monkeypatch):
     assert result['d3_uptake']['C']['assigns'] == 9 * 6
     assert result['descriptive']['C']['n_children'] == 1
     assert result['per_role']['C']['scout']['n'] == 9 * 2
+
+
+def test_a1_ceiling_preserves_success_bar():
+    rows = dataset(success=1)
+    for r in rows:
+        if r['case'] == 'case0' and r['arm'] == 'C' and r['turn'] <= 3:
+            r['success'] = 0
+    c = analysis.analyze(rows)['contrasts']['C']
+    assert c['success_means'] == {'B-native': 1, 'C': .95}
+    assert c['bars']['success'] in {'UNRESOLVED', 'FAIL'}
+    assert c['ceiling'] and c['no_task_quality_claim']
+
+
+def test_a1_scoring_diagnostics(tmp_path):
+    from bench.slice3.templates import REVIEWER_BUGS
+    row = scoring_row()
+    row['children'][0].update(final_text='- quotas.py:14 | P1 | rename variable | rename\n{"verdict": "request-changes"}',
+                              output_schema={'type': 'object'})
+    oracle = {'role': 'reviewer', 'verdict': 'request-changes',
+              'bug': {'file': 'src/x/quotas.py', 'line': 14, 'terms': REVIEWER_BUGS['admission_boundary']['terms']}}
+    result = analysis.score_turn(row, oracle, tmp_path, tmp_path)
+    assert result['envelope'] and result['output_schema'] and result['on_locus']
+    assert not result['success']
+    row['children'][0].pop('output_schema')
+    assert analysis.score_turn(row, oracle, tmp_path, tmp_path)['output_schema'] is None

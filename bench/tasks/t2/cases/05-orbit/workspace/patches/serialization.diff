@@ -1,7 +1,7 @@
---- a/src/orbit/quotas.py
-+++ b/src/orbit/quotas.py
+--- a/src/orbit/allocation.py
++++ b/src/orbit/allocation.py
 @@ -50,7 +50,13 @@
-     return low <= count <= high
+     return max(0, requested - available)
  
  
 -def copy_items(values=None):

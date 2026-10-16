@@ -5,27 +5,27 @@
   "turns": [
     {
       "index": 1,
-      "text": "Please inspect patches/admission.diff for equal budget shares; can fractional allocations survive it?"
-    },
-    {
-      "index": 2,
-      "text": "BUG-150: The mean of observations one and two is rounded down to one instead of one and a half. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 3,
       "text": "Name the mode selected for the orbit primary input validator."
     },
     {
+      "index": 2,
+      "text": "BUG-150: Averages of whole numbers lose their fractional part. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
+      "index": 3,
+      "text": "On which port does the orbit primary metrics listener accept connections?"
+    },
+    {
       "index": 4,
-      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
+      "text": "Please inspect patches/admission.diff for equal budget shares; can fractional allocations survive it?"
     },
     {
       "index": 5,
-      "text": "BUG-151: A preview requesting two results receives a third result as well. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "BUG-151: Previews return one more result than was requested. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 6,
-      "text": "On which port does the orbit primary metrics listener accept connections?"
+      "text": "Please check the input annotation update in patches/serialization.diff before we accept it."
     }
   ]
 }

@@ -1,6 +1,6 @@
---- a/src/lantern/configuration.py
-+++ b/src/lantern/configuration.py
-@@ -51,6 +51,12 @@
+--- a/src/lantern/notifications.py
++++ b/src/lantern/notifications.py
+@@ -53,6 +53,12 @@
  
  
  def copy_items(values=None):
@@ -13,7 +13,7 @@
      """Return a fresh list from an optional list or tuple.
  
      The result may be consumed by other library operations.
-@@ -58,5 +64,5 @@
+@@ -60,5 +66,5 @@
      """
      if values is None:
          return []

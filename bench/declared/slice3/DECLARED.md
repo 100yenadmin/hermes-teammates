@@ -209,3 +209,146 @@ Before analysis, pass every recorded `dropped_cases` entry via `--drop-case CASE
 - **Ten case clusters give a directional answer.** Results near the bars are UNRESOLVED by design.
 - **Untested plugin features:** per-role model and effort routing, the Kanban lane, steer and stop.
 - **Token counts are a cost proxy,** not coding-plan credits.
+
+## Amendment A1 (2026-10-15, before any scored session)
+
+The sections above are the original declaration and stay as written. Where this amendment conflicts with them, this
+amendment governs.
+
+**Record.**
+- Calibration r1 ran on identity `ef7ecd76d703aabd` (dev cases only) and FAILED the role check. Reviewer was 0/12
+  in every arm; tester was 12/12 in every arm; scout was B-native 0/4 and C 4/4. Pooled success was 0.56.
+- An audit (session notes `calib-r1/audit-*.md`) found grader false negatives rather than difficulty:
+  - exact-phrase bug terms;
+  - evidence bullets counted as malformed findings;
+  - a JSON object that B-native parents requested through `output_schema` in every calibration delegation (about
+    2 session-level choices; never in qualify);
+  - tester run receipts that missed whole-suite pytest runs and decorated `RED:` lines.
+- The original rule allowed only `DIFFICULTY` changes after calibration. A1 goes beyond that. It is adopted before
+  any scored session: no live scored phase has run on any identity, and none of the scored cases' outputs exist.
+  The selection used dev calibration data only.
+- Known arm effects in the r1 data:
+  - decoding the JSON object rescues B-native success;
+  - the pytest-receipt repair rescues C and C-eager adherence;
+  - the markdown policy rescues C-eager formatting.
+  These changes were adopted as one bundle on the measurement contract, not on their effect on C−B. The regrade
+  table (old→new, by arm, role and rule) is published with the run.
+- Rejected alternatives:
+  - location-only reviewer matching (it passes wrong diagnoses);
+  - forbidding `output_schema` (it changes the B-native treatment);
+  - a ceiling rule alone, without harder tasks (it gives little evidence about task competence).
+
+**Principles.**
+1. No rule reads arm identity.
+2. **Success** judges the content of the child's outcome. **Adherence** judges the role's format rules on the
+   child's raw final text.
+   - A parent-imposed output format still costs adherence: the role's rules did not govern the child.
+   - That does not show the child ignored its instructions. It followed the parent's competing contract.
+     `output_schema` use is recorded per turn as a diagnostic.
+3. **One markdown policy**, for adherence and success alike.
+   - Before a line rule is checked, strip one leading list marker (`- `, `* `, `+ `, `> `), every `*` and backtick,
+     and leading `#` marks.
+   - Reviewer finding lines keep their leading `- `.
+   - This is an explicit relaxation of exact formatting.
+4. **One content decoder**, for success only. It reads the prose, plus the string leaves of a JSON object that ends
+   the text. All verdict or answer values found anywhere in that content must agree, or success is 0.
+
+**Reviewer.**
+- **Merge criterion.** One sentence is added to the reviewer instructions in both arms: "Use P1 or P2 only for a
+  defect that changes behaviour, report style issues as P3, and request changes only when a P1 or P2 finding
+  remains." In r1, 5 of 6 decoy turns requested changes over style or comment filler, and the role text never
+  defined the merge bar.
+- **Finding candidates.** A candidate is any line that:
+  - starts with `- ` followed by `path:digit`;
+  - carries a `| P1 |`, `| P2 |` or `| P3 |` field; or
+  - begins with a priority label (`P1:`, `[P2]`, `**P1**` and the like).
+  Other bullets are prose. Rule 2 needs every candidate in the strict form; rule 3 allows at most 5 candidates.
+- **Bug match.** A finding matches the planted bug when:
+  - it is on the oracle file;
+  - its line or range (width ≤ 4) overlaps the planted line ±2;
+  - its priority is P1 or P2; and
+  - its problem and fix text name the frozen **mechanism** of its template. Each template has a set of
+    behaviour-specific terms and paraphrases.
+  Other P1/P2 findings, including wrong diagnoses at the planted line, and unparsed candidates count as "other
+  high". Only equivalent findings are deduplicated.
+- **Success.**
+  - Request-changes: the verdict, at least 1 match, and at most 1 other high.
+  - Approve: the verdict, no P1/P2 finding and no unparsed candidate.
+- **Delivered.**
+  - The parent's reply must state the oracle verdict affirmatively. An explicit `VERDICT:` line decides. Otherwise
+    the first verdict mention that is not negated within the 3 preceding words decides.
+  - For a planted bug, the reply must also give the `file:line` (±2) and a mechanism term.
+
+**Scout.**
+- Success reads the decoded content. It takes the answer from the `ANSWER:` lines anywhere in it; distinct answers
+  give 0. It also needs a citation of the line that holds the value (±2).
+- Delivered needs the accepted answer, not negated within the 3 preceding words. If the reply has an explicit
+  `ANSWER:` line, its value decides.
+
+**Tester rule 3 (`check_rules` index 2).**
+- The `RED:` line, after the markdown policy, must name the exact submitted node.
+- A terminal receipt must also show it red. Either:
+  - the existing receipt check passes; or
+  - a command that invokes pytest produced, without a sandbox or tool error, output with a `FAILED` line for that
+    node and no collection `ERROR`.
+- The independent buggy/fixed execution check is unchanged.
+
+**Difficulty (template changes).**
+- Tester tickets describe the symptom only: no literal inputs or outputs. The child derives a failing case from
+  the contract.
+- Scout facts become a two-hop lookup. The primary component names a profile, and the profile's line holds the
+  value. A standby component on a different profile is the lure.
+- `distractor_distance` now sets the spacing between the two profile value lines. It must be ≥ 5, which keeps the
+  lure outside the ±2 citation tolerance.
+
+**Gate and analysis.**
+- **Calibration gate.** It passes when all of these hold:
+  - pooled success is in [0.40, 0.95];
+  - no role is at 0 in every arm;
+  - there are no checker errors.
+  A role at 1.0 in every arm is recorded in `ceiling_roles` and no longer fails the gate. The report then makes no
+  task-quality claim for that role.
+- **Success bar.** The success non-inferiority bar is always computed. CEILING is a separate limitation flag and
+  never replaces the bar.
+- **Calibration rounds.**
+  - r2 runs on the A1 identity.
+  - At most one r3 may follow, only for a non-ceiling failure, and only with `DIFFICULTY` knob changes.
+  - If r3 also fails, slice 3 stops as INCONCLUSIVE (design), with no scored run.
+- **Diagnostics** (no score effect), per scored turn:
+  - `envelope`;
+  - `output_schema`;
+  - `on_locus` (an on-locus finding without the mechanism).
+
+## Harness fix H1 (2026-10-15, after calibration r2, before any scored session)
+
+- **Calibration r2** ran on identity `24d284b1` and passed every gate check: pooled 0.86, no role at 0 in every arm,
+  no checker errors, `ceiling_roles` = tester. One session was left pending a disposition.
+- **The pending session:** in dev02-copper:C turn 5, the parent's first request fired the pre-request hook twice
+  under one request identity. The model's malformed tool-call arguments had been repaired, and the request was sent
+  again with only one usage receipt. The observer raised, the accounting classified the turn as an infrastructure
+  fault "independent of model output", and the session needed a rerun.
+- **Why that premise was false:** the trigger was model output. A rerun would also preferentially wash out a
+  model-caused failure, here in the arm whose parent batches teammate tools.
+- **H1:** a duplicate request start is recorded instead of raising. The duplicate key makes that invocation's spend
+  UNKNOWN under the existing unknown-spend rule (never zero). The turn stays valid for intent-to-treat. Every other
+  observer fault is unchanged.
+- **Calibration rerun:** H1 changes the harness identity, so qualify and calibration run once more on the H1 identity
+  (r2b), with no grader, template or gate change. This is not a difficulty round. If r2b fails a gate check, A1's
+  failure disposition applies.
+
+## Harness fix H2 (2026-10-15, after a crashed scored attempt, before any scored analysis)
+
+- **Calibration r2b** ran on the H1 identity `2a8b0fe7` and passed every gate check: pooled 0.917, no role at 0 in
+  every arm, no checker errors, `ceiling_roles` = reviewer. Admission passed, and the scored phase started.
+- **The crash:** after 60 of 180 scored turns, a parent sent `teammate_assign` with a JSON list instead of an object
+  as its arguments. Hermes coerced the list before running the call, but the harness read the recorded list as an
+  object and raised (`assign_wait_seconds`). The scored phase stopped. The trigger was model output; the defect was
+  the harness's.
+- **That attempt is void.** All of its turns are discarded together, not analyzed, and kept only as crash evidence.
+  No scored outcome informed H2.
+- **H2:** every consumer of recorded call arguments treats a non-object as empty. Recorded arguments stay raw. A
+  malformed `teammate_assign` records its `wait_seconds` as unknown, which `d3_uptake` already counts as
+  unparseable. Children, receipts and grading are otherwise unchanged.
+- **Rerun:** H2 changes the harness identity, so qualify, calibration (r2c), admission and the full scored phase run
+  again on the H2 identity, with no grader, template or gate change. This is not a difficulty round. If r2c fails a
+  gate check, A1's failure disposition applies.

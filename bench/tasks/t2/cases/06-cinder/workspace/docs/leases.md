@@ -11,13 +11,13 @@ cinder-channel-0-04 has capacity 104 slots.
 cinder-channel-0-05 has capacity 105 slots.
 cinder-channel-0-06 has capacity 106 slots.
 cinder-channel-0-07 has capacity 107 slots.
-cinder primary interactive lease uses 300 ticks.
 cinder-channel-0-08 has capacity 108 slots.
-cinder standby interactive lease uses 307 ticks.
 cinder-channel-0-09 has capacity 109 slots.
 cinder-channel-0-10 has capacity 110 slots.
 cinder-channel-0-11 has capacity 111 slots.
 cinder-channel-0-12 has capacity 112 slots.
+cinder primary interactive lease uses the juniper profile.
+cinder standby interactive lease uses the saffron profile.
 cinder-channel-0-13 has capacity 113 slots.
 cinder-channel-0-14 has capacity 114 slots.
 cinder-channel-0-15 has capacity 115 slots.
@@ -44,14 +44,46 @@ cinder-channel-0-35 has capacity 135 slots.
 cinder-channel-0-36 has capacity 136 slots.
 cinder-channel-0-37 has capacity 137 slots.
 cinder-channel-0-38 has capacity 138 slots.
+The saffron profile sets 307 ticks.
 cinder-channel-0-39 has capacity 139 slots.
 cinder-channel-0-40 has capacity 140 slots.
 cinder-channel-0-41 has capacity 141 slots.
 cinder-channel-0-42 has capacity 142 slots.
 cinder-channel-0-43 has capacity 143 slots.
+The juniper profile sets 300 ticks.
 cinder-channel-0-44 has capacity 144 slots.
 cinder-channel-0-45 has capacity 145 slots.
 cinder-channel-0-46 has capacity 146 slots.
 cinder-channel-0-47 has capacity 147 slots.
 cinder-channel-0-48 has capacity 148 slots.
 cinder-channel-0-49 has capacity 149 slots.
+cinder-channel-0-50 has capacity 150 slots.
+cinder-channel-0-51 has capacity 151 slots.
+cinder-channel-0-52 has capacity 152 slots.
+cinder-channel-0-53 has capacity 153 slots.
+cinder-channel-0-54 has capacity 154 slots.
+cinder-channel-0-55 has capacity 155 slots.
+cinder-channel-0-56 has capacity 156 slots.
+cinder-channel-0-57 has capacity 157 slots.
+cinder-channel-0-58 has capacity 158 slots.
+cinder-channel-0-59 has capacity 159 slots.
+cinder-channel-0-60 has capacity 160 slots.
+cinder-channel-0-61 has capacity 161 slots.
+cinder-channel-0-62 has capacity 162 slots.
+cinder-channel-0-63 has capacity 163 slots.
+cinder-channel-0-64 has capacity 164 slots.
+cinder-channel-0-65 has capacity 165 slots.
+cinder-channel-0-66 has capacity 166 slots.
+cinder-channel-0-67 has capacity 167 slots.
+cinder-channel-0-68 has capacity 168 slots.
+cinder-channel-0-69 has capacity 169 slots.
+cinder-channel-0-70 has capacity 170 slots.
+cinder-channel-0-71 has capacity 171 slots.
+cinder-channel-0-72 has capacity 172 slots.
+cinder-channel-0-73 has capacity 173 slots.
+cinder-channel-0-74 has capacity 174 slots.
+cinder-channel-0-75 has capacity 175 slots.
+cinder-channel-0-76 has capacity 176 slots.
+cinder-channel-0-77 has capacity 177 slots.
+cinder-channel-0-78 has capacity 178 slots.
+cinder-channel-0-79 has capacity 179 slots.

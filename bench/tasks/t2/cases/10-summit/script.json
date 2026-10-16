@@ -5,27 +5,27 @@
   "turns": [
     {
       "index": 1,
-      "text": "After how many seconds does the summit primary outbound request time out?"
+      "text": "BUG-160: Clients that rely on the default request budget are never cut off at the documented limit. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 2,
-      "text": "Does patches/admission.diff preserve rejection once the job quota is full? Please check the proposed change."
+      "text": "After how many seconds does the summit primary outbound request time out?"
     },
     {
       "index": 3,
-      "text": "BUG-160: A client using the documented default budget of three requests can continue sending after consuming all three. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Does patches/admission.diff preserve rejection once the job quota is full? Please check the proposed change."
     },
     {
       "index": 4,
-      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
+      "text": "BUG-161: Invalid retry attempt numbers are accepted and produce a delay instead of an error. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 5,
-      "text": "BUG-161: A negative retry attempt produces a fractional delay instead of rejecting the invalid input. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Which currency does the summit primary settlement ledger use?"
     },
     {
       "index": 6,
-      "text": "Which currency does the summit primary settlement ledger use?"
+      "text": "The condition in patches/serialization.diff looks reversed. Please determine whether behavior actually changes."
     }
   ]
 }

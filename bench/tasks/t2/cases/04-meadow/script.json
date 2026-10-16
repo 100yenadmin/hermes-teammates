@@ -9,23 +9,23 @@
     },
     {
       "index": 2,
-      "text": "Review patches/admission.diff against the requested audit preview size. Is it ready to merge?"
+      "text": "BUG-148: Durations converted from seconds to milliseconds come out far too small. Please add and run a regression test, leaving the implementation unchanged."
     },
     {
       "index": 3,
-      "text": "BUG-148: Two seconds is reported as 0.002 milliseconds rather than 2000 milliseconds. Please add and run a regression test, leaving the implementation unchanged."
-    },
-    {
-      "index": 4,
-      "text": "Could the empty-input fast path in patches/serialization.diff cause a regression? Inspect it and give a verdict."
-    },
-    {
-      "index": 5,
       "text": "Which code identifies the meadow primary foreground display?"
     },
     {
+      "index": 4,
+      "text": "Review patches/admission.diff against the requested audit preview size. Is it ready to merge?"
+    },
+    {
+      "index": 5,
+      "text": "BUG-149: Search keys built from mixed-case text do not match the same text typed in lower case. Please add and run a regression test, leaving the implementation unchanged."
+    },
+    {
       "index": 6,
-      "text": "BUG-149: Searching with uppercase text and surrounding spaces leaves uppercase letters in the canonical search key. Please add and run a regression test, leaving the implementation unchanged."
+      "text": "Could the empty-input fast path in patches/serialization.diff cause a regression? Inspect it and give a verdict."
     }
   ]
 }

@@ -10,10 +10,10 @@ lantern-channel-2-03 has capacity 105 slots.
 lantern-channel-2-04 has capacity 106 slots.
 lantern-channel-2-05 has capacity 107 slots.
 lantern-channel-2-06 has capacity 108 slots.
-lantern primary input validator uses strict mode.
 lantern-channel-2-07 has capacity 109 slots.
-lantern standby input validator uses lenient mode.
 lantern-channel-2-08 has capacity 110 slots.
+lantern primary input validator uses the basalt profile.
+lantern standby input validator uses the saffron profile.
 lantern-channel-2-09 has capacity 111 slots.
 lantern-channel-2-10 has capacity 112 slots.
 lantern-channel-2-11 has capacity 113 slots.
@@ -42,11 +42,13 @@ lantern-channel-2-33 has capacity 135 slots.
 lantern-channel-2-34 has capacity 136 slots.
 lantern-channel-2-35 has capacity 137 slots.
 lantern-channel-2-36 has capacity 138 slots.
+The basalt profile sets strict mode.
 lantern-channel-2-37 has capacity 139 slots.
 lantern-channel-2-38 has capacity 140 slots.
 lantern-channel-2-39 has capacity 141 slots.
 lantern-channel-2-40 has capacity 142 slots.
 lantern-channel-2-41 has capacity 143 slots.
+The saffron profile sets lenient mode.
 lantern-channel-2-42 has capacity 144 slots.
 lantern-channel-2-43 has capacity 145 slots.
 lantern-channel-2-44 has capacity 146 slots.
@@ -55,3 +57,33 @@ lantern-channel-2-46 has capacity 148 slots.
 lantern-channel-2-47 has capacity 149 slots.
 lantern-channel-2-48 has capacity 150 slots.
 lantern-channel-2-49 has capacity 151 slots.
+lantern-channel-2-50 has capacity 152 slots.
+lantern-channel-2-51 has capacity 153 slots.
+lantern-channel-2-52 has capacity 154 slots.
+lantern-channel-2-53 has capacity 155 slots.
+lantern-channel-2-54 has capacity 156 slots.
+lantern-channel-2-55 has capacity 157 slots.
+lantern-channel-2-56 has capacity 158 slots.
+lantern-channel-2-57 has capacity 159 slots.
+lantern-channel-2-58 has capacity 160 slots.
+lantern-channel-2-59 has capacity 161 slots.
+lantern-channel-2-60 has capacity 162 slots.
+lantern-channel-2-61 has capacity 163 slots.
+lantern-channel-2-62 has capacity 164 slots.
+lantern-channel-2-63 has capacity 165 slots.
+lantern-channel-2-64 has capacity 166 slots.
+lantern-channel-2-65 has capacity 167 slots.
+lantern-channel-2-66 has capacity 168 slots.
+lantern-channel-2-67 has capacity 169 slots.
+lantern-channel-2-68 has capacity 170 slots.
+lantern-channel-2-69 has capacity 171 slots.
+lantern-channel-2-70 has capacity 172 slots.
+lantern-channel-2-71 has capacity 173 slots.
+lantern-channel-2-72 has capacity 174 slots.
+lantern-channel-2-73 has capacity 175 slots.
+lantern-channel-2-74 has capacity 176 slots.
+lantern-channel-2-75 has capacity 177 slots.
+lantern-channel-2-76 has capacity 178 slots.
+lantern-channel-2-77 has capacity 179 slots.
+lantern-channel-2-78 has capacity 180 slots.
+lantern-channel-2-79 has capacity 181 slots.
