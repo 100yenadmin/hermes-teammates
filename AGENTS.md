@@ -14,6 +14,7 @@ Hermes Teammates adds an operator-defined roster of named subagents to Hermes Ag
 - `teammates_service.py`: assignment, monitoring, results and Kanban handoff.
 - `teammates_host.py`: Hermes lifecycle, session and host integration.
 - `teammates_config.py` and `teammates_store.py`: settings validation and SQLite ledger.
+- `skills/teammates-report-problem/SKILL.md`: the report-a-problem skill, registered by `__init__.py`. Its report headings must match `.github/ISSUE_TEMPLATE/bug_report.yml`.
 - `tests/`: isolated fixtures, regression tests and offline benchmark mechanics.
 - `.github/workflows/ci.yml`: pinned/main Hermes validation and tests.
 

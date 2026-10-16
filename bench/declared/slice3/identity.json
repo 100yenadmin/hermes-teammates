@@ -1,5 +1,5 @@
 {
-  "__init__.py": "99ac46e2d8271fd91a7b28f50b666266d20fc700e60f10f18a909b9430529feb",
+  "__init__.py": "0292a44c77d1d36125421af73a7a96171c587b07b959b3b5f82b8922f04fdded",
   "bench/declared/slice3/DECLARED.md": "d6812335ed5b4b3fd9de7d8e342a7f8e10209fa5d5e4b771429d320e0223afde",
   "bench/declared/slice3/configs.json": "14b686380c8c4219ab399ea17e3b972b1472c2e5c0dc749536ffb17cdb730d41",
   "bench/declared/slice3/schedule.json": "cf32b8404e436f4924fc7ae7fb6079e2d8cf72ae5ad2555c193630a3051a59ba",
@@ -24,7 +24,7 @@
   "bench/slice3/texts.py": "5c2b99b86f1f543668c191a897a7002aa37c44729757ece4c57881f704034a86",
   "bench/slice3/venv.py": "18001faf20c7b353bd053e37ff15d2d548daf937d02ad7b9699d3a139fd331d1",
   "bench/tasks/t2/manifest.json": "3643ad564b6fe7b2a0864d6f49f152e073052fd534761b7a118ccf6cadff8a6f",
-  "plugin.yaml": "6d0f49d778b352bcbe17a3ee61ba3437bce96fdf7bffdc14508471ba073a3d48",
+  "plugin.yaml": "c3d9aafc640166aa51abf73026f356b4ed5d8a26f2be109633db7f0c2c9af9c1",
   "teammates_config.py": "325bda819c0cf2f0a0b88eca385cc74e1a7c8d1918a5b27ea39fcd3fd9fa9746",
   "teammates_host.py": "57bdb0327bb421b928997149b2c7a6abb39390e2ef1f0d25ac4e3a62a2b89e5b",
   "teammates_service.py": "61d7d390c58453e8fa8fd1d70e42bef01bc05946424c0933367465af76add379",
