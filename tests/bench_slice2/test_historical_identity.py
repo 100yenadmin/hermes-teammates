@@ -1,6 +1,7 @@
 """Check frozen public inputs at their historical tags, independent of main."""
 import hashlib
 import json
+import os
 import subprocess
 
 import pytest
@@ -16,6 +17,8 @@ def require_tag(tag):
     result = subprocess.run(['git', '-C', str(ROOT), 'cat-file', '-e', tag + '^{commit}'],
                             capture_output=True)
     if result.returncode:
+        if os.environ.get('CI') == 'true':
+            pytest.fail(f'Historical identity requires {tag}; CI must fetch full history')
         pytest.skip(f'Historical identity requires {tag}; tag unavailable in this checkout')
 
 
@@ -47,3 +50,24 @@ def test_historical_hash_check_rejects_drift():
     require_tag(tag)
     with pytest.raises(AssertionError, match='frozen byte mismatch'):
         assert_hashes(tag, {'teammates_service.py': '0' * 64})
+
+
+@pytest.mark.parametrize('slice_name', ['slice2', 'slice3'])
+def test_main_historical_records_match_preserved_baseline(slice_name):
+    # Slice 2 and slice 3 are reproduced from their tags.
+    baseline = 'a2fb2a3'
+    result = subprocess.run(['git', '-C', str(ROOT), 'cat-file', '-e', baseline + '^{commit}'],
+                            capture_output=True)
+    if result.returncode:
+        reason = f'Historical record baseline {baseline} unavailable in this checkout'
+        if os.environ.get('CI') == 'true':
+            pytest.fail(reason + '; CI must fetch full history')
+        pytest.skip(reason + '; shallow local clone')
+    paths = [f'bench/declared/{slice_name}', f'bench/results/{slice_name}']
+    frozen = subprocess.check_output(['git', '-C', str(ROOT), 'ls-tree', '-r', '--name-only', baseline,
+                                      '--', *paths], text=True).splitlines()
+    current = [str(p.relative_to(ROOT)) for directory in paths
+               for p in (ROOT / directory).rglob('*') if p.is_file()]
+    assert set(current) == set(frozen), 'Historical record paths changed'
+    drift = [name for name in frozen if (ROOT / name).read_bytes() != tagged_bytes(baseline, name)]
+    assert not drift, 'Historical records changed: ' + ', '.join(drift)

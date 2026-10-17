@@ -105,6 +105,18 @@ def _citations(text):
                 yield 'docs/' + match[1], _line_number(match[2])
 
 
+def _source_brackets_valid(text):
+    # Each scan stops at bracket delimiters: repeated unclosed prefixes stay linear.
+    # Outer JSON arrays and other generic brackets do not turn a nested citation into a source.
+    for part in text.split('[')[1:]:
+        source, closing, rest = part.partition(']')
+        if 'docs/' in source and (not closing or not _CITATION.fullmatch(source + ']')
+                                  or rest.startswith('(')):
+            return False
+    # A markdown destination referring to docs is a source, but never the declared citation form.
+    return not re.search(r'\[[^\[\]]*\]\([^()[\]\n]*docs/', text)
+
+
 def _findings(text):
     rows = []
     for line in text.splitlines():
@@ -236,9 +248,7 @@ def check_rules(role, oracle_turn, text, delta, receipts, workspace: Path) -> li
     last = lines[-1] if lines else ''
     if role == 'scout':
         cites = list(_citations(text))
-        # Every bracketed source must be a citation, including malformed/unclosed brackets.
-        without_cites = re.sub(r'\[docs/[^\[\]:\n]+:[0-9]+\]', '', text)
-        valid = bool(cites) and '[' not in without_cites and ']' not in without_cites
+        valid = bool(cites) and _source_brackets_valid(text)
         for file, line in cites:
             source = _safe_file(workspace, file)
             valid = valid and source is not None and 1 <= line <= len(source.read_text().splitlines())

@@ -32,31 +32,33 @@ def test_qualification_rejects_inferred_controls():
 
 
 def test_fake_phase_path_and_resume(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     calls=[]
     def fake(launch,directory):
         calls.append(launch['cell'])
         assert len(list((directory/'work/src').glob('*.py')))==5
         assert not (directory/'work/hidden').exists()
         return launch|qualified_batch(launch['arm'],len(calls))|dict(status='COMPLETE',wall_s=30,requests=5)
-    q=run_phase('qualification',tmp_path,fake)
+    q=run_phase('qualification',tmp_path,fake, strict=False)
     assert q['pass'] and len(calls)==2
-    assert run_phase('qualification',tmp_path,fake)==q and len(calls)==2
-    cells=run_phase('calibration',tmp_path,fake)
+    assert run_phase('qualification',tmp_path,fake, strict=False)==q and len(calls)==2
+    cells=run_phase('calibration',tmp_path,fake, strict=False)
     assert len(cells)==8 and len(calls)==10
     assert (tmp_path/'audit-controls.json').exists()
-    with pytest.raises(ValueError,match='Budget DEFER'): run_phase('scored',tmp_path,fake,{})
+    with pytest.raises(ValueError,match='Budget DEFER'): run_phase('scored',tmp_path,fake,{}, strict=False)
     limits={'plan':'GLM coding plan','request_limit':1000,'used_requests':10,
             'grading_requests':60,'grading_wall_s':100,'human_wall_s':100,'reproducer_wall_s':100}
-    assert len(run_phase('scored',tmp_path,fake,limits))==40
+    assert len(run_phase('scored',tmp_path,fake,limits, strict=False))==40
     assert len(calls)==50
 
 
 def test_interrupted_attempt_never_replayed(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     def crash(*args): raise RuntimeError('fake crash')
-    with pytest.raises(RuntimeError): run_phase('qualification',tmp_path,crash)
-    with pytest.raises(ValueError,match='Interrupted'): run_phase('qualification',tmp_path,crash)
+    with pytest.raises(RuntimeError): run_phase('qualification',tmp_path,crash, strict=False)
+    with pytest.raises(ValueError,match='Interrupted'): run_phase('qualification',tmp_path,crash, strict=False)
     identity=tmp_path/'identity.json'; identity.write_text('{}')
-    with pytest.raises(ValueError,match='identity drift'): run_phase('qualification',tmp_path,crash)
+    with pytest.raises(ValueError,match='identity drift'): run_phase('qualification',tmp_path,crash, strict=False)
 
 
 def test_live_adapter_has_no_implicit_admission(tmp_path,monkeypatch):

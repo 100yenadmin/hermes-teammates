@@ -100,7 +100,7 @@ def qualification(sessions):
             and not any(n in e['tools'] for n in ('delegate_task', 'teammate_assign')) for e in child_agents),
             {'agents': child_agents})
         add(prefix + 'parent_tools', bool(parent_agents) and all(
-            (('teammate_assign' in e['tools']) if
+            (('teammate_assign' in e['tools'] and 'tool_search' not in e['tools']) if
              config.get('tools', {}).get('tool_search', {}).get('enabled') == 'off' else
              ('tool_search' in e['tools'] and 'teammate_assign' not in e['tools'])) if arm == 'C' else
             'delegate_task' in e['tools'] for e in parent_agents), {'agents': parent_agents})

@@ -44,7 +44,12 @@ is checked against [bench-slice2-6a5ea600](https://github.com/100yenadmin/hermes
 Shallow checkouts without those tags skip these historical checks with an explicit reason;
 private hidden-oracle validation remains part of authorized reproduction. Slice 2 helpers
 still hash-check current fixtures, but do not bind main's runtime or harness to historical
-manifest hashes. No historical record is refrozen to make current tests pass.
+manifest hashes. No historical record is refrozen to make current tests pass. Real slice 2 run entrypoints strictly verify every manifest input (including hidden inputs) before an attempt; current-main runs refuse with the historical-tag instruction. Offline injected test executors retain fixture-only checking.
+Main's historical declaration/result path sets and bytes are preserved against
+[a2fb2a3](https://github.com/100yenadmin/hermes-teammates/commit/a2fb2a3c4ea452da2993aab277c9b202f4c4dc73),
+the published-results baseline: the run tags predate the results and slice 3's
+results-time identity refreeze. This separate guard skips only when that baseline
+is absent locally; CI fetches full history and requires both preservation and tag-tree checks.
 
 ## Arms
 
@@ -110,13 +115,13 @@ the unchanged role instructions and the inherited A1 rules below.
 
 **Prospective arm-blind corrections, fixed before any 3b data.** These change the measurement contract, not slice 3's published scores. Evidence counts below come from the [slice 3 audit card and receipts](https://github.com/electricsheephq/bench-evidence/releases/tag/hermes-teammates/slice3-live-run004) and public issues [#59](https://github.com/100yenadmin/hermes-teammates/issues/59), [#58](https://github.com/100yenadmin/hermes-teammates/issues/58) and [#54](https://github.com/100yenadmin/hermes-teammates/issues/54). No oracle content is repeated.
 
-- **#59a — reviewer ranges.** A1's width limit belongs only to bug matching. Wider ranges remain valid candidates, never bug matches. The audit found 8 affected decoy turns (B-native 2, C 3, former C-eager 3).
-- **#59b — scout citations.** Every bracketed citation must have the form `[docs/<file>:<line>]`; malformed or unclosed bracketed sources fail rule 2 even if another citation is valid. Existing file and line checks remain. The hand audit had 4 adherence disagreements in 52 turns; the sweep found 20 affected turns (3 / 11 / 6 in the former three arms).
+- **#59a — reviewer ranges.** A1's width limit belongs only to bug matching. Wider ranges remain valid candidates, never bug matches. The shipped-predicate recheck of the scored receipts confirms 8 affected rule-2 turns (B-native 2/20, C 3/20, former C-eager 3/20), matching the audit's affected decoy turns.
+- **#59b — scout citations.** A bracket group or markdown link referencing `docs/` is a source and must have the strict form `[docs/<file>:<line>]`; malformed or unclosed sources fail rule 2 even if another citation is valid. Generic brackets (including JSON arrays and subscripts) are ignored. At least one valid citation and the existing file and line checks remain required. Rechecking the shipped predicate against all 60 scored scout receipts reproduces 20 rule-2 and all-rules changes: B-native 3/20, C 11/20, former C-eager 6/20. The same receipt recheck reproduces the original rule arrays before applying either correction; it is an audit, not a new measurement or a change to slice 3 scores.
 - **#59c — native mechanism sentence.** Replace the literal role-name placeholder with concrete scout/reviewer/tester first lines. Slice 3 had 10 rejected calls out of 70, across 8 of 10 B-native cases. C's mechanism text and every role instruction stay byte-identical to slice 3.
 - **#58 / CO-1 — max-iterations summary.** Count each z.ai summary attempt (including its empty-summary retry) at the harness's call boundary. Its hookless usage remains explicitly UNKNOWN, never estimated or zero. The audit found one omitted summary request. An UNKNOWN turn makes its session's parent tokens UNKNOWN; it remains in ITT. No Hermes core change.
 - **#58 / CO-2 — zero children.** An empty child-session set has known zero child spend; a child request without usage remains UNKNOWN. The audit found one zero-child descriptive-null turn.
 - **#54 — launch admission.** Check `SLICE3_LIVE=1`, a non-empty `GLM_API_KEY`, release inputs and identity before admitting any attempt directory. This was one identified launch-precondition path, not a count of affected scored turns.
-- **Report repair.** Include this declaration's limitations and ITT error/timeout/missing counts, UNKNOWN-spend case names/counts and CO-1-type unobserved requests. Remove the unconditional offline disclaimer from reports; identity-bound gate receipts establish qualification separately.
+- **Report repair.** Include this declaration's limitations and ITT error/timeout/missing counts, UNKNOWN-spend case names/counts across all scheduled cases (including dropped cases), and separate parent/child CO-1-type unobserved requests. Analysis stores its identity and declaration limitations; reporting uses that stored text and refuses active-identity drift. Remove the unconditional offline disclaimer from reports; identity-bound gate receipts establish qualification separately.
 - **Additional cheap arm-blind work:** count summary retries separately and keep payloads out of accounting markers. No other #58/#59 changes. Issues #46, #47 and #48 are excluded.
 
 ## Intent-to-treat and infrastructure
@@ -190,7 +195,7 @@ The report shows:
    - `tests/bench_slice3`;
    - the full plugin suite on both Hermes trees;
    - the scanner check, byte-identity and the clip checks.
-2. **Qualification.** `qualification.json` passes every existing extraction, prompt, ownership, tool, sandbox, resume and accounting check. Exact C tool visibility must match its frozen v0.2.7 recommended config.
+2. **Qualification.** `qualification.json` passes every existing extraction, prompt, ownership, tool, sandbox, resume and accounting check. Exact C tool visibility must match its frozen v0.2.7 recommended config. Known-unobserved max-iterations summary starts are listed and counted separately, excluded from usage-coverage matching without failing qualification; their session spend remains UNKNOWN, while real coverage gaps still fail.
 3. **Calibration** (dev only).
    - Inspect adherence and success per role and arm.
    - Pass when pooled success is in [0.40, 0.95], no role is at 0 in every arm, and no checker errors.

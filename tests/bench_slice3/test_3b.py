@@ -20,9 +20,10 @@ def test_reviewer_range_is_candidate_but_only_narrow_range_matches(width, tmp_pa
     assert not grade._matches_bug(finding | dict(priority='P3'), bug)
 
 
-@pytest.mark.parametrize('extra', ['[docs/guide.md]', '[guide.md:1]', '[docs/guide.md:1-2]',
-                                   '[docs/guide.md:one]', '[docs/guide.md:1', '[[docs/guide.md:1]]'])
+@pytest.mark.parametrize('extra', ['[docs/guide.md]', '[docs/guide.md:1-2]',
+                                   '[docs/guide.md:one]', '[docs/guide.md:1'])
 def test_every_scout_citation_must_be_well_formed(extra, tmp_path):
+    # Slice 3 is reproduced from its tag; generic/nested brackets are positive controls in test_fix1.
     (tmp_path / 'docs').mkdir()
     (tmp_path / 'docs/guide.md').write_text('Synthetic value.\n')
     clean = '[docs/guide.md:1]\nANSWER: synthetic'

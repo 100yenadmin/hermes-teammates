@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: plugin
+          fetch-depth: 0
       - name: Resolve Hermes ref
         id: pin
         run: |
@@ -55,6 +56,10 @@ jobs:
         env:
           HERMES_HOME: ${{ runner.temp }}/hermes-home
         run: cd plugin && ../hermes/.venv/bin/python -m pytest -q -p no:cacheprovider
+      - name: Historical identity and record checks (must run with tags)
+        env:
+          HERMES_HOME: ${{ runner.temp }}/hermes-home
+        run: cd plugin && ../hermes/.venv/bin/python -m pytest -v -p no:cacheprovider tests/bench_slice2/test_historical_identity.py
       - name: No self-updater, no runtime code fetch
         run: |
           bad=$(grep -rlE "releases/latest|raw\.githubusercontent\.com|pip install|urlopen\(" --include='*.py' plugin --exclude-dir=tests --exclude-dir=bench || true)

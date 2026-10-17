@@ -77,7 +77,9 @@ def reconcile(invocations, rows, root):
         errors.append('duplicate request across invocations')
     usage = [e for e in all_receipts if e.get('kind') == 'usage']
     usage_keys = [request_key(e) for e in usage]
-    if len(usage_keys) != len(set(usage_keys)) or set(usage_keys) != set(keys):
+    summaries = [e for e in all_receipts if e.get('kind') == 'request_start' and e.get('unobserved_summary')]
+    observed_keys = set(keys) - {request_key(e) for e in summaries}
+    if len(usage_keys) != len(set(usage_keys)) or set(usage_keys) != observed_keys:
         errors.append('request/usage coverage incomplete')
     if any(e.get('kind') == 'observer_error' for e in all_receipts):
         errors.append('observer error')
@@ -101,6 +103,9 @@ def reconcile(invocations, rows, root):
         if len(selected) != r.get('api_call_count'):
             errors.append('SQLite requests mismatch: ' + r['id'])
     return dict(pass_=not errors, errors=errors, parent_sessions=sorted(parents),
+                unobserved_summary_requests=len(summaries),
+                unobserved_summaries=[{k: e.get(k) for k in ('session_id', 'request_id', 'retry', 'attempt')}
+                                      for e in summaries],
                 child_turn=attribution,
                 per_invocation=[invocation_metrics(e, parents) for e in invocations])
 

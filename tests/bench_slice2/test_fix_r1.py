@@ -21,6 +21,7 @@ def metrics(recall=.8, tokens=100):
 
 @pytest.fixture
 def adapter(tmp_path, monkeypatch):
+    # Slice 2 is reproduced from its tag; all subprocesses here use synthetic offline receipts.
     run = tmp_path / 'cell'
     (run / 'work/src').mkdir(parents=True)
     (run / 'work/README.md').write_text('public specification')
@@ -82,7 +83,8 @@ def adapter(tmp_path, monkeypatch):
                         [dict(path=str(run / 'work' / p), success=True) for p in ['README.md', 'allowed-marker']] +
                         [dict(path=str(p), success=False, error='EPERM') for p in probes])
     launch = dict(arm='C', phase='qualification', recipe=qualified_recipe, config=config('C'), endpoint='synthetic')
-    return SimpleNamespace(run=run, events=events, state=state, launch=launch, execute=lambda: hermes.execute(launch, run))
+    return SimpleNamespace(run=run, events=events, state=state, launch=launch,
+                           execute=lambda: hermes.execute(launch, run, fake_base_url='http://127.0.0.1:1'))
 
 
 @pytest.mark.parametrize('damage', ['missing_goal', 'duplicate_goal', 'missing_scope', 'duplicate_scope', 'wrong_role', 'duplicate_role'])
@@ -153,12 +155,13 @@ def test_parent_denials_require_own_tools(adapter, tool):
 
 @pytest.mark.parametrize('asset', ['src/service.py', 'README.md', 'src/added.py'])
 def test_public_workspace_mutation(tmp_path, asset):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     from bench.slice2.run import execute_cell
     cell = schedule('calibration')[0]
     def mutate(launch, directory):
         (directory / 'work' / asset).write_text('changed by synthetic agent')
         return launch | dict(status='COMPLETE', integrity=True, audit={'pass': True})
-    row = execute_cell(cell, tmp_path / 'cell', mutate)
+    row = execute_cell(cell, tmp_path / 'cell', mutate, strict=False)
     assert row['integrity'] is False and row['integrity_violation'] is True
     assert row['workspace_hash_before'] != row['workspace_hash_after']
 
@@ -181,13 +184,14 @@ def test_quota_diagnostics_stop_and_preserve(adapter, diagnostic):
 
 
 def test_quota_cell_stops_phase(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     from bench.slice2.run import run_phase
     calls = []
     def quota(launch, directory):
         calls.append(launch['cell'])
         return launch | dict(status='QUOTA_STOP', quota=True)
     with pytest.raises(ValueError, match='Stop receipt preserved'):
-        run_phase('qualification', tmp_path, quota)
+        run_phase('qualification', tmp_path, quota, strict=False)
     assert len(calls) == 1
     assert json.loads((tmp_path / calls[0] / 'B-briefed/batch.json').read_text())['status'] == 'QUOTA_STOP'
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from bench.slice2.audit import audit_reads, qualify, recipe_errors, valid_cell
 from bench.slice2.budget import admit
-from bench.slice2.protocol import ARMS, DECLARED, ROOT, canonical, config, digest, identity, recipe, schedule, stage
+from bench.slice2.protocol import ARMS, DECLARED, ROOT, canonical, config, digest, identity, manifest, recipe, schedule, stage
 
 
 def write_new(path, value):
@@ -39,7 +39,8 @@ def validate_result(cell, result):
     return result
 
 
-def execute_cell(cell, directory, executor, receipt_name='cell.json'):
+def execute_cell(cell, directory, executor, receipt_name='cell.json', *, strict=True):
+    manifest(strict=strict)
     directory.mkdir(parents=True,exist_ok=False)
     stage(cell['case'],directory/'work')
     launch = cell | dict(identity=identity(),model='glm-5.3',provider='zai',
@@ -64,7 +65,8 @@ def execute_cell(cell, directory, executor, receipt_name='cell.json'):
     return result
 
 
-def run_phase(phase, evidence, executor, limits=None):
+def run_phase(phase, evidence, executor, limits=None, *, strict=True):
+    manifest(strict=strict)
     evidence = Path(evidence).resolve()
     if 'slice1' in evidence.parts:
         raise ValueError('slice1 immutable')
@@ -116,7 +118,7 @@ def run_phase(phase, evidence, executor, limits=None):
         elif destination.exists():
             raise ValueError('Interrupted attempt preserved: manual disposition required')
         else:
-            result = execute_cell(cell,destination,executor,receipt_name)
+            result = execute_cell(cell,destination,executor,receipt_name,strict=strict)
         rows.append(result)
         if result.get('quota') or result.get('integrity_violation') or result.get('status')=='HARNESS_ERROR':
             raise ValueError('Stop receipt preserved; no automatic provider fallback or cell retry')
@@ -147,6 +149,7 @@ def main():
     p.add_argument('--limits',type=Path)
     a=p.parse_args()
     if Path.cwd().resolve()!=ROOT: raise SystemExit('Use the declared worktree')
+    manifest(strict=True)
     module,symbol=a.executor.split(':',1)
     executor=getattr(importlib.import_module(module),symbol)
     limits=json.loads(a.limits.read_text()) if a.limits else None
