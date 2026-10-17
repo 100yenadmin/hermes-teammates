@@ -12,16 +12,13 @@ from pathlib import Path
 from bench.slice2.hermes import records
 from bench.slice3.analysis import analyze, mean, report, score_turn, token_total
 from bench.slice3.session import ARMS, DECLARED, IdentityStopped, SandboxBreach, _run_session, write_json
+from bench.slice3.texts import SLICE
 
 SEED = 1403
 
 
 def schedule(cases, seed=SEED):
-    """Balanced concurrency-two batches; all three arm pairs occur equally often.
-
-    Ten cases produce 15 batches: five of each pair, five first starts per arm.
-    A pair-cycle consumes two cases per arm and balances start order exactly.
-    """
+    """One B/C pair per batch, with equal first starts and shuffled case queues."""
     cases = sorted(cases)
     if len(cases) % 2:
         raise ValueError('An even number of cases is required for exact pair/start balance')
@@ -31,15 +28,11 @@ def schedule(cases, seed=SEED):
         queues[arm] = list(cases)
         rng.shuffle(queues[arm])
     result = []
-    for cycle in range(len(cases) // 2):
-        pairs = [('B-native', 'C'), ('C', 'C-eager'), ('C-eager', 'B-native')]
-        if rng.randrange(2):
-            pairs = [(b, a) for a, b in pairs]
-        rng.shuffle(pairs)
-        for pair in pairs:
-            batch = len(result) // 2 + 1
-            for order, arm in enumerate(pair, 1):
-                result.append(dict(case=queues[arm].pop(), arm=arm, batch=batch, start_order=order, seed=seed))
+    pairs = [ARMS, tuple(reversed(ARMS))] * (len(cases) // 2)
+    rng.shuffle(pairs)
+    for batch, pair in enumerate(pairs, 1):
+        for order, arm in enumerate(pair, 1):
+            result.append(dict(slice=SLICE, case=queues[arm].pop(), arm=arm, batch=batch, start_order=order, seed=seed))
     return result
 
 
@@ -107,8 +100,9 @@ def qualification(sessions):
             and not any(n in e['tools'] for n in ('delegate_task', 'teammate_assign')) for e in child_agents),
             {'agents': child_agents})
         add(prefix + 'parent_tools', bool(parent_agents) and all(
-            ('teammate_assign' in e['tools'] and 'tool_search' not in e['tools']) if arm == 'C-eager' else
-            ('tool_search' in e['tools'] and 'teammate_assign' not in e['tools']) if arm == 'C' else
+            (('teammate_assign' in e['tools']) if
+             config.get('tools', {}).get('tool_search', {}).get('enabled') == 'off' else
+             ('tool_search' in e['tools'] and 'teammate_assign' not in e['tools'])) if arm == 'C' else
             'delegate_task' in e['tools'] for e in parent_agents), {'agents': parent_agents})
         reads = controls['reads']
         add(prefix + 'sandbox', reads[0]['success'] and all(r['denied'] and not r['success'] for r in reads[1:]),
@@ -119,7 +113,7 @@ def qualification(sessions):
         add(prefix + 'prompt_hash_join', all(t['inventories']['system_prompt_sha'] and
             all(t['inventories']['system_prompt_sha'].values()) for t in turns),
             {'hashes': [t['inventories']['system_prompt_sha'] for t in turns]})
-    return dict(status='PASS' if checks and all(c['pass_'] for c in checks.values()) else 'FAIL', checks=checks)
+    return dict(slice=SLICE, status='PASS' if checks and all(c['pass_'] for c in checks.values()) else 'FAIL', checks=checks)
 
 
 def calibrate(rows):
@@ -132,11 +126,11 @@ def calibrate(rows):
                             not all(v == 0 for v in values.values())
                             for values in by_role.values()), checker_errors=not any(r.get('checker_error') for r in rows))
     ceiling_roles = sorted(role for role, values in by_role.items() if all(v == 1.0 for v in values.values()))
-    return dict(status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled,
+    return dict(slice=SLICE, status='PASS' if all(checks.values()) else 'FAIL', pooled_success=pooled,
                 per_role=by_role, checks=checks, ceiling_roles=ceiling_roles)
 
 
-SPEND = ('case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')
+SPEND = ('slice', 'case', 'arm', 'attempt', 'turn', 'parent_tokens', 'parent_calls', 'child_tokens', 'total_tokens')
 
 
 def partial_spend(dest):
@@ -148,7 +142,7 @@ def partial_spend(dest):
         except ValueError:
             continue
         parent, child = token_total(row['parent']), token_total(row.get('child_usage', {}))
-        rows.append(dict(case=row['case'], arm=row['arm'], attempt=row['attempt'], turn=row['turn'],
+        rows.append(dict(slice=SLICE, case=row['case'], arm=row['arm'], attempt=row['attempt'], turn=row['turn'],
                          parent_tokens=parent, parent_calls=row['parent']['api_calls'], child_tokens=child,
                          total_tokens=parent + child if parent is not None and child is not None else None))
     return rows
@@ -159,6 +153,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
     from bench.slice3.cases import DEV, SCORED, load_case, load_oracle
     from bench.slice3 import identity as frozen_identity
     # A live run (the real executor) also needs every hidden fixture file; injected executors never read them.
+    if fake_base_url is None and executor is None:
+        frozen_identity.live_preconditions()
     ident = frozen_identity.verify(require_hidden=executor is None) if fake_base_url is None else None
     if fake_base_url is None and executor is None:
         frozen_identity.verify_hermes()
@@ -248,7 +244,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
                 # Publish before any receipt work: from here no launch is admitted, and running siblings stop now.
                 with breach_lock:  # the first breach is the recorded one
                     if not (breach.exists() and json.loads(breach.read_text()).get('identity') == ident):
-                        write_json(breach, dict(identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
+                        write_json(breach, dict(slice=SLICE, identity=ident, phase=phase, session=item['case'] + ':' + item['arm']))
                     for process in launched:
                         if process.poll() is None:
                             try:
@@ -259,7 +255,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             # the fault so the orchestrator can authorize the one rerun (confirmed-infra), and still stop the phase.
             # Completed turns are never graded from a fault receipt.
             dest.mkdir(parents=True, exist_ok=True)
-            write_json(receipt, dict(turns=[], scores=[], spend=partial_spend(dest), quota_stop=False, identity=ident,
+            write_json(receipt, dict(slice=SLICE, turns=[], scores=[], spend=partial_spend(dest), quota_stop=False, identity=ident,
                                      sandbox_breach=breached, harness_fault={'error_class': type(error).__name__}))
             raise
         scores = []
@@ -276,7 +272,8 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             scores.append(score)
         for score in scores:
             score['identity'] = ident
-        value = dict(turns=turns, scores=scores, quota_stop=any(t.get('quota_stop') for t in turns), identity=ident)
+            score['slice'] = SLICE
+        value = dict(slice=SLICE, turns=turns, scores=scores, quota_stop=any(t.get('quota_stop') for t in turns), identity=ident)
         write_json(receipt, value)
         return value
 
@@ -293,13 +290,13 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
                     values.append(None)
                     failures.append(error)
             if failures:
-                write_json(directory / 'phase-faults.json', {'error_classes': [type(e).__name__ for e in failures]})
+                write_json(directory / 'phase-faults.json', {'slice': SLICE, 'error_classes': [type(e).__name__ for e in failures]})
                 raise failures[0]
         for item, value in zip(items, values):
             sessions[item['arm']] = value['turns']
             graded.extend(value['scores'])
             quota_stop |= value['quota_stop'] and not final_invalid(value, latest_receipt(item)[1])
-        write_json(directory / 'phase-state.json', dict(phase=phase, completed=len(graded), quota_stop=quota_stop))
+        write_json(directory / 'phase-state.json', dict(slice=SLICE, phase=phase, completed=len(graded), quota_stop=quota_stop))
         if quota_stop:
             break
     pending, dropped_cases = [], set()
@@ -313,7 +310,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
         if final_invalid(value, attempt):
             dropped_cases.add(item['case'])
     pending, dropped_cases = sorted(pending), sorted(dropped_cases)
-    write_json(directory / 'dispositions.json', dict(identity=ident, pending=pending, dropped_cases=dropped_cases))
+    write_json(directory / 'dispositions.json', dict(slice=SLICE, identity=ident, pending=pending, dropped_cases=dropped_cases))
     write_json(directory / 'metrics.json', graded)
     attempts = [json.loads(p.read_text()) for p in sorted(directory.glob('*/attempt*/session.json'))]
     write_json(directory / 'attempt-spend.json', [
@@ -339,7 +336,7 @@ def run_phase(phase, directory, *, fake_base_url=None, turn_timeout=1200, execut
             result.update(status='FAIL', dropped_cases=dropped_cases)
         write_json(directory.parent / 'calibration.json', result)
     else:
-        result = dict(status='PAUSED' if quota_stop else 'NEEDS_DISPOSITION' if pending else 'COMPLETE',
+        result = dict(slice=SLICE, status='PAUSED' if quota_stop else 'NEEDS_DISPOSITION' if pending else 'COMPLETE',
                       turns=len(graded), identity=ident, pending=pending, dropped_cases=dropped_cases)
         checker_errors = [{k: row[k] for k in ('case', 'arm', 'turn')}
                           for row in graded if 'checker_error' in row]

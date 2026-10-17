@@ -8,10 +8,12 @@ from bench.slice3.session import ARMS, write_json
 
 
 def test_run_phase_checks_hermes_only_for_live(tmp_path, lane_f, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import identity, run
     monkeypatch.setattr(identity, 'verify', lambda **kw: 'frozen')
     def reject():
         raise ValueError('Hermes revision sentinel')
+    monkeypatch.setattr(identity, 'live_preconditions', lambda: None)
     monkeypatch.setattr(identity, 'verify_hermes', reject, raising=False)
     def empty_executor(case, arm, directory, **kwargs):
         directory.mkdir(parents=True)
@@ -24,6 +26,7 @@ def test_run_phase_checks_hermes_only_for_live(tmp_path, lane_f, monkeypatch):
 
 
 def test_scored_checker_exception_is_not_complete(tmp_path, lane_f, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import identity, run
     monkeypatch.setattr(identity, 'verify', lambda **kw: 'frozen')
     declared = tmp_path / 'scored-declared'
@@ -45,7 +48,7 @@ def test_scored_checker_exception_is_not_complete(tmp_path, lane_f, monkeypatch)
     assert result['status'] == 'CHECKER_ERROR'
     rows = json.loads((tmp_path / 'scored/metrics.json').read_text())
     assert result['checker_errors'] == [{k: row[k] for k in ('case', 'arm', 'turn')} for row in rows]
-    assert len(rows) == 30 and all(row['success'] == 0 and row['checker_error'] == 'RuntimeError' for row in rows)
+    assert len(rows) == 20 and all(row['success'] == 0 and row['checker_error'] == 'RuntimeError' for row in rows)
     monkeypatch.setattr(run, 'run_phase', lambda *a, **kw: result)
     assert run.main(['scored', '--directory', str(tmp_path)]) == 1
 
@@ -126,6 +129,7 @@ def injected_scored(tmp_path, lane_f, monkeypatch):
 
 @pytest.mark.parametrize('second_fault', ['quota', 'confirmed-infra'])
 def test_final_invalid_rerun_advances_without_third_attempt(injected_scored, second_fault):
+    # Slice 3 is reproduced from its tag.
     evidence, name, calls, execute = injected_scored
     executor = execute({1: 'quota', 2: second_fault})
     assert run_phase('scored', evidence, executor=executor)['status'] == 'PAUSED'
@@ -133,37 +137,39 @@ def test_final_invalid_rerun_advances_without_third_attempt(injected_scored, sec
     run_phase('scored', evidence, executor=executor, reruns=[name], retry_reason='quota')
     result = run_phase('scored', evidence, executor=executor)
     assert result['status'] == 'COMPLETE'
-    assert len(calls) == 31 and {c[2] for c in calls} == {1, 2}
+    assert len(calls) == 21 and {c[2] for c in calls} == {1, 2}
     assert result['dropped_cases'] == [name.split(':')[0]]
     dispositions = json.loads((evidence / 'dispositions.json').read_text())
-    assert dispositions == dict(identity='frozen', pending=[], dropped_cases=result['dropped_cases'])
+    assert dispositions == dict(slice='3b', identity='frozen', pending=[], dropped_cases=result['dropped_cases'])
     metrics = json.loads((evidence / 'metrics.json').read_text())
     assert next(r for r in metrics if r['case'] + ':' + r['arm'] == name)['attempt'] == 2
     run_phase('scored', evidence, executor=executor, reruns=[name], retry_reason='quota')
-    assert len(calls) == 31 and not list(evidence.glob('*/attempt3'))
+    assert len(calls) == 21 and not list(evidence.glob('*/attempt3'))
 
 
 def test_scored_confirmed_infra_needs_disposition(injected_scored, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import run
     evidence, name, calls, execute = injected_scored
     result = run_phase('scored', evidence, executor=execute({1: 'confirmed-infra'}))
     assert result['status'] == 'NEEDS_DISPOSITION'
-    assert result['pending'] == [name] and len(calls) == 30
+    assert result['pending'] == [name] and len(calls) == 20
     assert json.loads((evidence / 'dispositions.json').read_text()) == dict(
-        identity='frozen', pending=[name], dropped_cases=[])
+        slice='3b', identity='frozen', pending=[name], dropped_cases=[])
     monkeypatch.setattr(run, 'run_phase', lambda *a, **kw: result)
     assert run.main(['scored', '--directory', str(evidence)]) == 1
 
 
 @pytest.mark.parametrize('disposition', ['pending', 'dropped_cases'])
 def test_analyze_requires_disposition_and_explicit_drop(tmp_path, monkeypatch, disposition):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import analysis, cases
     from bench.slice3.run import main
     monkeypatch.setattr(analysis, 'RESAMPLES', 20)
     metrics = tmp_path / 'metrics.json'
     write_json(metrics, [])
     case = cases.SCORED[0]
-    dispositions = dict(identity='frozen', pending=[], dropped_cases=[])
+    dispositions = dict(slice='3b', identity='frozen', pending=[], dropped_cases=[])
     dispositions[disposition] = [case + ':C' if disposition == 'pending' else case]
     write_json(tmp_path / 'dispositions.json', dispositions)
     args = ['analyze', '--directory', str(tmp_path / 'other'), '--input', str(metrics),
@@ -180,14 +186,15 @@ def test_analyze_requires_disposition_and_explicit_drop(tmp_path, monkeypatch, d
 
 
 def test_clean_scored_dispositions_allow_analysis(injected_scored, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import analysis
     from bench.slice3.run import main
     evidence, _, calls, execute = injected_scored
     result = run_phase('scored', evidence, executor=execute({}))
-    assert result['status'] == 'COMPLETE' and len(calls) == 30
+    assert result['status'] == 'COMPLETE' and len(calls) == 20
     assert result['dropped_cases'] == []
     assert json.loads((evidence / 'dispositions.json').read_text()) == dict(
-        identity='frozen', pending=[], dropped_cases=[])
+        slice='3b', identity='frozen', pending=[], dropped_cases=[])
     monkeypatch.setattr(analysis, 'RESAMPLES', 20)
     assert main(['analyze', '--directory', str(evidence), '--input', str(evidence / 'metrics.json'),
                  '--output', str(evidence / 'analysis.json')]) == 0
@@ -221,6 +228,7 @@ def test_an_identity_stopped_receipt_is_never_rerun(tmp_path, lane_f):
 
 
 def test_a_fault_after_completed_turns_keeps_their_spend_but_grades_nothing(tmp_path, lane_f):
+    # Slice 3 is reproduced from its tag.
     first = schedule(lane_f.DEV)[0]
     parent = dict(tokens=dict(input=100, output=20, cache_read=0, cache_write=0), api_calls=3, peak_prompt=10,
                   discovery_calls=0, wait_calls=0, assign_wait_seconds=[])
@@ -238,11 +246,11 @@ def test_a_fault_after_completed_turns_keeps_their_spend_but_grades_nothing(tmp_
     case, arm = first['case'], first['arm']
     fault = json.loads((evidence / f'{case}-{arm}/attempt1/session.json').read_text())
     assert fault['turns'] == [] and fault['scores'] == []
-    assert fault['spend'] == [dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3,
+    assert fault['spend'] == [dict(slice='3b', case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3,
                                    child_tokens=45, total_tokens=165)]
     run_phase('calibrate', evidence, executor=executor, reruns=[f'{case}:{arm}'], retry_reason='confirmed-infra')
     spends = json.loads((evidence / 'attempt-spend.json').read_text())
-    assert dict(case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3, child_tokens=45,
+    assert dict(slice='3b', case=case, arm=arm, attempt=1, turn=1, parent_tokens=120, parent_calls=3, child_tokens=45,
                 total_tokens=165) in spends
 
 
@@ -401,6 +409,7 @@ def test_analyze_refuses_drops_the_runner_did_not_record(tmp_path):
 
 
 def test_calibration_counts_turns_that_never_ran(tmp_path, lane_f, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     import bench.slice3.run as run_module
     seen = []
     monkeypatch.setattr(run_module, 'calibrate', lambda rows: seen.extend(rows) or dict(status='PASS'))
@@ -414,9 +423,9 @@ def test_calibration_counts_turns_that_never_ran(tmp_path, lane_f, monkeypatch):
                      parent=dict(tokens=None, api_calls=1, peak_prompt=10, discovery_calls=0, wait_calls=0,
                                  assign_wait_seconds=[]))]
     result = run_phase('calibrate', tmp_path / 'phase', executor=executor)
-    assert result['scheduled_turns'] == 12 and result['missing_turns'] == 6
+    assert result['scheduled_turns'] == 8 and result['missing_turns'] == 4
     missing = [r for r in seen if r['status'] == 'missing']
-    assert len(seen) == 12 and len(missing) == 6
+    assert len(seen) == 8 and len(missing) == 4
     assert all(r['success'] == 0 and r['adherence_all'] == 0 and r['turn'] == 2 for r in missing)
 
 
@@ -503,12 +512,14 @@ def test_sandbox_breach_stops_the_identity_for_every_phase_and_rerun(tmp_path, l
 
 
 def test_the_live_launcher_verifies_runtime_however_it_is_invoked(tmp_path, monkeypatch):
+    # Slice 3 is reproduced from its tag.
     from bench.slice3 import identity, session
     monkeypatch.setenv('SLICE3_LIVE', '1')
     monkeypatch.setenv('GLM_API_KEY', 'bench-not-a-secret')
     monkeypatch.setattr(identity, 'verify_hermes', lambda: None)
     def drifted():
         raise ValueError('Plugin runtime differs from the declared release: __init__.py')
+    monkeypatch.setattr(identity, 'live_preconditions', lambda: None)
     monkeypatch.setattr(identity, 'verify_runtime', drifted)
     monkeypatch.setattr(session, 'setup', lambda *a, **k: pytest.fail('launched with undeclared runtime'))
     with pytest.raises(ValueError, match='differs from the declared release'):

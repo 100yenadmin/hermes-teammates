@@ -23,10 +23,10 @@ from bench.slice3.accounting import (infrastructure_invalid, invocation_metrics,
                                      parent_set, quota_exhausted, read_state, reconcile)
 from bench.slice3.runtime_probe import bounded, expand, parsed
 from bench.slice3.sandbox import sandbox_profile
+from bench.slice3.texts import ARMS, SLICE
 
-DECLARED = ROOT / 'bench/declared/slice3'
+DECLARED = ROOT / 'bench/declared/slice3b'
 HIDDEN = ROOT / 'bench/tasks/t2/hidden'
-ARMS = ('B-native', 'C', 'C-eager')
 
 
 def write_json(path, value):
@@ -302,6 +302,8 @@ def status_gated_sessions(usage, children):
 
 def config_for(arm, roster):
     config = json.loads((DECLARED / 'configs.json').read_text())[arm]
+    if config is None:
+        raise ValueError('C config is unset until v0.2.7 ships')
     if config.get('skills', {}).get('auto_load') or any(config.get('delegation', {}).get(k) for k in ('provider', 'model')):
         raise ValueError('Declared config violates matched routing/skills contract')
     if arm != 'B-native':
@@ -309,8 +311,6 @@ def config_for(arm, roster):
             'hermes-teammates', {}).setdefault('settings', {})['teammates'] = roster
         if 'hermes-teammates' not in config['plugins'].get('enabled', []):
             raise ValueError('Plugin must be enabled for C arms')
-    if arm == 'C-eager' and config.get('tools', {}).get('tool_search', {}).get('enabled') != 'off':
-        raise ValueError('C-eager requires tool_search off')
     return config
 
 
@@ -356,10 +356,9 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
     from bench.slice3.cases import load_case
     if arm not in ARMS:
         raise ValueError('Unknown arm')
-    if fake_base_url is None and os.environ.get('SLICE3_LIVE') != '1':
-        raise ValueError('Live launch requires explicit SLICE3_LIVE=1 authorization')
     if fake_base_url is None:
         from bench.slice3 import identity  # every live launch, however it was invoked
+        identity.live_preconditions()
         identity.verify_hermes()
         identity.verify_runtime()
     if fake_base_url is not None:
@@ -456,7 +455,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         children = extract_children(calls, events, rows, messages,
                                     ledger_rows(run / 'hermes/plugin-data/hermes-teammates/data.db'))
         child_ids = {r['id'] for r in rows} - parents
-        child_metrics = invocation_metrics(usage, child_ids)
+        child_metrics = invocation_metrics(usage, child_ids, allow_empty=True)
         after = snapshot(run / 'work', invocation / 'after')
         metrics = invocation_metrics(usage, parents)
         metrics.update(discovery_calls=sum(c['tool'] in {'tool_search', 'tool_describe'} for c in calls),
@@ -464,7 +463,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
                        assign_wait_seconds=assign_wait_seconds(calls))
         agents = [e for e in events if e.get('kind') == 'agent']
         status = 'timeout' if timeout else 'error' if code or final.get('is_error') or not final.get('text') else 'ok'
-        record = dict(case=case_id, arm=arm, turn=turn['index'], attempt=attempt, session_id=root, status=status,
+        record = dict(slice=SLICE, case=case_id, arm=arm, turn=turn['index'], attempt=attempt, session_id=root, status=status,
                       infra_invalid=infrastructure_invalid(status, usage, exception, bool(final.get('text')),
                                                     parents=status_gated_sessions(usage, children), faults=events),
                       parent=metrics, children=children, graded_child=graded_child(children),
@@ -487,7 +486,7 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         if not root or record['quota_stop']:
             break
     rows, _, _ = read_state(run / 'hermes/state.db')
-    write_json(run.parent / 'reconciliation.json', reconcile(all_usage, rows, root))
+    write_json(run.parent / 'reconciliation.json', dict(reconcile(all_usage, rows, root), slice=SLICE))
     return output
 
 

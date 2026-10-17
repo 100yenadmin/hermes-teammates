@@ -35,16 +35,18 @@ def test_frozen_identity_matches_tree():
 
 
 def test_identity_covers_runtime_harness_and_declared():
-    names = set(json.loads(identity.IDENTITY.read_text()))
+    # Slice 3 is reproduced from its tag.
+    names = set(json.loads(identity.IDENTITY.read_text())['files'])
     for required in ('teammates_service.py', 'plugin.yaml', 'bench/slice3/session.py', 'bench/slice3/grade.py',
-                     'bench/slice3/texts.py', 'bench/declared/slice3/DECLARED.md',
-                     'bench/declared/slice3/schedule.json', 'bench/tasks/t2/manifest.json'):
+                     'bench/slice3/texts.py', 'bench/declared/slice3b/DECLARED.md',
+                     'bench/declared/slice3b/schedule.json', 'bench/tasks/t2/manifest.json'):
         assert required in names
 
 
 def test_drift_is_named(tmp_path):
+    # Slice 3 is reproduced from its tag.
     frozen = json.loads(identity.IDENTITY.read_text())
-    frozen['bench/slice3/grade.py'] = '0' * 64
+    frozen['files']['bench/slice3/grade.py'] = '0' * 64
     path = tmp_path / 'identity.json'
     path.write_text(json.dumps(frozen))
     try:
@@ -79,8 +81,14 @@ def _has(tag):
 
 
 def test_live_runtime_must_be_the_declared_release():
+    # Slice 3 is reproduced from its tag.
     from bench.slice3.identity import RUNTIME_TAG, verify_runtime
-    assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3/DECLARED.md').read_text()
+    if RUNTIME_TAG is None:
+        assert json.loads(identity.IDENTITY.read_text())['status'] == 'provisional'
+        with pytest.raises(ValueError, match='RUNTIME_TAG'):
+            verify_runtime()
+        return
+    assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3b/DECLARED.md').read_text()
     if not _has(RUNTIME_TAG) or not _has(RUNTIME_TAG + '~1'):
         pytest.skip('shallow clone: declared release commit unavailable')
     import subprocess

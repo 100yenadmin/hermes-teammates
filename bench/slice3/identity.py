@@ -6,17 +6,18 @@ and receipts from different identities never combine.
 """
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
 from bench.drivers.hermes_cell import HERMES, HERMES_SHA
 from bench.slice2.protocol import ROOT, RUNTIME
 
-IDENTITY = ROOT / 'bench/declared/slice3/identity.json'
+IDENTITY = ROOT / 'bench/declared/slice3b/identity.json'
 HARNESS = ('bench/drivers/hermes_cell.py', 'bench/slice2/accounting.py', 'bench/slice2/hermes.py',
            'bench/slice2/protocol.py', 'bench/slice2/stats.py')
-DECLARED = ('bench/declared/slice3/DECLARED.md', 'bench/declared/slice3/configs.json',
-            'bench/declared/slice3/schedule.json', 'bench/tasks/t2/manifest.json')
+DECLARED = ('bench/declared/slice3b/DECLARED.md', 'bench/declared/slice3b/configs.json',
+            'bench/declared/slice3b/schedule.json', 'bench/tasks/t2/manifest.json')
 
 
 def verify_hermes(hermes=HERMES, sha=HERMES_SHA):
@@ -29,11 +30,27 @@ def verify_hermes(hermes=HERMES, sha=HERMES_SHA):
         raise ValueError('Hermes tracked checkout is dirty')
 
 
-RUNTIME_TAG = '29d6b46571ef43ba3d753b76ff710e3c2d98d470'  # DECLARED: plugin runtime v0.2.5 (PR #44)
+RUNTIME_TAG = None  # UNSET: resolve the shipped v0.2.7 tag to its immutable commit SHA.
 
 
-def verify_runtime(root=ROOT, tag=RUNTIME_TAG):
+def live_preconditions():
+    if os.environ.get('SLICE3_LIVE') != '1':
+        raise ValueError('Live launch requires explicit SLICE3_LIVE=1 authorization')
+    if not os.environ.get('GLM_API_KEY', '').strip():
+        raise ValueError('Owner must supply non-empty GLM_API_KEY in environment')
+    if not RUNTIME_TAG:
+        raise ValueError('RUNTIME_TAG is unset until v0.2.7 ships')
+    if json.loads((IDENTITY.parent / 'configs.json').read_text()).get('C') is None:
+        raise ValueError('C config is unset until v0.2.7 ships')
+    if json.loads(IDENTITY.read_text()).get('status') != 'frozen':
+        raise ValueError('Slice 3b identity is provisional; freeze after setting release inputs')
+
+
+def verify_runtime(root=ROOT, tag=None):
     """Every session copies these files from the checkout; a live run may only use the declared release's bytes."""
+    tag = tag or RUNTIME_TAG
+    if not tag:
+        raise ValueError('RUNTIME_TAG is unset until v0.2.7 ships')
     try:
         drift = [name for name in RUNTIME if (root / name).read_bytes() != subprocess.run(
             ['git', '-C', str(root), 'show', f'{tag}:{name}'], capture_output=True, check=True).stdout]
@@ -59,7 +76,9 @@ def digest(files):
 
 def freeze(root=ROOT, path=None):
     files = compute(root)
-    (path or root / 'bench/declared/slice3/identity.json').write_text(json.dumps(files, indent=2, sort_keys=True) + '\n')
+    config = json.loads((root / 'bench/declared/slice3b/configs.json').read_text()).get('C')
+    value = dict(slice='3b', status='frozen' if RUNTIME_TAG and config is not None else 'provisional', files=files)
+    (path or root / 'bench/declared/slice3b/identity.json').write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
     return digest(files)
 
 
@@ -83,10 +102,13 @@ def verify_fixtures(root=ROOT, require_hidden=True):
         raise ValueError('Slice 3 fixture drift: ' + ', '.join(problems))
 
 
-def verify(root=ROOT, path=None, require_hidden=True):
+def verify(root=ROOT, path=None, require_hidden=False):
     """Return the identity digest, or raise naming every drifted file."""
     verify_fixtures(root, require_hidden)
-    frozen = json.loads((path or root / 'bench/declared/slice3/identity.json').read_text())
+    value = json.loads((path or root / 'bench/declared/slice3b/identity.json').read_text())
+    if value.get('slice') != '3b' or value.get('status') not in {'provisional', 'frozen'}:
+        raise ValueError('Invalid slice 3b identity metadata')
+    frozen = value['files']
     current = compute(root)
     drift = sorted(set(frozen) ^ set(current)) + sorted(k for k in set(frozen) & set(current) if frozen[k] != current[k])
     if drift:

@@ -116,7 +116,7 @@ def _findings(text):
             match = _FINDING.fullmatch(line)
             start = _line_number(match[2]) if match else 0
             end = _line_number(match[3]) if match and match[3] else start
-            rows.append(None if match is None or end < start or end - start > 4 else
+            rows.append(None if match is None or end < start else
                         {'file': match[1], 'line': start, 'line_from': start, 'line_to': end,
                          'priority': match[4], 'problem': match[5], 'fix': match[6]})
     return rows
@@ -236,7 +236,9 @@ def check_rules(role, oracle_turn, text, delta, receipts, workspace: Path) -> li
     last = lines[-1] if lines else ''
     if role == 'scout':
         cites = list(_citations(text))
-        valid = bool(cites)
+        # Every bracketed source must be a citation, including malformed/unclosed brackets.
+        without_cites = re.sub(r'\[docs/[^\[\]:\n]+:[0-9]+\]', '', text)
+        valid = bool(cites) and '[' not in without_cites and ']' not in without_cites
         for file, line in cites:
             source = _safe_file(workspace, file)
             valid = valid and source is not None and 1 <= line <= len(source.read_text().splitlines())
@@ -306,7 +308,8 @@ def _on_locus(finding, bug):
 
 
 def _matches_bug(finding, bug):
-    return (_on_locus(finding, bug) and finding['priority'] in ('P1', 'P2')
+    return (_on_locus(finding, bug) and finding['line_to'] - finding['line_from'] <= 4
+            and finding['priority'] in ('P1', 'P2')
             and _names_mechanism(finding['problem'] + ' ' + finding['fix'], bug['terms']))
 
 
