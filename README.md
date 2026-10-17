@@ -158,7 +158,7 @@ Finished runs report these fields through `teammate_assign(wait_seconds=...)`, `
 | Field | Meaning |
 |---|---|
 | `summary` | Teammate result text within the existing budget; JSON decoding preserves newlines, quotes and non-ASCII text |
-| `relay_instruction` | Guidance to relay findings, citations and verdict verbatim; present on finished rows with nonempty summaries, with an explicit warning when clipped |
+| `relay_instruction` | Guidance to relay findings, citations and verdict verbatim; present on finished assign/wait/check rows with nonempty summaries, with an explicit warning when clipped; the roster includes it once at the top level |
 | `summary_clipped` | True when original summary content was cut, even if a stop note adds text afterward |
 | `summary_chars` | Original summary length before ledger/public clipping; `null` for old rows or no summary |
 | `role_hash` | First 12 SHA-256 hex characters of the canonical JSON of the parsed teammate definition used at launch; `null` for old rows |
@@ -172,8 +172,8 @@ The roster's current `role_hash` can differ from a run's hash after you edit the
 Run rows omit `error` when it is null; actual tool errors retain `error` and `ok: false`.
 Replies remain valid JSON with additive guidance; they do not append a second, unescaped copy of the summary.
 If `summary_clipped` is true, describe the result as incomplete and do not infer missing findings or a verdict.
-The roster's short previews follow the same rule; use `teammate_check` for its larger budget.
-Follow-up digests preserve result text within their configured budget, include relay guidance and label results
+The roster's short previews follow the same rule; one top-level instruction points to `teammate_check` for the full retained text.
+Follow-up digests preserve result text within their configured budget, tell the teammate to continue from prior results and label results
 already clipped in the ledger as incomplete. Further digest clipping keeps its characters-omitted marker.
 Kanban review handoffs retain their 4,000-character summary budget and add `summary_chars`, `summary_clipped`
 and `relay_instruction` to the existing `hermes_teammates` metadata. These instructions guide the parent;

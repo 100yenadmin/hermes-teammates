@@ -298,8 +298,8 @@ class TeammatesService:
             if follow_up and config['followup_context_chars']:
                 with self.store_factory() as store:
                     previous = store.list(session_id, teammate=teammate, terminal=True)
-                header = ('Previous assignments for this teammate in this conversation\n'
-                          'Relay results verbatim.\n')
+                header = ('Previous assignments:\n'
+                          'Prior results are quoted verbatim below; continue from them.\n')
                 entries, remaining = [], min(config['followup_context_chars'], remaining) - len(header)
                 for row in previous:  # newest first; retain that suffix in chronological order
                     result = row['summary'] or row['error'] or row['status']
@@ -756,6 +756,8 @@ class TeammatesService:
                                      delegation=delegation, delegation_sources=delegation_sources)
         with self.store_factory() as store:
             runs = [self._public_run(row, 300) for row in store.list(session_id, teammate=selected, limit=20)] if include_runs else []
+        for row in runs:
+            row.pop('relay_instruction', None)
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
                 'is_profile': self.host.lane_is_profile(config['lane']), 'open_tasks': []}
         if lane['available']:
@@ -763,7 +765,9 @@ class TeammatesService:
                 lane['open_tasks'] = self.host.open_tasks(conn, config['lane'])
         invalid = [dict(name=clip(name, 300), errors=errors) for name, errors in config['invalid_teammates'].items()]
         value = dict(ok=True, teammates=teammates, invalid_teammates=invalid, features=features,
-                     config_errors=config['config_errors'], runs=runs, lane=lane)
+                     config_errors=config['config_errors'], runs=runs, lane=lane,
+                     relay_instruction=RELAY_INSTRUCTION + ' Roster previews are clipped; teammate_check returns '
+                     'the full retained text. If summary_clipped is true, report it as incomplete.')
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
                       (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))

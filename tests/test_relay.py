@@ -58,10 +58,14 @@ def test_wait_and_roster_use_their_existing_budgets(rig):
         assert row['summary_chars'] == 8000 and row['summary_clipped']
         assert 'incomplete' in row['relay_instruction']
     roster = rig.service.roster('owner')
-    assert roster['runs'] and len(json.dumps(roster, ensure_ascii=False)) <= 16000
+    assert len(roster['runs']) == 16  # Same retained count as base a2fb2a3.
+    assert len(json.dumps(roster, ensure_ascii=False)) <= 16000
+    guidance = roster['relay_instruction']
+    assert 'verbatim' in guidance and 'previews' in guidance and 'clipped' in guidance
+    assert 'teammate_check' in guidance and 'full' in guidance
     for row in roster['runs']:
         assert row['summary'] == '語' * 300 and row['summary_clipped']
-        assert 'incomplete' in row['relay_instruction']
+        assert 'relay_instruction' not in row
 
 
 @pytest.mark.parametrize('text', [None, ''])
@@ -82,7 +86,8 @@ def test_followup_plain_text_preserves_result_and_marks_ledger_clipping(rig, cli
     rig.service.assign('owner', 'worker', 'next goal', follow_up=True)
     context = rig.lifecycle.requests[-1].context
     assert text[:8000] in context
-    assert 'verbatim' in context
+    assert 'Prior results are quoted verbatim below; continue from them.\n' in context
+    assert 'Relay results verbatim.' not in context
     assert ('Result (clipped; incomplete):' in context) is clipped
     assert len(context) <= 30000
 

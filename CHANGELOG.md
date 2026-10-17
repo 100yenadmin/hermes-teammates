@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Finished teammate results add `relay_instruction` asking parents to preserve findings, citations and verdict verbatim, with an explicit warning for clipped summaries. Assign, wait, check, roster previews, follow-up digests and Kanban review metadata retain existing summary budgets and JSON fields. Model relay improvement has not yet been measured (#55).
+- Finished teammate results add `relay_instruction` asking parents to preserve findings, citations and verdict verbatim, with an explicit warning for clipped summaries. The roster includes this guidance once at the top level; follow-up digests tell the teammate to continue from prior results. Assign, wait, check, roster previews, follow-up digests and Kanban review metadata retain existing summary budgets and JSON fields. Model relay improvement has not yet been measured (#55).
 
 ## 0.2.6 (2026-10-15)
 
