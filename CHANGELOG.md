@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` include conditional
+  `tool_describe` → `tool_call` catalog hints and single-call schema examples. Documents the global
+  tool-search off switch and its context trade-off (#56); model-quality improvement remains unmeasured.
+
 ## 0.2.6 (2026-10-15)
 
 - Adds the `teammates-report-problem` skill: ask your agent to "report a problem with Hermes Teammates". It checks the roster and existing runs, sends security problems to a private advisory, drafts a report with the bug form's headings, and files it with `gh` only after you approve that draft. On Hermes versions that do not list plugin skills in the system prompt, ask for `hermes-teammates:teammates-report-problem` by name. Hosts without plugin skills, and copies without the `skills` folder, load the plugin without it.

@@ -16,5 +16,7 @@ config_schema:
   max_live_runs: {type: int, default: 4, label: "Max live runs per conversation", description: "Most teammate runs one conversation may have in flight. 1-16; anything else falls back to 4."}
   notify_on_completion: {type: bool, default: false, label: "Completion notices (not available on current Hermes)", description: "Reserved. No current Hermes build can confirm which conversation would receive a notice, so none is sent; use teammate_wait. See the README."}
   followup_context_chars: {type: int, default: 8000, label: "Follow-up context budget (characters)", description: "How much of a teammate's earlier results a follow-up carries. 0-24000; anything else falls back to 8000."}
+# Catalog/schema bridge hints: teammates_roster, teammate_assign, teammate_check, teammate_wait.
+# Hermes tool-search settings are global, not plugin settings; see README "Hermes tool search".
 provides_tools: [teammates_roster, teammate_assign, teammate_check, teammate_wait, teammate_message, teammate_stop]
 provides_hooks: [subagent_start, post_api_request]
