@@ -143,6 +143,8 @@ Ask in plain language:
 | `teammate_stop` | Cancels a run |
 
 Use `teammate_assign(wait_seconds=...)` when you need one result now; use `teammate_wait` for several runs or when you have work to do meanwhile.
+These tools include relay guidance with finished summaries: preserve specialist findings, citations and verdict
+verbatim when reporting them, and keep the parent's commentary separate.
 
 `/teammates` prints the roster in any chat surface.
 
@@ -196,6 +198,8 @@ Finished runs report these fields through `teammate_assign(wait_seconds=...)`, `
 
 | Field | Meaning |
 |---|---|
+| `summary` | Teammate result text within the existing budget; JSON decoding preserves newlines, quotes and non-ASCII text |
+| `relay_instruction` | Guidance to relay findings, citations and verdict verbatim; present on finished assign/wait/check rows with nonempty summaries, with an explicit warning when clipped; the roster includes it once at the top level |
 | `summary_clipped` | True when original summary content was cut, even if a stop note adds text afterward |
 | `summary_chars` | Original summary length before ledger/public clipping; `null` for old rows or no summary |
 | `role_hash` | First 12 SHA-256 hex characters of the canonical JSON of the parsed teammate definition used at launch; `null` for old rows |
@@ -207,6 +211,14 @@ Summaries retain at most 8,000 characters in the ledger; the roster returns at m
 `summary_clipped` only detects clipping of the stored text because the original length is unknown.
 The roster's current `role_hash` can differ from a run's hash after you edit the definition.
 Run rows omit `error` when it is null; actual tool errors retain `error` and `ok: false`.
+Replies remain valid JSON with additive guidance; they do not append a second, unescaped copy of the summary.
+If `summary_clipped` is true, describe the result as incomplete and do not infer missing findings or a verdict.
+The roster's short previews follow the same rule; one top-level instruction points to `teammate_check` for the full retained text.
+Follow-up digests preserve result text within their configured budget, tell the teammate to continue from prior results and label results
+already clipped in the ledger as incomplete. Further digest clipping keeps its characters-omitted marker.
+Kanban review handoffs retain their 4,000-character summary budget and add `summary_chars`, `summary_clipped`
+and `relay_instruction` to the existing `hermes_teammates` metadata. These instructions guide the parent;
+they do not guarantee that a model relays a result faithfully.
 
 Token receipts require both `subagent_start` and `post_api_request` hooks and in-process plugins; the roster
 reports `token_receipts` support. Only mapped child sessions contribute, never the parent's own requests or
