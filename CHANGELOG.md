@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Finished teammate results add `relay_instruction` asking parents to preserve findings, citations and verdict verbatim, with an explicit warning for clipped summaries. The roster includes this guidance once at the top level; follow-up digests tell the teammate to continue from prior results. Assign, wait, check, roster previews, follow-up digests and Kanban review metadata retain existing summary budgets and JSON fields. Model relay improvement has not yet been measured (#55).
+- `teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` include conditional
+  `tool_describe` → `tool_call` catalog hints and single-call schema examples. Documents the global
+  tool-search off switch and its context trade-off (#56); model-quality improvement remains unmeasured.
 
 ## 0.2.6 (2026-10-15)
 

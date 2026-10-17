@@ -62,10 +62,27 @@ SPECS = {
 }
 
 
+# Hermes catalogs only the first sentence (at most 60 characters). Keep the
+# conditional bridge flow there, and a valid single-call envelope in the schema.
+_BRIDGE_EXAMPLES = {
+    'teammates_roster': ('List roster', {}),
+    'teammate_assign': ('Assign a goal', {'teammate': 'reviewer', 'goal': 'Review the requested diff.'}),
+    'teammate_check': ('Check a run', {'run_id': 'RUN_ID'}),
+    'teammate_wait': ('Wait for runs', {'run_ids': ['RUN_ID']}),
+}
+
+
 def schema(name, names=()):
     description, properties, required = SPECS[name]
     if name in ('teammate_assign', 'teammate_check', 'teammate_wait'):
         description += ' ' + RELAY_INSTRUCTION + ' Read relay_instruction and summary_clipped before relaying summary.'
+    if name in _BRIDGE_EXAMPLES:
+        action, arguments = _BRIDGE_EXAMPLES[name]
+        envelope = json.dumps({'calls': [{'name': name, 'arguments': arguments}]}, separators=(',', ':'))
+        description = (f'{action}; if deferred: tool_describe then tool_call. '
+                       f'If deferred, invoke with tool_call: {envelope}. '
+                       'Replace example values; use one entry per call. When directly listed, call normally. '
+                       + description)
     if name == 'teammate_assign':
         description += (' Teammates at startup: ' + ', '.join(names) + '.' if names else '') + \
             ' Call teammates_roster for the current list; teammates added later work by name.'
