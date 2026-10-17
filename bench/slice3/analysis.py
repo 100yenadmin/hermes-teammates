@@ -157,11 +157,13 @@ def contrast(means, cases, treatment, dropped):
 
 def analyze(rows, *, cases=None, dropped_cases=()):
     ident = identity.verify()
-    if any(r.get('identity', ident) != ident for r in rows):
+    if any(r.get('identity') != ident for r in rows):
         raise ValueError('Analyzed rows differ from the active declaration identity')
     limitations = (identity.IDENTITY.parent / 'DECLARED.md').read_text().split(
         '## What this does not prove\n', 1)[1].split('\n## ', 1)[0]
     cases = sorted(set(cases if cases is not None else [r['case'] for r in rows]))
+    if any(r['case'] not in cases for r in rows):
+        raise ValueError('Metrics row case is not in the scheduled-case set')
     if len(set(dropped_cases) - set(cases)):
         raise ValueError('Unknown dropped case')
     actual = [(r['case'], r['arm'], r['turn']) for r in rows]

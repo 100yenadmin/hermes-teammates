@@ -455,7 +455,10 @@ def _run_session(case_id, arm, directory, *, fake_base_url=None, turn_timeout=12
         children = extract_children(calls, events, rows, messages,
                                     ledger_rows(run / 'hermes/plugin-data/hermes-teammates/data.db'))
         child_ids = {r['id'] for r in rows} - parents
-        child_metrics = invocation_metrics(usage, child_ids, allow_empty=True)
+        unowned = 'unowned session' in reconcile([usage], rows, root)['errors']
+        child_metrics = invocation_metrics(usage, child_ids, allow_empty=not unowned)
+        if unowned:
+            child_metrics['tokens'] = None
         after = snapshot(run / 'work', invocation / 'after')
         metrics = invocation_metrics(usage, parents)
         metrics.update(discovery_calls=sum(c['tool'] in {'tool_search', 'tool_describe'} for c in calls),

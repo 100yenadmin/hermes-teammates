@@ -106,15 +106,26 @@ def _citations(text):
 
 
 def _source_brackets_valid(text):
-    # Each scan stops at bracket delimiters: repeated unclosed prefixes stay linear.
-    # Outer JSON arrays and other generic brackets do not turn a nested citation into a source.
-    for part in text.split('[')[1:]:
-        source, closing, rest = part.partition(']')
-        if 'docs/' in source and (not closing or not _CITATION.fullmatch(source + ']')
-                                  or rest.startswith('(')):
-            return False
+    # Outer groups are containers; check each leaf source independently, in linear time.
+    stack = []
+    for index, char in enumerate(text):
+        if char == '[':
+            if stack:
+                if not stack[-1][1] and text[stack[-1][0]:index].lstrip().startswith('docs/'):
+                    return False  # An unfinished source cannot become a generic outer group.
+                stack[-1][1] = True
+            stack.append([index + 1, False])
+        elif char == ']' and stack:
+            start, nested = stack.pop()
+            if not nested:
+                source = text[start:index]
+                if 'docs/' in source and (not _CITATION.fullmatch(source + ']')
+                                          or text[index + 1:index + 2] == '('):
+                    return False
+    if any(not nested and 'docs/' in text[start:] for start, nested in stack):
+        return False
     # A markdown destination referring to docs is a source, but never the declared citation form.
-    return not re.search(r'\[[^\[\]]*\]\([^()[\]\n]*docs/', text)
+    return not re.search(r'\]\([^()[\]\n]*docs/', text)
 
 
 def _findings(text):

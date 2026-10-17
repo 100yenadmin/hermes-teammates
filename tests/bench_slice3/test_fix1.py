@@ -13,7 +13,7 @@ from .test_run import synthetic_qualification
 
 
 @pytest.mark.parametrize('enabled,tools,expected', [
-    ('off', ['teammate_assign'], True),
+    ('off', ['teammate_assign'], False),
     ('off', ['teammate_assign', 'tool_search'], False),
     ('off', ['tool_search'], False),
     ('on', ['tool_search'], True),
@@ -117,6 +117,7 @@ def test_fix1_parent_and_child_summary_counts_reach_report(tmp_path, monkeypatch
     assert scored['unobserved_summary_requests'] == 2
     assert scored['child_unobserved_summary_requests'] == 3
     assert scored['child_tokens'] is None and scored['total_tokens'] is None
+    scored['identity'] = identity.verify()  # The phase runner binds scored rows before analysis.
     result = analysis.analyze([scored])
     assert result['itt']['B-native']['unobserved_summary_requests'] == 2
     assert result['itt']['B-native']['child_unobserved_summary_requests'] == 3

@@ -30,7 +30,7 @@ def verify_hermes(hermes=HERMES, sha=HERMES_SHA):
         raise ValueError('Hermes tracked checkout is dirty')
 
 
-RUNTIME_TAG = None  # UNSET: resolve the shipped v0.2.7 tag to its immutable commit SHA.
+RUNTIME_TAG = 'df6c322ad0567ba805c36d33ece1a7c3f53d244e'  # v0.2.7, resolved before freezing.
 
 
 def live_preconditions():

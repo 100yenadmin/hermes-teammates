@@ -8,7 +8,8 @@ from bench.slice3.run import calibrate, schedule
 
 
 def dataset(*, b=.75, c=.75, success=.75, tokens=100, calls=2, unknown=0):
-    return [dict(case='case'+str(case), arm=arm, turn=turn, attempt=1, status='ok',
+    ident = analysis.identity.verify()
+    return [dict(case='case'+str(case), arm=arm, turn=turn, attempt=1, status='ok', identity=ident,
                  adherence_all=b if arm == 'B-native' else (c(case) if callable(c) else c),
                  adherence_rules=b if arm == 'B-native' else (c(case) if callable(c) else c),
                  success=success, parent_tokens=None if arm == 'C' and case < unknown else
