@@ -67,8 +67,9 @@ grader/text changes and runtime differ from slice 3's scored comparison, so the 
 Parent tokens include input, output, cache read and cache write. Discovery counts `tool_search` and `tool_describe`; these counts are not coding-plan credits.
 
 **Reviewer relay (#55).** A retained structured finding has the specialist's file, line/range and priority in the finding-line format; wording may change. The stricter wording count requires at least
-one complete finding line to match after markdown emphasis is removed. Distinguishing the two avoids calling a paraphrase a verbatim copy. For context, slice 3's scored audit reported structured-line
-relay in B-native 19/20 and C 0/20 reviewer turns. These four-turn dev observations do not establish a causal improvement or general product advantage.
+one complete finding line to match after markdown emphasis is removed. Distinguishing the two avoids calling a paraphrase a verbatim copy. For context, slice 3's scored audit counted parents that copied
+the specialist's finding line, closest to the exact-wording row above: B-native 19/20 and C 0/20 reviewer turns, while C lost the
+`file:line` in only 2 of them. The definitions are not identical and the cases differ, so the two runs are not directly comparable. These four-turn dev observations do not establish a causal improvement or general product advantage.
 
 **Competing parent format.** In `dev02-copper`, the B-native parent imposed `output_schema` on all six delegated turns. All six child outputs were JSON envelopes: success was 6/6, but raw-text
 adherence was 0/6. Reviewer and scout outputs violated the required final-line form; tester outputs lacked the required standalone RED line. Some also failed the finding/citation format rule.
