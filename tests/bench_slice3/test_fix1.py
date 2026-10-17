@@ -89,7 +89,7 @@ def test_fix1_unknown_spend_discloses_dropped_cases(monkeypatch):
 @pytest.mark.parametrize('extra,expected', [
     ('{"citations": ["[docs/a.md:1]"]}', True), ('x[0]', True), ('[optional]', True),
     ('[guide.md:1]', True), ('[[docs/a.md:1]]', True),
-    ('[guide](docs/a.md)', False), ('[docs/a.md:1](elsewhere)', False),
+    ('[guide](docs/a.md)', False), ('[docs/a.md:1](elsewhere)', True),
     ('[docs/a.md:1-3]', False), ('[docs/a.md:1', False), ('[source docs/a.md]', False),
 ])
 def test_fix1_only_source_brackets_fail_scout_rule2(tmp_path, extra, expected):

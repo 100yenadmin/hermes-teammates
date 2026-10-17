@@ -1,7 +1,7 @@
 {
   "files": {
     "__init__.py": "b9453e5420a36198ccbf5a688f74142074fa0627c10be8bc37e3011030509024",
-    "bench/declared/slice3b/DECLARED.md": "8e91024d322a38a34ba76cd1224be9af9ea717fdfa67f84e57dbeb6c54eec63c",
+    "bench/declared/slice3b/DECLARED.md": "944c89f4e5ba996a4f6ac585b4aec5b58ce850e7e18d14151579023cf282cd29",
     "bench/declared/slice3b/configs.json": "b2bc29a14f75503257b077d019dd15f037c06d078aa114af4ee2278f8490cd64",
     "bench/declared/slice3b/schedule.json": "ffd43f6c25491daf564fd5dfd3746f9995d983cde70c3d446975f26089650ad2",
     "bench/drivers/hermes_cell.py": "bc95ba2438e68d13e5c69f4b904977e90a5559659df5d65bdaedc530b720c610",
@@ -14,7 +14,7 @@
     "bench/slice3/analysis.py": "a8b422adc31f30b3f9f8f2fdc59fff3a83504526a215e62f25968c12cf7726c0",
     "bench/slice3/cases.py": "0d2ac927c49585dc83a6a15ec92cd7d7951b9e9c9753359f0daebe268815c103",
     "bench/slice3/generate.py": "ecba12bdb3be58307ec9fa896b8896d23d6eac41a02d93a60651d556b67b27bd",
-    "bench/slice3/grade.py": "09701cabea61cd43c0b2d2bd4fe1776074379488915f7e0c781a0ebcceb36547",
+    "bench/slice3/grade.py": "3fc257b3201d3bd6db83338015a73a1373dc89762e93228823152483176ae952",
     "bench/slice3/identity.py": "2195d64222cd28e81301b28e5814d98cade8085ac2c1af1e20291deaba8cfefd",
     "bench/slice3/observer.py": "46fdbe7b842bfcb5b4871e8948ccdc582529536154fa7ff8966b7cb7e7bcb8ac",
     "bench/slice3/run.py": "e4e072318c058d58cb3b0ad7a0572b0caf1a77fd08becb1844e1c98c6af1350a",

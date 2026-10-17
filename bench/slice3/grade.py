@@ -106,26 +106,22 @@ def _citations(text):
 
 
 def _source_brackets_valid(text):
-    # Outer groups are containers; check each leaf source independently, in linear time.
-    stack = []
-    for index, char in enumerate(text):
+    # Remove strict citations first; delimiter splits keep unfinished prefixes linear.
+    parts = text.split('[')
+    for index in range(1, len(parts)):
+        source, closing, rest = parts[index].partition(']')
+        parts[index] = ('citation' + rest if closing and _CITATION.fullmatch(source + ']')
+                        else '[' + parts[index])
+    remaining = ''.join(parts)
+    depth = 0
+    for index, char in enumerate(remaining):
         if char == '[':
-            if stack:
-                if not stack[-1][1] and text[stack[-1][0]:index].lstrip().startswith('docs/'):
-                    return False  # An unfinished source cannot become a generic outer group.
-                stack[-1][1] = True
-            stack.append([index + 1, False])
-        elif char == ']' and stack:
-            start, nested = stack.pop()
-            if not nested:
-                source = text[start:index]
-                if 'docs/' in source and (not _CITATION.fullmatch(source + ']')
-                                          or text[index + 1:index + 2] == '('):
-                    return False
-    if any(not nested and 'docs/' in text[start:] for start, nested in stack):
-        return False
-    # A markdown destination referring to docs is a source, but never the declared citation form.
-    return not re.search(r'\]\([^()[\]\n]*docs/', text)
+            depth += 1
+        elif char == ']':
+            depth = max(0, depth - 1)
+        elif depth and remaining.startswith('docs/', index):
+            return False
+    return not re.search(r'\]\([^()\n]*docs/', remaining)
 
 
 def _findings(text):

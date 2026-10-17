@@ -1,6 +1,7 @@
 """Offline freeze follow-ups, using only synthetic inputs."""
 import itertools
 import json
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -30,8 +31,40 @@ def test_rule2_rejects_bracketed_markdown_link_text(scout_rules, label):
 
 @pytest.mark.parametrize('items', list(itertools.permutations(
     ['docs/guide.md', 'generic', '[docs/guide.md:1]'])))
-def test_rule2_outer_array_ignores_non_source_strings_in_any_order(scout_rules, items):
-    assert scout_rules(json.dumps(items))
+@pytest.mark.parametrize('quoted', [False, True])
+def test_rule2_outer_array_rejects_bare_docs_in_any_order(scout_rules, items, quoted):
+    text = json.dumps(items) if quoted else '[' + ', '.join(items) + ']'
+    assert not scout_rules(text)
+
+
+@pytest.mark.parametrize('extra', ['[see docs/guide.md:1', '["docs/guide.md:1',
+    '[docs/guide.md, [docs/guide.md:1]]', '[[docs/guide.md:1], docs/guide.md]',
+    '[[docs/guide.md:1]](docs/guide.md)'])
+def test_rule2_residual_sources_fail(scout_rules, extra):
+    assert not scout_rules(extra)
+
+
+@pytest.mark.parametrize('items', list(itertools.permutations(
+    ['[docs/guide.md:1]', 'other', 'generic'])))
+@pytest.mark.parametrize('quoted', [False, True])
+def test_rule2_strict_sources_and_generic_strings_pass_in_any_order(scout_rules, items, quoted):
+    text = json.dumps(items) if quoted else '[' + ', '.join(items) + ']'
+    assert scout_rules(text)
+
+
+@pytest.mark.parametrize('extra', ['x[0]', '[optional]', 'see docs/guide.md',
+    '] see docs/guide.md', '["[docs/guide.md:1]", "other"]',
+    '["other", "[docs/guide.md:1]"]'])
+def test_rule2_generic_brackets_and_plain_prose_pass(scout_rules, extra):
+    assert scout_rules(extra)
+
+
+@pytest.mark.parametrize('unit', ['[', '[docs/', '[docs/a.md:1', '](other', '[docs/a.md:1]'])
+def test_rule2_200k_char_scan(unit):
+    text = (unit * (200_000 // len(unit) + 1))[:200_000]
+    start = time.monotonic()
+    grade._source_brackets_valid(text)
+    assert time.monotonic() - start < 2
 
 
 @pytest.mark.parametrize('bad', ['[docs/guide.md]', '[docs/guide.md:1-2]', '[docs/guide.md:1'])
