@@ -30,21 +30,24 @@ def test_hermes_revision_and_tracked_dirt(tmp_path):
         identity.verify_hermes(hermes=tmp_path, sha=sha)
 
 
-def test_frozen_identity_matches_tree():
+def test_active_identity_matches_tree():
+    # Slice 3 is reproduced from its tag; main validates the active 3b declaration.
     assert len(identity.verify(require_hidden=False)) == 64
 
 
 def test_identity_covers_runtime_harness_and_declared():
-    names = set(json.loads(identity.IDENTITY.read_text()))
+    # Slice 3 is reproduced from its tag.
+    names = set(json.loads(identity.IDENTITY.read_text())['files'])
     for required in ('teammates_service.py', 'plugin.yaml', 'bench/slice3/session.py', 'bench/slice3/grade.py',
-                     'bench/slice3/texts.py', 'bench/declared/slice3/DECLARED.md',
-                     'bench/declared/slice3/schedule.json', 'bench/tasks/t2/manifest.json'):
+                     'bench/slice3/texts.py', 'bench/declared/slice3b/DECLARED.md',
+                     'bench/declared/slice3b/schedule.json', 'bench/tasks/t2/manifest.json'):
         assert required in names
 
 
 def test_drift_is_named(tmp_path):
+    # Slice 3 is reproduced from its tag.
     frozen = json.loads(identity.IDENTITY.read_text())
-    frozen['bench/slice3/grade.py'] = '0' * 64
+    frozen['files']['bench/slice3/grade.py'] = '0' * 64
     path = tmp_path / 'identity.json'
     path.write_text(json.dumps(frozen))
     try:
@@ -79,13 +82,21 @@ def _has(tag):
 
 
 def test_live_runtime_must_be_the_declared_release():
+    # Slice 3 is reproduced from its tag.
     from bench.slice3.identity import RUNTIME_TAG, verify_runtime
-    assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3/DECLARED.md').read_text()
-    if not _has(RUNTIME_TAG) or not _has(RUNTIME_TAG + '~1'):
+    if RUNTIME_TAG is None:
+        assert json.loads(identity.IDENTITY.read_text())['status'] == 'provisional'
+        with pytest.raises(ValueError, match='RUNTIME_TAG'):
+            verify_runtime()
+    else:
+        assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3b/DECLARED.md').read_text()
+    # Keep the original drift negative control active even before the 3b release pin exists.
+    reference = RUNTIME_TAG or '29d6b46571ef43ba3d753b76ff710e3c2d98d470'
+    if not _has(reference) or not _has(reference + '~1'):
         pytest.skip('shallow clone: declared release commit unavailable')
     import subprocess
-    changed = subprocess.run(['git', '-C', str(identity.ROOT), 'diff', '--quiet', RUNTIME_TAG + '~1', RUNTIME_TAG,
+    changed = subprocess.run(['git', '-C', str(identity.ROOT), 'diff', '--quiet', reference + '~1', reference,
                               '--', '__init__.py', 'teammates_service.py', 'teammates_tools.py']).returncode
     assert changed == 1
     with pytest.raises(ValueError, match='differs from the declared release'):
-        verify_runtime(tag=RUNTIME_TAG + '~1')
+        verify_runtime(tag=reference + '~1')

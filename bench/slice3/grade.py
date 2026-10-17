@@ -105,6 +105,18 @@ def _citations(text):
                 yield 'docs/' + match[1], _line_number(match[2])
 
 
+def _source_brackets_valid(text):
+    # Each scan stops at bracket delimiters: repeated unclosed prefixes stay linear.
+    # Outer JSON arrays and other generic brackets do not turn a nested citation into a source.
+    for part in text.split('[')[1:]:
+        source, closing, rest = part.partition(']')
+        if 'docs/' in source and (not closing or not _CITATION.fullmatch(source + ']')
+                                  or rest.startswith('(')):
+            return False
+    # A markdown destination referring to docs is a source, but never the declared citation form.
+    return not re.search(r'\[[^\[\]]*\]\([^()[\]\n]*docs/', text)
+
+
 def _findings(text):
     rows = []
     for line in text.splitlines():
@@ -116,7 +128,7 @@ def _findings(text):
             match = _FINDING.fullmatch(line)
             start = _line_number(match[2]) if match else 0
             end = _line_number(match[3]) if match and match[3] else start
-            rows.append(None if match is None or end < start or end - start > 4 else
+            rows.append(None if match is None or end < start else
                         {'file': match[1], 'line': start, 'line_from': start, 'line_to': end,
                          'priority': match[4], 'problem': match[5], 'fix': match[6]})
     return rows
@@ -236,7 +248,7 @@ def check_rules(role, oracle_turn, text, delta, receipts, workspace: Path) -> li
     last = lines[-1] if lines else ''
     if role == 'scout':
         cites = list(_citations(text))
-        valid = bool(cites)
+        valid = bool(cites) and _source_brackets_valid(text)
         for file, line in cites:
             source = _safe_file(workspace, file)
             valid = valid and source is not None and 1 <= line <= len(source.read_text().splitlines())
@@ -306,7 +318,8 @@ def _on_locus(finding, bug):
 
 
 def _matches_bug(finding, bug):
-    return (_on_locus(finding, bug) and finding['priority'] in ('P1', 'P2')
+    return (_on_locus(finding, bug) and finding['line_to'] - finding['line_from'] <= 4
+            and finding['priority'] in ('P1', 'P2')
             and _names_mechanism(finding['problem'] + ' ' + finding['fix'], bug['terms']))
 
 

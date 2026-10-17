@@ -27,6 +27,7 @@ def test_verbatim_role_source():
 
 
 def test_arm_text_fairness_and_exact_interfaces():
+    # Slice 3 is reproduced from its tag.
     native = render('B-native', 'Aster', 'Handles ephemeral resources.')
     for arm in ARMS:
         rendered = render(arm, 'Aster', 'Handles ephemeral resources.')
@@ -46,7 +47,8 @@ def test_arm_text_fairness_and_exact_interfaces():
                                                    'toolsets': ['file', 'terminal']}
                 assert INSTRUCTIONS[role].encode() in native['AGENTS.md'].encode()
                 assert INSTRUCTIONS[role] not in rendered['AGENTS.md']
-    assert render('C', 'Aster', 'Handles ephemeral resources.') == render('C-eager', 'Aster', 'Handles ephemeral resources.')
+    with pytest.raises(ValueError, match='Unknown arm'):
+        render('C-eager', 'Aster', 'Handles ephemeral resources.')
     with pytest.raises(ValueError, match='Unknown arm'):
         render('invented', 'Aster', '')
 

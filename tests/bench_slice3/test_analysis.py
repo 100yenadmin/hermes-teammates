@@ -31,12 +31,13 @@ def dataset(*, b=.75, c=.75, success=.75, tokens=100, calls=2, unknown=0):
     ({'tokens': 200, 'calls': None}, 5, 'NO ADVANTAGE'),
 ])
 def test_all_verdict_rows_from_constructed_data(kwargs, row, verdict):
+    # Slice 3 is reproduced from its tag.
     result = analysis.analyze(dataset(**kwargs))
     primary = result['contrasts']['C']
     assert primary['row'] == row
     assert result['verdict'] == verdict
     assert len(primary['statistics']['adherence_all']['pairs']) == 10
-    assert 'verdict' not in result['contrasts']['C-eager']
+    assert set(result['contrasts']) == {'C'}
 
 
 def test_ceiling_unknown_cost_and_strict_unique():
@@ -92,8 +93,9 @@ def test_unspecified_routing_does_not_penalize_rules(lane_f, tmp_path, monkeypat
     assert result['adherence_all'] == 1
 
 
-@pytest.mark.parametrize('arm', ['B-native', 'C', 'C-eager'])
+@pytest.mark.parametrize('arm', ['B-native', 'C'])
 def test_wrong_routing_fails_adherence_even_with_passing_rules(lane_f, tmp_path, monkeypatch, arm):
+    # Slice 3 is reproduced from its tag.
     monkeypatch.setattr(sys.modules['bench.slice3.grade'], 'route', lambda *a: 'wrong')
     row = scoring_row()
     row['arm'] = arm
@@ -138,13 +140,14 @@ def test_wait_arguments_normalized_and_unparseable_excluded(monkeypatch):
 
 
 def test_schedule_pair_and_start_balance():
+    # Slice 3 is reproduced from its tag.
     from collections import Counter
     result = schedule(['case'+str(i) for i in range(10)])
     assert result == schedule(['case'+str(i) for i in range(10)])
-    assert len(result) == 30
-    assert len({(r['case'], r['arm']) for r in result}) == 30
-    pairs = Counter(tuple(sorted(r['arm'] for r in result if r['batch'] == b)) for b in range(1, 16))
-    assert set(pairs.values()) == {5}
+    assert len(result) == 20
+    assert len({(r['case'], r['arm']) for r in result}) == 20
+    pairs = Counter(tuple(sorted(r['arm'] for r in result if r['batch'] == b)) for b in range(1, 11))
+    assert pairs == {('B-native', 'C'): 10}
     assert Counter(r['arm'] for r in result if r['start_order'] == 1) == dict.fromkeys(analysis.ARMS, 5)
 
 

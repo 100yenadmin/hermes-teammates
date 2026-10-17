@@ -112,6 +112,25 @@ def install(lifecycle, path):
     return observer
 
 
+def install_summary_observer(helpers, path):
+    """Count z.ai summary attempts at their call boundary; usage has no hook and stays UNKNOWN."""
+    import functools
+    old = helpers._managed_summary_call
+    lock = threading.RLock()
+
+    @functools.wraps(old)
+    def summary(agent, api_request_id, request, callback, *, retry_count):
+        try:
+            row = dict(kind='request_start', session_id=agent.session_id, request_id=api_request_id,
+                       retry=retry_count, attempt=0, aux_task='iteration_summary', unobserved_summary=True)
+            with lock, Path(path).open('a') as out:
+                out.write(json.dumps(row) + '\n')
+        except Exception as exc:
+            observer_error(path, 'accounting.iteration_summary', exc)
+        return old(agent, api_request_id, request, callback, retry_count=retry_count)
+    helpers._managed_summary_call = summary
+
+
 def prompt_flags(kw):
     """Hash/check each effective outgoing system message; never retain content."""
     import hashlib

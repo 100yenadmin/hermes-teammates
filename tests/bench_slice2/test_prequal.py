@@ -22,13 +22,14 @@ def valid_batch(arm, start=0):
 @pytest.mark.parametrize('phase', ['calibration', 'scored'])
 @pytest.mark.parametrize('damage', ['fanout_batches', 'matched_brief', 'full_wait_ids', 'no_teammate_check'])
 def test_item01_per_cell_recipe(tmp_path, phase, damage):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     cell = next(c for c in protocol.schedule(phase) if c['arm'] == 'C')
     def fake(launch, directory):
         row = launch | valid_batch('C')
         if damage == 'matched_brief': row['children'][0][damage] = False
         else: row[damage] = False
         return row
-    row = execute_cell(cell, tmp_path/'cell', fake)
+    row = execute_cell(cell, tmp_path/'cell', fake, strict=False)
     assert row['status'] == 'RECIPE_INVALID'
     assert row['recipe_valid'] is False
 
@@ -108,10 +109,11 @@ def fake_judge(request):
 
 
 def test_item08_judge_frozen_source(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     cell = protocol.schedule()[0]
     def fake(launch, directory):
         return launch | valid_batch(launch['arm']) | dict(answer='synthetic finding')
-    row = execute_cell(cell, tmp_path/'cell', fake)
+    row = execute_cell(cell, tmp_path/'cell', fake, strict=False)
     seen = []
     def judge(request):
         seen.append(request)
@@ -132,9 +134,10 @@ def test_item09_ceiling_keeps_overhead_negative(recall):
 
 
 def test_item10_one_qualification_cell(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     def fake(launch, directory):
         return launch | valid_batch(launch['arm'], 0 if launch['arm'] == 'B-briefed' else 1)
-    q = run_phase('qualification', tmp_path, fake)
+    q = run_phase('qualification', tmp_path, fake, strict=False)
     assert q['pass']
     cells = list(tmp_path.glob('*/cell.json'))
     assert len(cells) == 1
@@ -334,9 +337,10 @@ def test_sweep_b_payload_only_in_system():
 
 
 def test_sweep_c_executor_identity_preserved(tmp_path):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     cell=protocol.schedule('calibration')[0]
     def wrong(launch,directory): return launch | valid_batch(launch['arm']) | {'arm':'C' if launch['arm']=='B-briefed' else 'B-briefed'}
-    row=execute_cell(cell,tmp_path/'cell',wrong)
+    row=execute_cell(cell,tmp_path/'cell',wrong, strict=False)
     assert row['status']=='HARNESS_ERROR'
 
 
