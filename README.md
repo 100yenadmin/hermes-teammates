@@ -304,8 +304,40 @@ plugin's tools behind Hermes's tool search, and 2.3 waits, since a wait is cappe
 Fixes: a longer wait (#40) and directly listed plugin tools upstream (NousResearch/hermes-agent#135762). For a one-shot
 fan-out, `delegate_task` is the cheaper choice today.
 
-Full reports, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md) and
-[`bench/results/slice2/REPORT.md`](bench/results/slice2/REPORT.md). The `$0` mechanics benchmarks
+**Slice 3** tested what teammates are for: one six-request session that needs three named specialists, a scout, a
+reviewer and a tester. It ran on 10 cases, with teammates 0.2.5 against `delegate_task` with the same role rules in
+AGENTS.md. The declared verdict is INCONCLUSIVE (quality unresolved):
+- **Rule-following:** teammates were at least as good (+0.117; the lower bound sat exactly on the bar).
+- **Success:** too close to call (−0.017, with bounds −0.083 to +0.050).
+- **Cost:** about the same, 1.04× the parent tokens and 0.75 more calls per request, with wide bounds.
+
+The specialists themselves found every planted bug in both setups. Teammates lost points in two places:
+- **Passing the answer on:** the parent paraphrased the reviewer's finding instead of copying its finding line, in 20 of 20 reviews (`delegate_task`: 19 of 20 copied). Twice that lost the `file:line`.
+- **Tool search:** discovering the plugin's tools behind Hermes's tool search cost extra calls.
+
+0.2.7 addresses both: results now carry a verbatim relay instruction, and the tools carry tool-search bridge hints.
+
+**Slice 3b** was the planned re-measure of 0.2.7. It stopped before the scored run, at its calibration gate, because
+both setups scored 24 of 24 on the two calibration cases, above the gate's 0.95 ceiling. By its pre-declared rule,
+that makes it INCONCLUSIVE (design), with no tuning and no rerun. On those 24 calibration turns, both setups' parents kept the reviewer's `file:line`
+in all 4 reviews. Only teammates' parents also kept the reviewer's exact finding line, 4 of 4 against 0 of 4; in slice 3 it was the other way round. That is
+exploratory, two cases only, and not a measured claim.
+
+**What this means in practice:**
+- **Choose `delegate_task`** for a one-shot fan-out. It is built in, never sits behind tool search, and was cheaper
+  in slices 1 and 2.
+- **Choose teammates** when the same specialists come back across a session or a project:
+  - you write each role's rules, toolsets and model once, in config, instead of in every brief;
+  - results are kept per run, with token receipts and a clipped flag;
+  - you can steer, follow up and use a Kanban review lane.
+
+  On that workload, slice 3 found teammates following the role rules at least as well as `delegate_task`, at about
+  the same cost. A quality or cost advantage is not established.
+
+Full reports, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/results/slice1/REPORT.md),
+[`bench/results/slice2/REPORT.md`](bench/results/slice2/REPORT.md),
+[`bench/results/slice3/REPORT.md`](bench/results/slice3/REPORT.md) and
+[`bench/results/slice3b/REPORT.md`](bench/results/slice3b/REPORT.md). The `$0` mechanics benchmarks
 (`tests/bench_mechanics`) run in CI on every change.
 
 ## Limits (honest list)
@@ -317,7 +349,7 @@ Full reports, method and per-run data: [`bench/results/slice1/REPORT.md`](bench/
   recovered or re-run. Plugin reloads within the same process preserve live runs. A lane card's claim expires through Kanban's normal TTL.
 - **Runs belong to the conversation that started them.** Another chat on the same profile cannot see, steer or
   stop them.
-- **Runs belong to the conversation that started them.** Hermes' default in-place compression (`compression.in_place: true`)
+- **Compression keeps runs; `/new` and rotation do not.** Hermes' default in-place compression (`compression.in_place: true`)
   keeps the session id, so runs survive it. In rotation mode (`in_place: false`) and after `/new`, the conversation gets a new
   session id and earlier runs answer `unknown_run`. A lane card is blocked when its monitor detects the lost handle; the child
   may continue without a recoverable result.

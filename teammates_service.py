@@ -313,6 +313,8 @@ class TeammatesService:
                     if remaining < overhead + len(goal_part):
                         break
                     result_part = budget_clip(result, remaining - len(goal_part) - overhead, tail=True)
+                    if not result_part:
+                        break
                     entries.append(f'Goal: {goal_part}\n{label}{result_part}')
                     remaining -= len(entries[-1]) + 2
                 if entries:

@@ -92,6 +92,19 @@ def test_followup_plain_text_preserves_result_and_marks_ledger_clipping(rig, cli
     assert len(context) <= 30000
 
 
+@pytest.mark.parametrize('clipped,budget', [(False, 110), (True, 130)])
+def test_followup_omits_result_when_clipping_exhausts_budget(rig, clipped, budget):
+    rig.raw['followup_context_chars'] = budget
+    run_id = rig.service.assign('owner', 'worker', 'old goal')['run_id']
+    finish(rig, run_id, 'x' * (9000 if clipped else 1000))
+    assert rig.service.check('owner', run_id)['summary_clipped'] is clipped
+    assert rig.service.assign('owner', 'worker', 'next goal', follow_up=True)['ok']
+    context = rig.lifecycle.requests[-1].context
+    for line in context.splitlines():
+        assert line.strip() not in ('Result:', 'Result (clipped; incomplete):')
+    assert 'Previous assignments:' not in context
+
+
 @pytest.mark.parametrize('size', [0, 4500, 9000])
 def test_kanban_summary_and_additive_relay_receipt(rig, monkeypatch, size):
     calls = []
