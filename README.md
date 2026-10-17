@@ -149,6 +149,46 @@ Use `teammate_assign(wait_seconds=...)` when you need one result now; use `teamm
 `queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
 live-run cap.
 
+### Hermes tool search
+
+On the inspected Hermes [compatibility pin](https://github.com/NousResearch/hermes-agent/blob/1078a4e5f363472c43a50c6738e47e54eab2940c/tools/tool_search.py#L150-L214)
+and [main revision](https://github.com/NousResearch/hermes-agent/blob/3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065/tools/tool_search.py#L149-L213),
+`tools.tool_search.enabled: auto` defers plugin tools whenever any are available. The default 5% `threshold_pct`
+limits the catalog listing, not activation. Neither `defer: []` nor a smaller schema keeps teammate tools direct.
+There is no supported selective opt-out at these revisions; [upstream request](https://github.com/NousResearch/hermes-agent/issues/135762).
+
+`teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` include short catalog hints and
+schema examples for the bridge. If the tool is deferred, use `tool_search` to find its name, then
+`tool_describe` for its parameters, then `tool_call` to invoke it. Skip search when the catalog already shows
+the exact name. Describing a tool does not make it directly callable. For example, after describing the roster:
+
+```json
+{"calls":[{"name":"teammates_roster","arguments":{}}]}
+```
+
+Send that object to `tool_call`. Use one entry per teammate invocation, with an `arguments` object and the
+actual tool name (never `tool_call` itself). When the tool is directly listed, invoke it normally.
+
+If your model struggles with the bridge, merge this into the active profile's `config.yaml` at the **top level**,
+alongside `plugins`, preserving other `tools` settings, then start a new CLI session or restart the gateway:
+
+```yaml
+tools:
+  tool_search:
+    enabled: "off"
+```
+
+This makes all enabled local plugin/MCP and otherwise-deferred core tools direct, including `process_manage`;
+it cannot select only teammates. More full schemas occupy the parent's context on every request, especially
+with many MCP tools. Restore `enabled: auto` and restart to return to deferred discovery.
+
+In the exploratory Slice 3 comparison, C-eager (global deferral off) used **0.70× parent tokens** and **1.30 fewer
+parent calls per request** than C (deferral on), across 60 requests per arm. This compared configuration packages,
+including `process_manage` visibility; it did not isolate teammate deferral or these new hints.
+Quality/success non-inferiority remains **UNRESOLVED**. See [#56](https://github.com/100yenadmin/hermes-teammates/issues/56)
+and the [existing private result card and audit](https://github.com/electricsheephq/bench-evidence/releases/tag/hermes-teammates/slice3-live-run004).
+No new model run or cost claim is made by this change.
+
 ### Results and receipts
 
 Finished runs report these fields through `teammate_assign(wait_seconds=...)`, `teammate_check`, `teammate_wait` and the roster's recent runs:
