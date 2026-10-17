@@ -1,6 +1,6 @@
 # DECLARED — slice3b: confirmatory repeated-role routing (T2)
 
-**Status.** PROVISIONAL, offline preparation only. No 3b live data exists. Set `RUNTIME_TAG` and the C config only after v0.2.7 ships, then freeze a new identity before qualification. This is the LAST T2 measurement before 1.0; there is no slice 3c.
+**Status.** FROZEN at v0.2.7, offline preparation only. No 3b live data exists. Release inputs are set and the identity is frozen before qualification. This is the LAST T2 measurement before 1.0; there is no slice 3c.
 
 **Basis.** Slice 3 was INCONCLUSIVE (quality unresolved). This single re-measure follows the findings-relay (#55) and tool-search-friction (#56) fixes in v0.2.7. The release manager's milestone-3 lane L4 design and Addendum 1 (2026-10-17) govern this preparation. Historical slice 3 is reproduced from [bench-slice3-f66e45e8](https://github.com/100yenadmin/hermes-teammates/tree/bench-slice3-f66e45e8); its declaration and results remain unchanged from base `a2fb2a3c4ea452da2993aab277c9b202f4c4dc73` (including PR #52's expected identity refreeze).
 
@@ -16,11 +16,11 @@ same roles in the workspace AGENTS.md — with no worse task success and no more
 
 | Item | Value |
 |---|---|
-| Plugin runtime | v0.2.7; `RUNTIME_TAG = None` (UNSET: immutable release commit required) |
-| C configuration | `configs.json` C = null (UNSET: shipped default and recommended configuration required) |
+| Plugin runtime | v0.2.7; `RUNTIME_TAG = df6c322ad0567ba805c36d33ece1a7c3f53d244e` (resolved release commit) |
+| C configuration | `configs.json` C copied verbatim from slice 3: plugin enabled, `max_live_runs: 4`, tool search default `auto` (no override) |
 | Hermes | main `3b63f7b0a4c7beb9eadbce2f15b9da75d01f5065`, unmodified; compatibility pin `1078a4e5f363472c43a50c6738e47e54eab2940c` |
 | Model | glm-5.3 on the z.ai coding plan, parent and children |
-| Bench identity | `bench/declared/slice3b/identity.json`: slice 3b, provisional until both release inputs are set; hashes runtime, harness, texts, declaration, configs, schedule and unchanged T2 manifest. Offline verification checks public fixtures; live verification requires every hidden fixture too. Receipts carry `slice: "3b"` and the file-map digest; identities never combine. |
+| Bench identity | `bench/declared/slice3b/identity.json`: slice 3b, frozen with both release inputs set; hashes runtime, harness, texts, declaration, configs, schedule and unchanged T2 manifest. Offline verification checks public fixtures; live verification requires every hidden fixture too. Receipts carry `slice: "3b"` and the file-map digest; identities never combine. |
 | Scored matrix | 10 cases × 2 arms × 1 session × 6 requests = 20 sessions, 120 scored requests |
 | Dev matrix | Same 2 dev cases × 2 arms = 4 calibration sessions |
 | Qualification | 1 dev case × 2 arms × 2 requests |
@@ -70,7 +70,7 @@ All arms:
 
 The project note, the coordinator note, the scoping line, the role list and the when-to-use lines are
 byte-identical across arms. Role instruction texts are byte-identical between B-native's AGENTS.md and C's
-roster. C uses the shipped v0.2.7 default and recommended configuration. Its exact config remains unset until release.
+roster. C uses the shipped v0.2.7 default and recommended configuration. Its exact config is slice 3's C config verbatim; qualification requires `tool_search` present and `teammate_assign` deferred under the default `auto`.
 
 
 ## Cases (reuse)
@@ -116,10 +116,10 @@ the unchanged role instructions and the inherited A1 rules below.
 **Prospective arm-blind corrections, fixed before any 3b data.** These change the measurement contract, not slice 3's published scores. Evidence counts below come from the [slice 3 audit card and receipts](https://github.com/electricsheephq/bench-evidence/releases/tag/hermes-teammates/slice3-live-run004) and public issues [#59](https://github.com/100yenadmin/hermes-teammates/issues/59), [#58](https://github.com/100yenadmin/hermes-teammates/issues/58) and [#54](https://github.com/100yenadmin/hermes-teammates/issues/54). No oracle content is repeated.
 
 - **#59a — reviewer ranges.** A1's width limit belongs only to bug matching. Wider ranges remain valid candidates, never bug matches. The shipped-predicate recheck of the scored receipts confirms 8 affected rule-2 turns (B-native 2/20, C 3/20, former C-eager 3/20), matching the audit's affected decoy turns.
-- **#59b — scout citations.** A bracket group or markdown link referencing `docs/` is a source and must have the strict form `[docs/<file>:<line>]`; malformed or unclosed sources fail rule 2 even if another citation is valid. Generic brackets (including JSON arrays and subscripts) are ignored. At least one valid citation and the existing file and line checks remain required. Rechecking the shipped predicate against all 60 scored scout receipts reproduces 20 rule-2 and all-rules changes: B-native 3/20, C 11/20, former C-eager 6/20. The same receipt recheck reproduces the original rule arrays before applying either correction; it is an audit, not a new measurement or a change to slice 3 scores.
+- **#59b — scout citations.** Remove every strict `[docs/<file>:<line>]` citation and replace it with a neutral placeholder containing no brackets or `docs/`; rule 2 fails if any remaining `docs/` occurs inside a square-bracket group (including unclosed groups) or a markdown link target `](...)`. Bracket depth counts opening minus closing brackets, never below zero, so nested groups are judged independently of element order. Generic brackets with no remaining `docs/` and plain `docs/` prose outside groups or link targets are ignored. At least one valid citation and the existing file and line checks remain required. Rechecking the shipped predicate against all 60 scored scout receipts reproduces 20 rule-2 and all-rules changes: B-native 3/20, C 11/20, former C-eager 6/20. The same receipt recheck reproduces the original rule arrays before applying either correction; it is an audit, not a new measurement or a change to slice 3 scores.
 - **#59c — native mechanism sentence.** Replace the literal role-name placeholder with concrete scout/reviewer/tester first lines. Slice 3 had 10 rejected calls out of 70, across 8 of 10 B-native cases. C's mechanism text and every role instruction stay byte-identical to slice 3.
 - **#58 / CO-1 — max-iterations summary.** Count each z.ai summary attempt (including its empty-summary retry) at the harness's call boundary. Its hookless usage remains explicitly UNKNOWN, never estimated or zero. The audit found one omitted summary request. An UNKNOWN turn makes its session's parent tokens UNKNOWN; it remains in ITT. No Hermes core change.
-- **#58 / CO-2 — zero children.** An empty child-session set has known zero child spend; a child request without usage remains UNKNOWN. The audit found one zero-child descriptive-null turn.
+- **#58 / CO-2 — zero children.** An empty child-session set has known zero child spend only when reconciliation finds no unowned non-parent receipts; unowned receipts make child spend UNKNOWN; a child request without usage remains UNKNOWN. The audit found one zero-child descriptive-null turn.
 - **#54 — launch admission.** Check `SLICE3_LIVE=1`, a non-empty `GLM_API_KEY`, release inputs and identity before admitting any attempt directory. This was one identified launch-precondition path, not a count of affected scored turns.
 - **Report repair.** Include this declaration's limitations and ITT error/timeout/missing counts, UNKNOWN-spend case names/counts across all scheduled cases (including dropped cases), and separate parent/child CO-1-type unobserved requests. Analysis stores its identity and declaration limitations; reporting uses that stored text and refuses active-identity drift. Remove the unconditional offline disclaimer from reports; identity-bound gate receipts establish qualification separately.
 - **Additional cheap arm-blind work:** count summary retries separately and keep payloads out of accounting markers. No other #58/#59 changes. Issues #46, #47 and #48 are excluded.
@@ -221,7 +221,7 @@ export HERMES_DISABLE_LAZY_INSTALLS=1 PYTHONDONTWRITEBYTECODE=1
 "$PY" -m pytest -q -p no:cacheprovider --basetemp="$EV/pytest-tmp"
 ```
 
-After v0.2.7 ships, the release manager resolves its tag to a commit, sets `RUNTIME_TAG`, fills C's exact default/recommended config (including tool-search settings), checks the tool-visibility qualification expectation and freezes with `"$PY" -m bench.slice3.identity`. The identity must say frozen. Fresh authorization and a non-empty `GLM_API_KEY` are required before these commands:
+The freeze resolves v0.2.7 to the commit above, sets `RUNTIME_TAG`, copies slice 3's C config verbatim, checks the default-auto tool-visibility qualification expectation and freezes with `"$PY" -m bench.slice3.identity`. The identity must say frozen. Fresh authorization and a non-empty `GLM_API_KEY` are required before these commands:
 
 ```sh
 export SLICE3_LIVE=1

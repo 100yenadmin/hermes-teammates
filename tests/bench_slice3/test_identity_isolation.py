@@ -41,8 +41,10 @@ def test_plugin_only_change_does_not_invalidate_historical_manifest(copied_repo,
         protocol.manifest()
 
 
-def test_provisional_identity_accepts_runtime_delta_but_receipt_changes(copied_repo):
+def test_provisional_identity_accepts_runtime_delta_but_receipt_changes(copied_repo, monkeypatch):
     # Slice 3 is reproduced from its tag; 3b is provisional until release inputs exist.
+    monkeypatch.setattr(identity, 'RUNTIME_TAG', None)
+    identity.freeze(copied_repo)
     before = identity.verify(root=copied_repo)
     runtime = copied_repo / 'teammates_service.py'
     runtime.write_text(runtime.read_text() + '\n# Synthetic runtime-only change.\n')

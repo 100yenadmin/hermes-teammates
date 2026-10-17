@@ -13,7 +13,7 @@ from .test_run import synthetic_qualification
 
 
 @pytest.mark.parametrize('enabled,tools,expected', [
-    ('off', ['teammate_assign'], True),
+    ('off', ['teammate_assign'], False),
     ('off', ['teammate_assign', 'tool_search'], False),
     ('off', ['tool_search'], False),
     ('on', ['tool_search'], True),
@@ -89,7 +89,7 @@ def test_fix1_unknown_spend_discloses_dropped_cases(monkeypatch):
 @pytest.mark.parametrize('extra,expected', [
     ('{"citations": ["[docs/a.md:1]"]}', True), ('x[0]', True), ('[optional]', True),
     ('[guide.md:1]', True), ('[[docs/a.md:1]]', True),
-    ('[guide](docs/a.md)', False), ('[docs/a.md:1](elsewhere)', False),
+    ('[guide](docs/a.md)', False), ('[docs/a.md:1](elsewhere)', True),
     ('[docs/a.md:1-3]', False), ('[docs/a.md:1', False), ('[source docs/a.md]', False),
 ])
 def test_fix1_only_source_brackets_fail_scout_rule2(tmp_path, extra, expected):
@@ -117,6 +117,7 @@ def test_fix1_parent_and_child_summary_counts_reach_report(tmp_path, monkeypatch
     assert scored['unobserved_summary_requests'] == 2
     assert scored['child_unobserved_summary_requests'] == 3
     assert scored['child_tokens'] is None and scored['total_tokens'] is None
+    scored['identity'] = identity.verify()  # The phase runner binds scored rows before analysis.
     result = analysis.analyze([scored])
     assert result['itt']['B-native']['unobserved_summary_requests'] == 2
     assert result['itt']['B-native']['child_unobserved_summary_requests'] == 3

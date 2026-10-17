@@ -37,6 +37,9 @@ def schedule(cases, seed=SEED):
 
 
 def qualification(sessions):
+    from utils import fast_safe_load
+    from bench.slice2.protocol import ROOT
+    plugin_tools = set(fast_safe_load((ROOT / 'plugin.yaml').read_text())['provides_tools'])
     checks = {}
     def add(name, passed, evidence):
         checks[name] = dict(pass_=bool(passed), evidence=evidence)
@@ -100,7 +103,7 @@ def qualification(sessions):
             and not any(n in e['tools'] for n in ('delegate_task', 'teammate_assign')) for e in child_agents),
             {'agents': child_agents})
         add(prefix + 'parent_tools', bool(parent_agents) and all(
-            (('teammate_assign' in e['tools'] and 'tool_search' not in e['tools']) if
+            ((plugin_tools <= set(e['tools']) and 'tool_search' not in e['tools']) if
              config.get('tools', {}).get('tool_search', {}).get('enabled') == 'off' else
              ('tool_search' in e['tools'] and 'teammate_assign' not in e['tools'])) if arm == 'C' else
             'delegate_task' in e['tools'] for e in parent_agents), {'agents': parent_agents})
