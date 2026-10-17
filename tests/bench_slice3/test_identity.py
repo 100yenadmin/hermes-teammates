@@ -87,13 +87,15 @@ def test_live_runtime_must_be_the_declared_release():
         assert json.loads(identity.IDENTITY.read_text())['status'] == 'provisional'
         with pytest.raises(ValueError, match='RUNTIME_TAG'):
             verify_runtime()
-        return
-    assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3b/DECLARED.md').read_text()
-    if not _has(RUNTIME_TAG) or not _has(RUNTIME_TAG + '~1'):
+    else:
+        assert RUNTIME_TAG in (identity.ROOT / 'bench/declared/slice3b/DECLARED.md').read_text()
+    # Keep the original drift negative control active even before the 3b release pin exists.
+    reference = RUNTIME_TAG or '29d6b46571ef43ba3d753b76ff710e3c2d98d470'
+    if not _has(reference) or not _has(reference + '~1'):
         pytest.skip('shallow clone: declared release commit unavailable')
     import subprocess
-    changed = subprocess.run(['git', '-C', str(identity.ROOT), 'diff', '--quiet', RUNTIME_TAG + '~1', RUNTIME_TAG,
+    changed = subprocess.run(['git', '-C', str(identity.ROOT), 'diff', '--quiet', reference + '~1', reference,
                               '--', '__init__.py', 'teammates_service.py', 'teammates_tools.py']).returncode
     assert changed == 1
     with pytest.raises(ValueError, match='differs from the declared release'):
-        verify_runtime(tag=RUNTIME_TAG + '~1')
+        verify_runtime(tag=reference + '~1')
