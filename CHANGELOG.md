@@ -1,11 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.2.7 (2026-10-17)
 
-- Finished teammate results add `relay_instruction` asking parents to preserve findings, citations and verdict verbatim, with an explicit warning for clipped summaries. The roster includes this guidance once at the top level; follow-up digests tell the teammate to continue from prior results. Assign, wait, check, roster previews, follow-up digests and Kanban review metadata retain existing summary budgets and JSON fields. Model relay improvement has not yet been measured (#55).
-- `teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` include conditional
-  `tool_describe` → `tool_call` catalog hints and single-call schema examples. Documents the global
-  tool-search off switch and its context trade-off (#56); model-quality improvement remains unmeasured.
+- **Findings reach the user intact (#55).** Finished teammate results now carry a `relay_instruction` that asks the parent to pass findings, citations and the verdict on verbatim, with commentary kept separate. If a summary was clipped, the instruction says so, so the parent reports the result as incomplete. Assign, wait and check results carry it on each finished row; the roster carries it once at the top level. Follow-up digests tell the teammate to continue from prior results. Summary budgets and JSON fields are unchanged. In bench slice 3 the parent dropped the specialist's `file:line` in 20 of 20 reviews; this release has not been re-measured yet (bench slice 3b).
+- **Easier to call behind Hermes tool search (#56).** On Hermes, plugin tools sit behind `tool_search` → `tool_describe` → `tool_call`, and plugins cannot opt out. `teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` now carry short bridge hints in the deferred catalog and a valid single-call example in their schemas. The README documents the global `tools.tool_search.enabled: "off"` switch and its trade-offs: more context, and hosted connector tools (`connectors__*`) are no longer discoverable, so keep `auto` if you use Hermes connectors.
+- Bench: slice 3b declaration and arm-blind grader fixes (#54, #58, #59). Historical slice 2 and slice 3 identities are now verified at their benchmark run tags, so plugin changes no longer need benchmark manifest refreezes.
 
 ## 0.2.6 (2026-10-15)
 
