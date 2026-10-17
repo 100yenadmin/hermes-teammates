@@ -298,8 +298,8 @@ class TeammatesService:
             if follow_up and config['followup_context_chars']:
                 with self.store_factory() as store:
                     previous = store.list(session_id, teammate=teammate, terminal=True)
-                header = ('Previous assignments for this teammate in this conversation\n' +
-                          RELAY_INSTRUCTION + '\n')
+                header = ('Previous assignments for this teammate in this conversation\n'
+                          'Relay results verbatim.\n')
                 entries, remaining = [], min(config['followup_context_chars'], remaining) - len(header)
                 for row in previous:  # newest first; retain that suffix in chronological order
                     result = row['summary'] or row['error'] or row['status']
