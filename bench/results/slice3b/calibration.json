@@ -1,0 +1,11 @@
+{
+  "ceiling_roles": ["reviewer", "scout", "tester"],
+  "checks": {"checker_errors": true, "pooled": false, "roles_floor": true},
+  "identity": "46a95f771973d160b9d4cef3e8119d755f2c1d99a83d3737b7f2bb641e2b91f5",
+  "missing_turns": 0,
+  "per_role": {"reviewer": {"B-native": 1, "C": 1}, "scout": {"B-native": 1, "C": 1}, "tester": {"B-native": 1, "C": 1}},
+  "pooled_success": 1,
+  "scheduled_turns": 24,
+  "slice": "3b",
+  "status": "FAIL"
+}
