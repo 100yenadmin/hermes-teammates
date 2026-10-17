@@ -27,7 +27,7 @@
   "plugin.yaml": "c3d9aafc640166aa51abf73026f356b4ed5d8a26f2be109633db7f0c2c9af9c1",
   "teammates_config.py": "325bda819c0cf2f0a0b88eca385cc74e1a7c8d1918a5b27ea39fcd3fd9fa9746",
   "teammates_host.py": "57bdb0327bb421b928997149b2c7a6abb39390e2ef1f0d25ac4e3a62a2b89e5b",
-  "teammates_service.py": "1a938b16de844be787561ac1716a67445e55aa9e2702585aa12e84c1504216e2",
+  "teammates_service.py": "61d7d390c58453e8fa8fd1d70e42bef01bc05946424c0933367465af76add379",
   "teammates_store.py": "d98a750b3683281a7382a6be2bb642be3eac38696418d48e40d228ff11f1068c",
-  "teammates_tools.py": "db2c8619d8d56abe7ba63d2dc80ec9e2b779bcf0475fb9ac9ee7900945f30314"
+  "teammates_tools.py": "7d50a6e166859ebb27aeb1c810330d9eae6ec7ad5456833b28d707343dce344d"
 }
