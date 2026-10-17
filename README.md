@@ -181,6 +181,7 @@ tools:
 This makes all enabled local plugin/MCP and otherwise-deferred core tools direct, including `process_manage`;
 it cannot select only teammates. More full schemas occupy the parent's context on every request, especially
 with many MCP tools. Restore `enabled: auto` and restart to return to deferred discovery.
+Setting `tools.tool_search.enabled: "off"` also removes discovery of hosted connector tools (`connectors__*`, such as Gmail, Calendar or Linear) on both inspected Hermes revisions, so keep `auto` if you use Hermes connectors.
 
 In the exploratory Slice 3 comparison, C-eager (global deferral off) used **0.70× parent tokens** and **1.30 fewer
 parent calls per request** than C (deferral on), across 60 requests per arm. This compared configuration packages,
