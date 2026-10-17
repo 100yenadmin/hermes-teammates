@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 TOKEN_KEYS = {'tokens_input': 'input_tokens', 'tokens_output': 'output_tokens',
               'tokens_cache_read': 'cache_read_tokens', 'tokens_cache_write': 'cache_write_tokens',
               'tokens_reasoning': 'reasoning_tokens'}
+RELAY_INSTRUCTION = ('When reporting teammate results, relay findings, citations and verdict verbatim. '
+                     'Keep your commentary separate.')
 
 
 def error(code, message=None):
@@ -97,6 +99,11 @@ def public_row(row, summary_budget=8000):
     if original_chars is None:
         original_chars = len(row.get('summary') or '')
     result['summary_clipped'] = bool(row.get('summary_clipped')) or len(result['summary'] or '') < original_chars
+    if result['status'] in {*TERMINAL.values(), 'unknown'} and result['summary']:
+        result['relay_instruction'] = RELAY_INSTRUCTION
+        if result['summary_clipped']:
+            result['relay_instruction'] += (' This summary is clipped and incomplete; say so and do not infer '
+                                            'missing text.')
     if result['error'] is None:
         del result['error']
     else:
@@ -291,17 +298,22 @@ class TeammatesService:
             if follow_up and config['followup_context_chars']:
                 with self.store_factory() as store:
                     previous = store.list(session_id, teammate=teammate, terminal=True)
-                header = 'Previous assignments for this teammate in this conversation\n'
+                header = ('Previous assignments for this teammate in this conversation\n' +
+                          RELAY_INSTRUCTION + '\n')
                 entries, remaining = [], min(config['followup_context_chars'], remaining) - len(header)
                 for row in previous:  # newest first; retain that suffix in chronological order
                     result = row['summary'] or row['error'] or row['status']
+                    label = 'Result (clipped; incomplete): ' if public_row(row)['summary_clipped'] else 'Result: '
+                    overhead = len('Goal: \n') + len(label) + 2
                     if remaining <= 0:
                         break
-                    if entries and len(row['goal']) + len(result) + 15 > remaining:
+                    if entries and len(row['goal']) + len(result) + overhead > remaining:
                         break
                     goal_part = budget_clip(row['goal'], remaining // 4)
-                    result_part = budget_clip(result, remaining - len(goal_part) - 15, tail=True)
-                    entries.append(f'Goal: {goal_part}\nResult: {result_part}')
+                    if remaining < overhead + len(goal_part):
+                        break
+                    result_part = budget_clip(result, remaining - len(goal_part) - overhead, tail=True)
+                    entries.append(f'Goal: {goal_part}\n{label}{result_part}')
                     remaining -= len(entries[-1]) + 2
                 if entries:
                     parts.append(header + '\n\n'.join(reversed(entries)))
@@ -600,10 +612,12 @@ class TeammatesService:
             if task is None or task.current_run_id != claim['kanban_run_id']:
                 return 'review_refused:ownership lost' if status == 'succeeded' else 'block_refused'
             if status == 'succeeded':
+                result = public_row(row, 4000)
+                metadata = {key: result[key] for key in ('run_id', 'teammate', 'result_hash',
+                            'summary_chars', 'summary_clipped', 'relay_instruction') if key in result}
                 accepted, reason = self.host.request_review(
-                    conn, row['kanban_task'], summary=clip(row['summary'], 4000),
-                    metadata={'hermes_teammates': {'run_id': run_id, 'teammate': row['teammate'],
-                                                  'result_hash': row['result_hash']}},
+                    conn, row['kanban_task'], summary=result['summary'],
+                    metadata={'hermes_teammates': metadata},
                     expected_run_id=claim['kanban_run_id'], with_reason=True)
                 return 'review' if accepted else f'review_refused:{reason}'
             reason = UNKNOWN_ERROR if status == 'unknown' else (

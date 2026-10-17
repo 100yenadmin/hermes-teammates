@@ -2,7 +2,7 @@
 import json
 
 from .teammates_host import current_session_id
-from .teammates_service import error
+from .teammates_service import RELAY_INSTRUCTION, error
 
 def _p(kind, description, **extra):
     return dict(type=kind, description=description, **extra)
@@ -64,6 +64,8 @@ SPECS = {
 
 def schema(name, names=()):
     description, properties, required = SPECS[name]
+    if name in ('teammate_assign', 'teammate_check', 'teammate_wait'):
+        description += ' ' + RELAY_INSTRUCTION + ' Read relay_instruction and summary_clipped before relaying summary.'
     if name == 'teammate_assign':
         description += (' Teammates at startup: ' + ', '.join(names) + '.' if names else '') + \
             ' Call teammates_roster for the current list; teammates added later work by name.'
@@ -128,4 +130,6 @@ def render_roster(value):
         lines.extend(f'  {problem}' for problem in value['config_errors'])
     push = features.get('push_completion', {})
     lines.append(f"teammate_wait=yes; push completion={push.get('status')} ({push.get('reason')})")
+    lines.append('Results: use teammate_check or teammate_wait for summaries. ' + RELAY_INSTRUCTION +
+                 ' If summary_clipped is true, report the text as incomplete.')
     return '\n'.join(lines)
