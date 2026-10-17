@@ -30,7 +30,8 @@ def test_hermes_revision_and_tracked_dirt(tmp_path):
         identity.verify_hermes(hermes=tmp_path, sha=sha)
 
 
-def test_frozen_identity_matches_tree():
+def test_active_identity_matches_tree():
+    # Slice 3 is reproduced from its tag; main validates the active 3b declaration.
     assert len(identity.verify(require_hidden=False)) == 64
 
 

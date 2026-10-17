@@ -29,6 +29,23 @@ same roles in the workspace AGENTS.md — with no worse task success and no more
 
 There are no other arms, repetitions, pilots, replacement cases or selective reruns. The harness module name remains `bench.slice3`; its explicit `SLICE = '3b'` selects this declaration. The old grader is available only at the historical tag.
 
+**Identity lifecycle (release-manager Addendum 2, 2026-10-17).** Main checks only the active
+3b identity. While `RUNTIME_TAG` is unset, runtime hash changes do not invalidate its
+provisional snapshot; harness, declaration and fixture checks still run, and offline receipt
+digests include the actual runtime bytes. After release inputs are set and the identity is
+frozen, runtime drift fails too. This lets plugin-only fixes land without rewriting a past
+measurement or freezing an unshipped runtime.
+
+Slice 2 and slice 3 records remain byte-identical on main. Their frozen public-file integrity
+is checked against [bench-slice2-6a5ea600](https://github.com/100yenadmin/hermes-teammates/tree/bench-slice2-6a5ea600)
+(`7f2e7f810880d6b0ec05bb2126ed963dda61cd04`) and
+[bench-slice3-f66e45e8](https://github.com/100yenadmin/hermes-teammates/tree/bench-slice3-f66e45e8)
+(`26c604cca88770871de317f5195fbbbdc36bf99b`), using each tag's own recorded hashes.
+Shallow checkouts without those tags skip these historical checks with an explicit reason;
+private hidden-oracle validation remains part of authorized reproduction. Slice 2 helpers
+still hash-check current fixtures, but do not bind main's runtime or harness to historical
+manifest hashes. No historical record is refrozen to make current tests pass.
+
 ## Arms
 
 All arms:

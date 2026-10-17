@@ -1,8 +1,8 @@
-"""Slice 3 run identity: one frozen hash list over every file a run depends on.
+"""Active slice 3b identity; historical slices are reproduced at their tags.
 
 The T2 manifest (generated) covers cases and hidden oracles; this list adds the plugin runtime,
-the harness, the texts and the declared files. Any byte change needs a refreeze, i.e. a new identity,
-and receipts from different identities never combine.
+the harness, the texts and the declared files. Provisional runtime bytes may change until
+release inputs are set. Frozen identities reject every byte change; receipts never combine.
 """
 import hashlib
 import json
@@ -110,10 +110,13 @@ def verify(root=ROOT, path=None, require_hidden=False):
         raise ValueError('Invalid slice 3b identity metadata')
     frozen = value['files']
     current = compute(root)
-    drift = sorted(set(frozen) ^ set(current)) + sorted(k for k in set(frozen) & set(current) if frozen[k] != current[k])
+    pending_runtime = set(RUNTIME) if value['status'] == 'provisional' and not RUNTIME_TAG else set()
+    drift = sorted(set(frozen) ^ set(current)) + sorted(
+        k for k in set(frozen) & set(current) - pending_runtime if frozen[k] != current[k])
     if drift:
         raise ValueError('Slice 3 identity drift: ' + ', '.join(drift))
-    return digest(frozen)
+    # Even provisional offline receipts identify actual bytes, not a stale runtime snapshot.
+    return digest(current)
 
 
 if __name__ == '__main__':

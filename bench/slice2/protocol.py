@@ -23,8 +23,13 @@ def canonical(value):
 
 
 def manifest():
+    """Check current fixtures; historical code integrity is checked at the slice 2 tag."""
     value = json.loads((TASK / 'manifest.json').read_text())
     for path, sha in value['files'].items():
+        # Main's runtime/harness may evolve. Reproduce their frozen hashes at
+        # bench-slice2-6a5ea600, never against unrelated current runtime bytes.
+        if not path.startswith('bench/tasks/t1h/'):
+            continue
         # Hidden oracles stay out of git until the scored run ends (children have network access);
         # a present copy must still match its frozen hash, and the live audit fails closed without it.
         if path.startswith('bench/tasks/t1h/hidden/') and not (ROOT / path).exists():
