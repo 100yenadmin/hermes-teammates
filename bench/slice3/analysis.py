@@ -5,8 +5,9 @@ import statistics
 from collections import Counter, defaultdict
 
 from bench.slice2.stats import percentile
+from .texts import ARMS, SLICE
+from . import identity
 
-ARMS = ('B-native', 'C', 'C-eager')
 SEED, RESAMPLES = 1403, 20000
 QUALITY = ('adherence_all', 'success')
 METRICS = (*QUALITY, 'adherence_rules', 'parent_calls', 'parent_tokens')
@@ -43,12 +44,14 @@ def score_turn(row, oracle, workspace, pristine):
                                    row['delta'].get('added', []) + row['delta'].get('modified', []))
             success = result['success'] and delivered(oracle['role'], oracle, row['parent_reply'], workspace)
             fp = result['fp']
-    return dict(case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],
+    return dict(slice=SLICE, case=row['case'], arm=row['arm'], turn=row['turn'], attempt=row['attempt'], role=oracle['role'],
                 status=row['status'], infra_invalid=row['infra_invalid'], n_children=len(row['children']),
                 rules=rules, envelope=envelope, output_schema=output_schema, on_locus=on_locus,
                 adherence_all=int(all(rules) and routing != 'wrong'),
                 adherence_rules=sum(rules) / 4, success=int(success), fp=fp, routing=routing,
                 parent_tokens=token_total(row['parent']), parent_calls=row['parent']['api_calls'],
+                unobserved_summary_requests=row['parent'].get('unobserved_summary_requests', 0),
+                child_unobserved_summary_requests=row.get('child_usage', {}).get('unobserved_summary_requests', 0),
                 parent_output=(row['parent']['tokens'] or {}).get('output'),
                 peak_prompt=row['parent']['peak_prompt'], discovery_calls=row['parent']['discovery_calls'],
                 wait_calls=row['parent']['wait_calls'], assign_wait_seconds=row['parent']['assign_wait_seconds'],
@@ -153,6 +156,11 @@ def contrast(means, cases, treatment, dropped):
 
 
 def analyze(rows, *, cases=None, dropped_cases=()):
+    ident = identity.verify()
+    if any(r.get('identity', ident) != ident for r in rows):
+        raise ValueError('Analyzed rows differ from the active declaration identity')
+    limitations = (identity.IDENTITY.parent / 'DECLARED.md').read_text().split(
+        '## What this does not prove\n', 1)[1].split('\n## ', 1)[0]
     cases = sorted(set(cases if cases is not None else [r['case'] for r in rows]))
     if len(set(dropped_cases) - set(cases)):
         raise ValueError('Unknown dropped case')
@@ -160,12 +168,23 @@ def analyze(rows, *, cases=None, dropped_cases=()):
     if len(actual) != len(set(actual)) or any(r['arm'] not in ARMS or r['turn'] not in range(1, 7) for r in rows):
         raise ValueError('Duplicate or invalid selected turn')
     paired_cases = [c for c in cases if c not in dropped_cases]
-    means = script_means(rows, paired_cases)
-    result = dict(slice='slice3', seed=SEED, resamples=RESAMPLES,
+    all_means = script_means(rows, cases)
+    means = {c: all_means[c] for c in paired_cases}
+    result = dict(slice=SLICE, identity=ident, limitations=limitations, seed=SEED, resamples=RESAMPLES,
                   method='paired script-cluster percentile; one-sided 95% bounds',
                   scheduled_cases=cases, dropped_cases=sorted(dropped_cases), script_means=means,
                   contrasts={arm: contrast(means, paired_cases, arm, len(dropped_cases)) for arm in ARMS[1:]})
     result['verdict'] = result['contrasts']['C']['verdict']
+    result['itt'] = {}
+    for arm in ARMS:
+        own = [r for r in rows if r['arm'] == arm]
+        unknown = [c for c in cases if all_means[c][arm]['parent_tokens'] is None]
+        result['itt'][arm] = dict(error_turns=sum(r.get('status') == 'error' for r in own),
+            timeout_turns=sum(r.get('status') == 'timeout' for r in own),
+            missing_turns=len(cases) * 6 - len(own), unknown_spend_cases=unknown,
+            unknown_spend_case_count=len(unknown),
+            unobserved_summary_requests=sum(r.get('unobserved_summary_requests', 0) for r in own),
+            child_unobserved_summary_requests=sum(r.get('child_unobserved_summary_requests', 0) for r in own))
     result['strict_unique'] = contrast(script_means(rows, paired_cases, True), paired_cases, 'C', len(dropped_cases))
     result['per_turn'] = {}
     for index in range(1, 7):
@@ -203,10 +222,12 @@ def analyze(rows, *, cases=None, dropped_cases=()):
 
 
 def report(analysis, *, ceiling_roles=()):
+    if analysis.get('identity') != identity.verify():
+        raise ValueError('Report identity differs from the active declaration identity')
     scheduled, dropped = analysis['scheduled_cases'], analysis['dropped_cases']
-    lines = ['# Slice 3', '', analysis['verdict'],
+    lines = ['# Slice 3b', '', analysis['verdict'],
              f"Paired cases analyzed: {len(scheduled)-len(dropped)} of {len(scheduled)}; dropped: {', '.join(dropped) or 'none'}", '',
-             'Offline metrics do not establish live qualification.', '',
+             'Qualification, calibration and admission require their separate identity-bound receipts.', '',
              '| Contrast | Bar | State | Point | 95% bounds | Higher / lower / equal |',
              '|---|---|---|---|---|---|']
     for arm, c in analysis['contrasts'].items():
@@ -223,6 +244,13 @@ def report(analysis, *, ceiling_roles=()):
                 lines.append(f"| {p['case']} | {key} | {p['baseline']} | {p['treatment']} |")
     for role in ceiling_roles:
         lines += ['', f'{role}: calibration ceiling (1.0 in every arm) — no task-quality claim for this role.']
+    lines += ['', '## Intent-to-treat disclosures', '',
+              '| Arm | Error turns | Timeout turns | Missing turns | UNKNOWN-spend cases (count; all scheduled cases) | CO-1-type unobserved requests (parent) | CO-1-type unobserved requests (child) |',
+              '|---|---|---|---|---|---|---|']
+    for arm, counts in analysis['itt'].items():
+        lines.append(f"| {arm} | {counts['error_turns']} | {counts['timeout_turns']} | {counts['missing_turns']} | "
+                     f"{counts['unknown_spend_case_count']}; {', '.join(counts['unknown_spend_cases']) or 'none'} | "
+                     f"{counts['unobserved_summary_requests']} | {counts['child_unobserved_summary_requests']} |")
     lines += ['', '## Sensitivity and exploratory metrics', '',
               f"Strict-unique verdict: {analysis['strict_unique']['verdict']}", '',
               '| Arm | Role | N | Adherence | Success | Unsupported findings |', '|---|---|---|---|---|---|']
@@ -232,4 +260,5 @@ def report(analysis, *, ceiling_roles=()):
     for key in ('per_turn', 'routing', 'd3_uptake', 'descriptive'):
         import json
         lines += ['', f'### {key}', '', '```json', json.dumps(analysis[key], indent=2, sort_keys=True), '```']
+    lines += ['', '## What this does not prove', analysis['limitations'].rstrip()]
     return '\n'.join(lines) + '\n'

@@ -342,9 +342,10 @@ def test_checkers_no_redos(role, text, oracles, work):
     ('B-native', 'scouting task', None, 'unspecified'),
     ('C', 'ignored', 'scout', 'correct'),
     ('C', 'Role: scout', 'reviewer', 'wrong'),
-    ('C-eager', 'Role: scout', None, 'unspecified'),
+    ('C', 'Role: scout', None, 'unspecified'),
 ])
 def test_routing(arm, goal, teammate, expected):
+    # Slice 3 is reproduced from its tag.
     delegation = {'mechanism': 'delegate_task' if arm == 'B-native' else 'teammate_assign',
                   'goal': goal, 'teammate': teammate, 'context': 'tester'}
     assert grade.route(arm, delegation, 'scout') == expected

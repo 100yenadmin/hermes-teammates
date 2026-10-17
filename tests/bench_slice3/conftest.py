@@ -8,6 +8,7 @@ import pytest
 
 @pytest.fixture
 def lane_f(monkeypatch, tmp_path):
+    # Slice 3 is reproduced from its tag.
     workspace = tmp_path / 'pristine'
     (workspace / 'src').mkdir(parents=True)
     (workspace / 'docs').mkdir()
@@ -15,7 +16,8 @@ def lane_f(monkeypatch, tmp_path):
     (workspace / 'src/tiny.py').write_text('def value():\n    return 7\n')
     (workspace / 'docs/guide.md').write_text('Value is 7.\n')
     texts = ModuleType('bench.slice3.texts')
-    texts.ARMS = ('B-native', 'C', 'C-eager')
+    texts.ARMS = ('B-native', 'C')
+    texts.SLICE = '3b'
     texts.ROLES = ('scout', 'reviewer', 'tester')
     texts.WHEN = {r: 'Use ' + r for r in texts.ROLES}
     texts.INSTRUCTIONS = {r: 'Synthetic instruction for ' + r + '.' for r in texts.ROLES}
@@ -61,8 +63,6 @@ def lane_f(monkeypatch, tmp_path):
                  compression=dict(enabled=True), terminal=dict(backend='local'),
                  delegation=dict(max_concurrent_children=4, oneshot_max_children=4, max_iterations=20),
                  plugins=dict(isolation='in_process', enabled=['hermes-teammates'] if arm != 'B-native' else []))
-        if arm == 'C-eager':
-            c['tools'] = dict(tool_search=dict(enabled='off'))
         configs[arm] = c
     (declared / 'configs.json').write_text(json.dumps(configs))
     monkeypatch.setattr(session, 'DECLARED', declared)

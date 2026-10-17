@@ -1,0 +1,162 @@
+[
+  {
+    "slice": "3b",
+    "case": "05-orbit",
+    "arm": "C",
+    "batch": 1,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "06-cinder",
+    "arm": "B-native",
+    "batch": 1,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "10-summit",
+    "arm": "C",
+    "batch": 2,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "08-tundra",
+    "arm": "B-native",
+    "batch": 2,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "09-ripple",
+    "arm": "C",
+    "batch": 3,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "03-harbor",
+    "arm": "B-native",
+    "batch": 3,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "05-orbit",
+    "arm": "B-native",
+    "batch": 4,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "06-cinder",
+    "arm": "C",
+    "batch": 4,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "10-summit",
+    "arm": "B-native",
+    "batch": 5,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "04-meadow",
+    "arm": "C",
+    "batch": 5,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "07-fern",
+    "arm": "C",
+    "batch": 6,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "02-beacon",
+    "arm": "B-native",
+    "batch": 6,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "04-meadow",
+    "arm": "B-native",
+    "batch": 7,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "02-beacon",
+    "arm": "C",
+    "batch": 7,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "07-fern",
+    "arm": "B-native",
+    "batch": 8,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "03-harbor",
+    "arm": "C",
+    "batch": 8,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "01-lantern",
+    "arm": "C",
+    "batch": 9,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "09-ripple",
+    "arm": "B-native",
+    "batch": 9,
+    "start_order": 2,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "01-lantern",
+    "arm": "B-native",
+    "batch": 10,
+    "start_order": 1,
+    "seed": 1403
+  },
+  {
+    "slice": "3b",
+    "case": "08-tundra",
+    "arm": "C",
+    "batch": 10,
+    "start_order": 2,
+    "seed": 1403
+  }
+]

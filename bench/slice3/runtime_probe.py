@@ -6,9 +6,9 @@ import os
 import threading
 
 if __package__:
-    from .observer import install, observer_error
+    from .observer import install, install_summary_observer, observer_error
 else:
-    from observer3 import install, observer_error
+    from observer3 import install, install_summary_observer, observer_error
 
 LOCK = threading.RLock()
 EVENT_PATH = os.environ.get('SLICE3_EVENTS')
@@ -63,6 +63,8 @@ def _bootstrap():
     from hermes_cli import lifecycle
     import run_agent
     install(lifecycle, os.environ['SLICE3_USAGE'])
+    from agent import chat_completion_helpers
+    install_summary_observer(chat_completion_helpers, os.environ['SLICE3_USAGE'])
     old = run_agent.AIAgent.__init__
     signature = inspect.signature(old)
 

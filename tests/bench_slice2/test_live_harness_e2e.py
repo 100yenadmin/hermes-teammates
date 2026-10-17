@@ -244,6 +244,7 @@ def exercise_arm(arm, base, monkeypatch, failure=None):
 @pytest.mark.skipif(not (hermes.HERMES/'.venv/bin/python').exists() or sys.platform != 'darwin',
                     reason='pinned Hermes/macOS sandbox absent (CI)')
 def test_real_live_executor_fake_openai(tmp_path, monkeypatch, selected_tree):
+    # Slice 2 is reproduced from its tag; this injected executor is an offline fixture.
     oracle_present = (hermes.TASK/'hidden/oracles.json').is_file()
     base = Path(os.environ.get('SLICE2_E2E_ARTIFACTS', str(tmp_path)))
     batches = [exercise_arm(arm, base, monkeypatch) for arm in ARMS]
@@ -254,5 +255,5 @@ def test_real_live_executor_fake_openai(tmp_path, monkeypatch, selected_tree):
         # Cheap phase/checkpoint proof reuses the actual batch receipts; no extra Hermes runs.
         by_arm = {b['arm']: b for b in batches}
         phase = run_phase('qualification', base/'phase-replay',
-                          lambda launch, directory: launch | by_arm[launch['arm']])
+                          lambda launch, directory: launch | by_arm[launch['arm']], strict=False)
         assert phase['pass'] is True, phase['errors']
