@@ -34,9 +34,10 @@ def assert_hashes(tag, files, prefix=''):
 @pytest.mark.parametrize('tag,record', [
     ('bench-slice2-6a5ea600', 'bench/tasks/t1h/manifest.json'),
     ('bench-slice3-f66e45e8', 'bench/declared/slice3/identity.json'),
+    ('bench-slice3b-46a95f77', 'bench/declared/slice3b/identity.json'),
 ])
 def test_historical_frozen_identity_matches_its_tag(tag, record):
-    # Slice 2 and slice 3 are reproduced from their tags.
+    # Completed slices are reproduced from their tags.
     require_tag(tag)
     value = json.loads(tagged_bytes(tag, record))
     assert_hashes(tag, value.get('files', value))
@@ -45,17 +46,20 @@ def test_historical_frozen_identity_matches_its_tag(tag, record):
         assert_hashes(tag, fixtures['files'], 'bench/tasks/t2/')
 
 
-def test_historical_hash_check_rejects_drift():
-    tag = 'bench-slice2-6a5ea600'
+@pytest.mark.parametrize('tag', ['bench-slice2-6a5ea600', 'bench-slice3b-46a95f77'])
+def test_historical_hash_check_rejects_drift(tag):
     require_tag(tag)
     with pytest.raises(AssertionError, match='frozen byte mismatch'):
         assert_hashes(tag, {'teammates_service.py': '0' * 64})
 
 
-@pytest.mark.parametrize('slice_name', ['slice2', 'slice3'])
-def test_main_historical_records_match_preserved_baseline(slice_name):
-    # Slice 2 and slice 3 are reproduced from their tags.
-    baseline = 'a2fb2a3'
+@pytest.mark.parametrize('slice_name,baseline', [
+    ('slice2', 'a2fb2a3'),
+    ('slice3', 'a2fb2a3'),
+    ('slice3b', '70dd449f52c9b510b67d97d58fd66b655bf72d62'),
+])
+def test_main_historical_records_match_preserved_baseline(slice_name, baseline):
+    # Preserve both the path set and every record byte from the completed runs.
     result = subprocess.run(['git', '-C', str(ROOT), 'cat-file', '-e', baseline + '^{commit}'],
                             capture_output=True)
     if result.returncode:

@@ -1,4 +1,4 @@
-"""Historical identities bind to tags; only the active release can freeze main."""
+"""Historical identities bind to tags; live entrypoints still reject code drift."""
 import json
 import shutil
 
@@ -57,15 +57,51 @@ def test_provisional_identity_accepts_runtime_delta_but_receipt_changes(copied_r
         identity.verify(root=copied_repo)
 
 
-def test_frozen_active_identity_still_rejects_runtime_delta(copied_repo, monkeypatch):
+def test_strict_frozen_identity_still_rejects_runtime_delta(copied_repo, monkeypatch):
     monkeypatch.setattr(identity, 'RUNTIME_TAG', 'synthetic-release')
     configs = copied_repo / 'bench/declared/slice3b/configs.json'
     value = json.loads(configs.read_text())
     value['C'] = {'synthetic': True}
     configs.write_text(json.dumps(value))
     identity.freeze(copied_repo)
-    assert len(identity.verify(root=copied_repo)) == 64
+    assert len(identity.verify(root=copied_repo, strict=True)) == 64
     runtime = copied_repo / 'teammates_service.py'
     runtime.write_text(runtime.read_text() + '\n# Synthetic runtime-only change.\n')
     with pytest.raises(ValueError, match='teammates_service.py'):
-        identity.verify(root=copied_repo)
+        identity.verify(root=copied_repo, strict=True)
+
+
+@pytest.mark.parametrize('name', ['teammates_service.py', 'bench/slice3/session.py'])
+def test_historical_3b_identity_ignores_current_code_but_strict_verification_refuses(copied_repo, name):
+    before = identity.verify(root=copied_repo)
+    changed = copied_repo / name
+    changed.write_text(changed.read_text() + '\n# Synthetic code drift.\n')
+    assert identity.verify(root=copied_repo) == before
+    with pytest.raises(ValueError, match='slice 3b runs only from tag bench-slice3b-46a95f77'):
+        identity.verify(root=copied_repo, strict=True)
+
+
+@pytest.mark.parametrize('entrypoint', ['phase', 'session'])
+@pytest.mark.parametrize('name', ['teammates_service.py', 'bench/slice3/session.py'])
+def test_live_entrypoints_refuse_historical_3b_code_drift(copied_repo, monkeypatch, tmp_path, entrypoint, name):
+    from bench.slice3 import run, session
+    from bench.slice3.cases import DEV
+    changed = copied_repo / name
+    changed.write_text(changed.read_text() + '\n# Synthetic code drift.\n')
+    verify = identity.verify
+    monkeypatch.setattr(identity, 'verify', lambda **kw: verify(root=copied_repo, **kw))
+    monkeypatch.setattr(identity, 'IDENTITY', copied_repo / 'bench/declared/slice3b/identity.json')
+    # Code drift must be refused before private fixtures or the Hermes checkout are needed.
+    monkeypatch.setattr(identity, 'verify_hermes', lambda: None)
+    monkeypatch.setattr(identity, 'verify_runtime', lambda: None)
+    monkeypatch.setenv('SLICE3_LIVE', '1')
+    monkeypatch.setenv('GLM_API_KEY', 'synthetic')
+    monkeypatch.setattr(run, '_run_session', lambda *a, **kw: pytest.fail('attempt admitted'))
+    monkeypatch.setattr(session, 'setup', lambda *a, **kw: pytest.fail('session admitted'))
+    destination = tmp_path / 'live'
+    with pytest.raises(ValueError, match='slice 3b runs only from tag bench-slice3b-46a95f77'):
+        if entrypoint == 'phase':
+            run.run_phase('calibrate', destination)
+        else:
+            session._run_session(DEV[0], 'B-native', destination)
+    assert not destination.exists()

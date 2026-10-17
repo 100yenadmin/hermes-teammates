@@ -1,4 +1,4 @@
-"""Active slice 3b identity; historical slices are reproduced at their tags.
+"""Historical slice 3b identity; live runs are reproduced at their run tag.
 
 The T2 manifest (generated) covers cases and hidden oracles; this list adds the plugin runtime,
 the harness, the texts and the declared files. Provisional runtime bytes may change until
@@ -44,6 +44,7 @@ def live_preconditions():
         raise ValueError('C config is unset until v0.2.7 ships')
     if json.loads(IDENTITY.read_text()).get('status') != 'frozen':
         raise ValueError('Slice 3b identity is provisional; freeze after setting release inputs')
+    verify(strict=True, require_hidden=True)
 
 
 def verify_runtime(root=ROOT, tag=None):
@@ -102,21 +103,29 @@ def verify_fixtures(root=ROOT, require_hidden=True):
         raise ValueError('Slice 3 fixture drift: ' + ', '.join(problems))
 
 
-def verify(root=ROOT, path=None, require_hidden=False):
-    """Return the identity digest, or raise naming every drifted file."""
-    verify_fixtures(root, require_hidden)
+def verify(root=ROOT, path=None, require_hidden=False, *, strict=False):
+    """Check fixtures/declarations offline; live admission checks every frozen byte."""
     value = json.loads((path or root / 'bench/declared/slice3b/identity.json').read_text())
     if value.get('slice') != '3b' or value.get('status') not in {'provisional', 'frozen'}:
         raise ValueError('Invalid slice 3b identity metadata')
     frozen = value['files']
-    current = compute(root)
+    historical = value['status'] == 'frozen' and not strict
+    # Main may evolve independently of the completed run. Its runtime/harness
+    # hashes are checked by the historical tag-tree test, not against this checkout.
+    current = ({name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in DECLARED}
+               if historical else compute(root))
+    expected = {name: frozen[name] for name in DECLARED} if historical else frozen
     pending_runtime = set(RUNTIME) if value['status'] == 'provisional' and not RUNTIME_TAG else set()
-    drift = sorted(set(frozen) ^ set(current)) + sorted(
-        k for k in set(frozen) & set(current) - pending_runtime if frozen[k] != current[k])
+    drift = sorted(set(expected) ^ set(current)) + sorted(
+        k for k in set(expected) & set(current) - pending_runtime if expected[k] != current[k])
     if drift:
+        if strict:
+            raise ValueError('slice 3b runs only from tag bench-slice3b-46a95f77; frozen byte mismatch: '
+                             + ', '.join(drift))
         raise ValueError('Slice 3 identity drift: ' + ', '.join(drift))
+    verify_fixtures(root, require_hidden)
     # Even provisional offline receipts identify actual bytes, not a stale runtime snapshot.
-    return digest(current)
+    return digest(frozen if historical else current)
 
 
 if __name__ == '__main__':

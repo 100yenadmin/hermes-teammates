@@ -30,9 +30,9 @@ def test_hermes_revision_and_tracked_dirt(tmp_path):
         identity.verify_hermes(hermes=tmp_path, sha=sha)
 
 
-def test_active_identity_matches_tree():
-    # Slice 3 is reproduced from its tag; main validates the active 3b declaration.
-    assert len(identity.verify(require_hidden=False)) == 64
+def test_historical_identity_matches_preserved_run():
+    # Runtime/harness integrity is checked at the run tag, independently of main.
+    assert identity.verify(require_hidden=False) == '46a95f771973d160b9d4cef3e8119d755f2c1d99a83d3737b7f2bb641e2b91f5'
 
 
 def test_identity_covers_runtime_harness_and_declared():
@@ -51,7 +51,7 @@ def test_drift_is_named(tmp_path):
     path = tmp_path / 'identity.json'
     path.write_text(json.dumps(frozen))
     try:
-        identity.verify(path=path, require_hidden=False)
+        identity.verify(path=path, require_hidden=False, strict=True)
     except ValueError as error:
         assert 'bench/slice3/grade.py' in str(error)
     else:
