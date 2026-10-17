@@ -1,8 +1,17 @@
 # Changelog
 
+## 1.0.0 (2026-10-17)
+
+The first stable release. The tool names, argument shapes and result fields from 0.2.7 are now the supported contract. Future 1.x releases keep them backward compatible.
+
+- Follow-up digests skip a prior result that would be empty after clipping, so the digest never shows an empty `Result:` line (#64).
+- README: benchmark summary for slices 3 and 3b, plus guidance on when to choose teammates over `delegate_task`.
+- Bench slice 3b stopped at its calibration gate (INCONCLUSIVE, design); see `bench/results/slice3b/REPORT.md`. No quality or cost advantage over `delegate_task` is claimed.
+- Bench: slice 3b's identity is verified at its run tag `bench-slice3b-46a95f77` (#69), so plugin changes no longer touch any benchmark identity.
+
 ## 0.2.7 (2026-10-17)
 
-- **Findings reach the user intact (#55).** Finished teammate results now carry a `relay_instruction` that asks the parent to pass findings, citations and the verdict on verbatim, with commentary kept separate. If a summary was clipped, the instruction says so, so the parent reports the result as incomplete. Assign, wait and check results carry it on each finished row; the roster carries it once at the top level. Follow-up digests tell the teammate to continue from prior results. Summary budgets and JSON fields are unchanged. In bench slice 3 the parent dropped the specialist's `file:line` in 20 of 20 reviews; this release has not been re-measured yet (bench slice 3b).
+- **Findings reach the user intact (#55).** Finished teammate results now carry a `relay_instruction` that asks the parent to pass findings, citations and the verdict on verbatim, with commentary kept separate. If a summary was clipped, the instruction says so, so the parent reports the result as incomplete. Assign, wait and check results carry it on each finished row; the roster carries it once at the top level. Follow-up digests tell the teammate to continue from prior results. Summary budgets and JSON fields are unchanged. In bench slice 3 the parent paraphrased the specialist's finding instead of copying its finding line in 20 of 20 reviews (`delegate_task` copied it in 19 of 20), and twice lost the `file:line`; this release has not been re-measured yet (bench slice 3b).
 - **Easier to call behind Hermes tool search (#56).** On Hermes, plugin tools sit behind `tool_search` → `tool_describe` → `tool_call`, and plugins cannot opt out. `teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` now carry short bridge hints in the deferred catalog and a valid single-call example in their schemas. The README documents the global `tools.tool_search.enabled: "off"` switch and its trade-offs: more context, and hosted connector tools (`connectors__*`) are no longer discoverable, so keep `auto` if you use Hermes connectors.
 - Bench: slice 3b declaration and arm-blind grader fixes (#54, #58, #59). Historical slice 2 and slice 3 identities are now verified at their benchmark run tags, so plugin changes no longer need benchmark manifest refreezes.
 
