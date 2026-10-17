@@ -22,14 +22,21 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'))
 
 
-def manifest():
+def manifest(*, strict=False):
+    """Check current fixtures; historical code integrity is checked at the slice 2 tag."""
     value = json.loads((TASK / 'manifest.json').read_text())
     for path, sha in value['files'].items():
+        # Main's runtime/harness may evolve. Reproduce their frozen hashes at
+        # bench-slice2-6a5ea600, never against unrelated current runtime bytes.
+        if not strict and not path.startswith('bench/tasks/t1h/'):
+            continue
         # Hidden oracles stay out of git until the scored run ends (children have network access);
         # a present copy must still match its frozen hash, and the live audit fails closed without it.
-        if path.startswith('bench/tasks/t1h/hidden/') and not (ROOT / path).exists():
+        if not strict and path.startswith('bench/tasks/t1h/hidden/') and not (ROOT / path).exists():
             continue
-        if digest((ROOT / path).read_bytes()) != sha:
+        if not (ROOT / path).is_file() or digest((ROOT / path).read_bytes()) != sha:
+            if strict:
+                raise ValueError('slice 2 runs only from tag bench-slice2-6a5ea600; frozen byte mismatch: ' + path)
             raise ValueError('Frozen byte mismatch: ' + path)
     return value
 

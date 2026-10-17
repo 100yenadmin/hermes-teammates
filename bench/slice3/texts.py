@@ -1,6 +1,7 @@
 """Fixed r3 operator text; only the delegation sentence differs between arms."""
 
-ARMS = ('B-native', 'C', 'C-eager')
+SLICE = '3b'
+ARMS = ('B-native', 'C')
 ROLES = ('scout', 'reviewer', 'tester')
 WHEN = {
     'scout': 'questions about how this project behaves, answered from docs/.',
@@ -50,7 +51,7 @@ If you are a subagent, follow only the instructions of the role your task names 
 given).
 '''
 _MECHANISMS = {
-    'B-native': "Delegate with delegate_task. Make the goal's first line Role: <name>; the specialist sees this file and follows that role's instructions.",
+    'B-native': "Delegate with delegate_task. Make the goal's first line Role: scout, Role: reviewer or Role: tester; the specialist sees this file and follows that role's instructions.",
     'C': "Delegate with teammate_assign, using the specialist's name. If the reply already holds the result, use it; otherwise collect it with teammate_wait.",
 }
 

@@ -46,14 +46,14 @@ def parent_set(rows, root):
         parents |= fresh
 
 
-def invocation_metrics(receipts, parents):
+def invocation_metrics(receipts, parents, *, allow_empty=False):
     starts = [r for r in receipts if r.get('kind') == 'request_start' and r.get('session_id') in parents]
     usage = [r for r in receipts if r.get('kind') == 'usage' and r.get('session_id') in parents]
     keys = [request_key(r) for r in starts]
     completed = {request_key(r) for r in usage}
     unknown = sum(k not in completed for k in keys)
     successful = [r for r in usage if not is_error(r)]
-    valid = (bool(parents) and len(keys) == len(set(keys))
+    valid = ((bool(parents) or allow_empty) and len(keys) == len(set(keys))
              and len(usage) == len(completed) and not unknown
              and all(request_key(r) in keys and not r.get('missing_start') for r in usage)
              and not any(r.get('kind') == 'observer_error' for r in receipts))
@@ -61,6 +61,7 @@ def invocation_metrics(receipts, parents):
     valid = valid and all(v is not None for v in buckets.values())
     prompt = [r.get('prompt_tokens') for r in successful]
     return dict(api_calls=len(starts), request_starts=len(starts), unknown_usage_starts=unknown,
+                unobserved_summary_requests=sum(bool(r.get('unobserved_summary')) for r in starts),
                 error_calls=sum(is_error(r) for r in usage), tokens=buckets if valid else None,
                 peak_prompt=max(prompt, default=0) if all(type(v) is int for v in prompt) else None)
 
@@ -76,7 +77,9 @@ def reconcile(invocations, rows, root):
         errors.append('duplicate request across invocations')
     usage = [e for e in all_receipts if e.get('kind') == 'usage']
     usage_keys = [request_key(e) for e in usage]
-    if len(usage_keys) != len(set(usage_keys)) or set(usage_keys) != set(keys):
+    summaries = [e for e in all_receipts if e.get('kind') == 'request_start' and e.get('unobserved_summary')]
+    observed_keys = set(keys) - {request_key(e) for e in summaries}
+    if len(usage_keys) != len(set(usage_keys)) or set(usage_keys) != observed_keys:
         errors.append('request/usage coverage incomplete')
     if any(e.get('kind') == 'observer_error' for e in all_receipts):
         errors.append('observer error')
@@ -100,6 +103,9 @@ def reconcile(invocations, rows, root):
         if len(selected) != r.get('api_call_count'):
             errors.append('SQLite requests mismatch: ' + r['id'])
     return dict(pass_=not errors, errors=errors, parent_sessions=sorted(parents),
+                unobserved_summary_requests=len(summaries),
+                unobserved_summaries=[{k: e.get(k) for k in ('session_id', 'request_id', 'retry', 'attempt')}
+                                      for e in summaries],
                 child_turn=attribution,
                 per_invocation=[invocation_metrics(e, parents) for e in invocations])
 

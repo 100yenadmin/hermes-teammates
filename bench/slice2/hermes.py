@@ -293,6 +293,9 @@ def execute(launch, directory, *, fake_base_url=None):
     # Explicit opt-in is required only at a later, separately authorized live gate.
     if os.environ.get('SLICE2_LIVE')!='1':
         raise ValueError('Live executor disabled; owner review and live authorization required')
+    if fake_base_url is None:
+        from bench.slice2.protocol import manifest
+        manifest(strict=True)
     if subprocess.check_output(['git','-C',str(HERMES),'rev-parse','HEAD'],text=True).strip()!=HERMES_SHA:
         raise ValueError('Pinned Hermes drift')
     if fake_base_url is not None:
