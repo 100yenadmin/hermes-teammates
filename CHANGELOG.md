@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Opt-in completion notices without a session check (#7).** A new setting, `trust_notice_routing` (off by default), lets `notify_on_completion` deliver each notice to the chat recorded when the run was assigned, without the session confirmation Hermes can't provide yet. Gateway chats, and TUI and Desktop sessions, also need Hermes' `allow_gateway_injection`. The notice is unchanged: one line with the teammate name, run ID and status, never result text. After a `/new`, `/reset` or `/resume` while a run is pending, the notice reaches the chat's current conversation, which can't read the run.
+
 ## 1.6.0 (2026-11-11)
 
 One new optional argument. Tool names, existing arguments and error codes are unchanged. Without `board`, every call behaves exactly as in 1.5.3.

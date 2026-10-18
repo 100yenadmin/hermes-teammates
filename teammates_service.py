@@ -922,7 +922,8 @@ class TeammatesService:
             if not won or not notify or row.get('stop_requested_at') is not None:
                 return
             try:
-                feature = self.host.push_feature(parse(self.config_reader())['notify_on_completion'])
+                config = parse(self.config_reader())
+                feature = self.host.push_feature(config['notify_on_completion'], config['trust_notice_routing'])
                 if feature['status'] != 'on':
                     if feature['status'] == 'unsupported':
                         logger.info('completion notice dropped: host cannot bind notices to a session')
@@ -941,9 +942,11 @@ class TeammatesService:
         try:
             with self._condition:
                 rows = [row for row in self._notices.pop(owner, []) if row['run_id'] not in self._seen]
-                if not rows or not parse(self.config_reader())['notify_on_completion']:
+                config = parse(self.config_reader())
+                if not rows or not config['notify_on_completion']:
                     return
-                if self.host.notice_session_id(rows[0]['parent_session_key']) != owner:
+                if (not config['trust_notice_routing'] and
+                        self.host.notice_session_id(rows[0]['parent_session_key']) != owner):
                     logger.info('completion notice dropped: host cannot confirm the owning session')
                     return
                 listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})" for r in rows[:8])
@@ -1228,7 +1231,8 @@ class TeammatesService:
         self._sweep()
         config, features = parse(self.config_reader()), self.host.features()
         features = dict(features, teammate_wait=True,
-                        push_completion=self.host.push_feature(config['notify_on_completion']))
+                        push_completion=self.host.push_feature(config['notify_on_completion'],
+                                                               config['trust_notice_routing']))
         selected = teammate
         if selected is not None:
             if selected not in config['teammates']:

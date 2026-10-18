@@ -459,18 +459,40 @@ Hermes interrupts (`/stop` or a new user message) end a wait promptly, returning
 `interrupted` otherwise. Hermes's default tool-call timeout (`tools.sequential_call`) is 420 seconds;
 if you lowered it, keep `wait_seconds` below your timeout. `teammate_check` remains bounded to 0–60 seconds.
 
-### Completion notices (not available yet)
+### Completion notices (opt-in)
 
-Notices that tell the parent when a run ends are built, but no current Hermes build can deliver them safely. Hermes can't
+Notices that tell the parent when a run ends are built, but by default no current Hermes build can deliver them safely. Hermes can't
 yet confirm which conversation would receive an injected message. In the CLI it goes to whatever session is open, and in the
-gateway a chat keeps the same routing key after `/new`. A notice could land in the wrong conversation, so the plugin never
-injects one; the roster reports `push_completion` as `unsupported` with the reason. Use `teammate_wait` instead.
+gateway a chat keeps the same routing key after `/new`. A notice could land in the wrong conversation, so by default the plugin never
+injects one; the roster reports `push_completion` as `unsupported` with the reason. Use `teammate_wait`, or the opt-in below.
 
 Session-bound injection is requested upstream in
 [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212#issuecomment-6152052854).
 Once Hermes has it, a plugin update can enable notices behind `notify_on_completion` (off by default; outside the CLI
 also the operator's `allow_gateway_injection`). A notice contains only the teammate name, run ID and status, never child
 output, goals or child error text. Runs already read with check/wait or stopped by the parent get no notice.
+
+#### Opt-in: notices without a session check
+
+If you don't change sessions while teammates are running, you can turn notices on anyway. With both settings,
+each notice goes to the chat the run was assigned from (its durable session key, recorded at assignment), and
+your agent gets a new turn to read the result:
+
+```yaml
+plugins:
+  entries:
+    hermes-teammates:
+      allow_gateway_injection: true      # Hermes' own consent switch; needed everywhere except the classic CLI
+      settings:
+        notify_on_completion: true
+        trust_notice_routing: true
+```
+
+The notice still holds only the teammate name, run ID and status. The one risk is a session change while a run
+is pending (`/new`, `/reset`, `/resume`, an automatic reset, or compression with `in_place: false`): the chat
+keeps its session key, so the notice lands in the chat's current conversation. That conversation can't read
+the run (`teammate_check` answers `unknown_run`); the result stays with the conversation that assigned it.
+Runs already read with check/wait get no notice. The roster shows `push completion=on (trusted routing ...)`.
 
 ## Compatibility
 

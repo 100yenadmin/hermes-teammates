@@ -164,10 +164,18 @@ class HermesHost:
         # Copied session ContextVars identify the assigner, not the receiver at flush time.
         return None
 
-    def push_feature(self, enabled):
+    def push_feature(self, enabled, trusted=False):
         key, cli = self.completion_target()
         if not callable(getattr(self.ctx, 'inject_message', None)):
             return dict(status='unsupported', reason='host lacks inject_message')
+        if trusted:
+            # Operator opt-in (trust_notice_routing): deliver to the chat recorded when the run was assigned,
+            # without confirming it is still the same conversation. A session change (/new, /reset, /resume,
+            # automatic reset, rotating compression) while a run is pending would misroute its notice.
+            if not enabled:
+                return dict(status='off', reason='setting off')
+            return dict(status='on', reason='trusted routing to the assigning chat; gateway chats also need '
+                                            'allow_gateway_injection')
         # Support before the setting: "off" must not suggest that turning it on would deliver notices.
         if not self.notice_session_id(key):
             return dict(status='unsupported', reason='host cannot bind notices to a session')
