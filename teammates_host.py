@@ -30,6 +30,8 @@ def load_roster_file(path, home=None):
         return {}, f'roster_file: {target} not found', str(target)
     except OSError as exc:
         return {}, f'roster_file: cannot read {target} ({exc.strerror or type(exc).__name__})', str(target)
+    except UnicodeDecodeError:
+        return {}, f'roster_file: {target} is not UTF-8 text', str(target)
     except Exception:
         return {}, f'roster_file: {target} is not valid YAML', str(target)
     if not isinstance(data, dict) or not isinstance(data.get('teammates'), dict):

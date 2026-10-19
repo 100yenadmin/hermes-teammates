@@ -66,6 +66,12 @@ def test_unreadable_roster_file_is_a_problem_not_a_crash(plugin):
     assert config['teammates'] == {} and any('roster_file' in e for e in config['config_errors'])
 
 
+def test_non_utf8_roster_file_says_so(plugin):
+    (home() / 'teammates.yaml').write_bytes(b'teammates:\n  r\xe9viewer: {}\n')  # Latin-1, not UTF-8
+    config = _config({'roster_file': 'teammates.yaml'})
+    assert config['teammates'] == {} and any('not UTF-8 text' in e for e in config['config_errors'])
+
+
 def test_unknown_top_level_keys_are_reported_and_the_roster_is_used(plugin):
     (home() / 'teammates.yaml').write_text('teammates:\n  reviewer: {}\nroutes: {}\n', encoding='utf-8')
     config = _config({'roster_file': 'teammates.yaml'})
@@ -115,6 +121,16 @@ def test_empty_roster_from_a_bad_file_points_at_the_problem(rig):
     _use(rig, {'roster_file': 'missing.yaml'})
     text = render_roster(rig.service.roster('s'))
     assert 'No teammates in the roster file' in text and 'missing.yaml not found' in text
+
+
+def test_intentionally_empty_roster_file_points_at_no_problems(rig):
+    from hermes_teammates.teammates_tools import render_roster
+    (home() / 'teammates.yaml').write_text('teammates: {}\n', encoding='utf-8')
+    _use(rig, {'roster_file': 'teammates.yaml'})
+    value = rig.service.roster('s')
+    assert value['teammates'] == [] and not value['config_errors']
+    text = render_roster(value)
+    assert 'No teammates in the roster file.' in text and 'config problems' not in text
 
 
 def test_roster_file_is_read_on_every_call(rig):
