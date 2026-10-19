@@ -390,6 +390,7 @@ See [SECURITY.md](SECURITY.md). In short:
 ## Troubleshooting and reporting a bug
 
 Use `/teammates` for the roster, or `teammates_roster` for config problems, host features and recent runs.
+If the tools are missing on one platform (for example Telegram) while `hermes plugins` shows the plugin enabled, check that profile's `platform_toolsets`: when it holds an explicit list for that platform, `teammates` must be in it. Run `hermes tools` to add it.
 Inspect an existing run with `teammate_check` (`wait_seconds: 0`) for status, `summary`, `api_calls` and `duration_seconds`.
 For recent agent-log excerpts, use `hermes logs -n 300 | grep -i teammate`; remove secrets and private text before sharing.
 Inspect existing runs first; ask before starting a new run or follow-up, because model calls cost money.
