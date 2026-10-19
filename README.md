@@ -126,6 +126,26 @@ Settings are read on every call, so edits apply without a restart. The one excep
 names in the `teammate_assign` tool description, which is fixed at startup. A teammate you add later works by
 name right away, and `teammates_roster` always shows the current list; restart to refresh the description.
 
+### Roster file
+
+To keep the roster out of `config.yaml`, put it in its own YAML file and point `roster_file` at it:
+
+```yaml
+plugins:
+  entries:
+    hermes-teammates:
+      settings:
+        roster_file: teammates.yaml   # relative to this profile's Hermes home, or an absolute path
+```
+
+The file holds one top-level `teammates` mapping, written exactly like the setting (see `teammates.example.yaml`),
+and replaces the `teammates` setting while `roster_file` is set. Every other setting stays in `config.yaml`. Each
+teammate is validated as usual. A missing, unreadable or invalid file gives an empty roster and a config problem,
+never a failed call. `/teammates` and `teammates_roster` show which file the roster came from. The file is read on
+every call, like the other settings. Several profiles can share one roster by pointing at the same absolute path.
+`roster_file` is an operator setting: no tool argument can change it. Leave it unset to keep the roster in
+`config.yaml`.
+
 ## Use
 
 Ask in plain language:

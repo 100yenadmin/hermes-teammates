@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `roster_file`: keep the roster in its own YAML file instead of the `teammates` setting (#71). A relative path starts at the profile's Hermes home; several profiles can share one file by absolute path. A missing or invalid file gives an empty roster and a config problem. `/teammates` and `teammates_roster` show the file the roster came from; with `roster_file` unset, tools, arguments and result fields are unchanged. Ships `teammates.example.yaml`.
+
 ## 1.0.0 (2026-10-17)
 
 The first stable release. The tool names, argument shapes and result fields from 0.2.7 are now the supported contract. Future 1.x releases keep them backward compatible.

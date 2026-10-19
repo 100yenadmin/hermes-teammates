@@ -770,6 +770,8 @@ class TeammatesService:
                      config_errors=config['config_errors'], runs=runs, lane=lane,
                      relay_instruction=RELAY_INSTRUCTION + ' Roster previews are clipped; teammate_check returns '
                      'the full retained text. If summary_clipped is true, report it as incomplete.')
+        if config['roster_path']:
+            value['roster_file'] = clip(config['roster_path'], 500)  # only when set, so 1.0 payloads are unchanged
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
                       (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))

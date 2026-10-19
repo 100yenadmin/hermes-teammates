@@ -1,0 +1,29 @@
+# Hermes Teammates roster file. Copy it next to the profile's config.yaml (for example as teammates.yaml),
+# then point the plugin at it:
+#
+#   plugins:
+#     entries:
+#       hermes-teammates:
+#         settings:
+#           roster_file: teammates.yaml     # relative to this profile's Hermes home, or an absolute path
+#
+# The file replaces the Teammates setting. Each teammate is checked exactly like the setting; problems are
+# listed by /teammates. Names: lowercase letters, digits, - or _, up to 32 characters.
+#
+# Per teammate:
+#   description       (shown to your agent; how it picks a teammate)
+#   instructions      (the teammate's standing brief, up to 4,000 characters)
+#   toolsets          (narrows the parent's toolsets; leave out to inherit them)
+#   route, model      (a configured Hermes provider and one of its models; set both, or neither to use the
+#                      parent's or your delegation settings)
+#   reasoning_effort  (used where the Hermes build supports it; otherwise listed as unsupported)
+
+teammates:
+  reviewer:
+    description: Careful code reviewer; finds regressions and cites file:line.
+    instructions: Review the change you are given. Report findings with file:line and a fix.
+    toolsets: [file, terminal]
+  scout:
+    description: Fast web researcher.
+    instructions: Find the facts asked for. Quote sources.
+    toolsets: [web]
