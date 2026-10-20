@@ -157,9 +157,12 @@ def test_raw_explain_budget_still_clips_instructions(rig):
 
 def test_failure_detection_raw_unicode_keeps_existing_window(plugin):
     from agent.display import _detect_tool_failure
+    import agent.tool_result_classification as classification
+    # Hermes main judges a JSON object by its top-level shape; older builds scan only the first 500 characters.
+    top_level = hasattr(classification, 'shape_failure_error')
     for value, expected in [({'ok': False, 'error': 'テスト失敗'}, True),
                             ({'ok': True, 'summary': 'テスト成功'}, False),
-                            ({'summary': 'テ' * 600, 'status': 'failed'}, False)]:
+                            ({'summary': 'テ' * 600, 'status': 'failed'}, top_level)]:
         raw = json.dumps(value, ensure_ascii=False)
         assert _detect_tool_failure('teammate_check', raw)[0] is expected
         assert _detect_tool_failure('teammate_check', raw) == _detect_tool_failure('teammate_check', json.dumps(value))
