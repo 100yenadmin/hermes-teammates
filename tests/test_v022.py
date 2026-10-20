@@ -58,7 +58,14 @@ def test_actual_tool_failure_keeps_error_and_detection(rig):
     assert checked['status'] == 'failed' and checked['error'] == 'broken'
 
 
-def test_failed_status_residual_depends_on_first_500_characters(plugin):
+def hermes_judges_top_level_status():
+    # Hermes main judges a JSON object by its top-level shape (a failed/error `status` counts wherever it sits);
+    # older builds, including the pin, only scan the first 500 characters for a failure marker.
+    import agent.tool_result_classification as classification
+    return hasattr(classification, 'shape_failure_error')
+
+
+def test_failed_status_is_reported_truthfully(plugin):
     from agent.display import _detect_tool_failure
     from hermes_teammates.teammates_service import public_row
     # A failed child can have no error_message. Status enums stay truthful.
@@ -68,7 +75,11 @@ def test_failed_status_residual_depends_on_first_500_characters(plugin):
     assert _detect_tool_failure('teammate_check', short)[0] is True
     long = json.dumps(public_row(dict(row, goal='g' * 600)))
     assert long.index('"failed"') > 500
-    assert _detect_tool_failure('teammate_check', long)[0] is False
+    # Older Hermes misses a failed status past char 500; Hermes main counts it wherever it sits.
+    assert _detect_tool_failure('teammate_check', long)[0] is hermes_judges_top_level_status()
+    # Either way a succeeded run is never a failed call, however long its row.
+    ok = json.dumps(public_row(dict(row, status='succeeded', goal='g' * 600)))
+    assert _detect_tool_failure('teammate_check', ok)[0] is False
 
 
 @pytest.mark.parametrize('chars', [100, 7950, 7951, 7960, 8000, 9000])
