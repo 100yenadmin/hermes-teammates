@@ -15,6 +15,7 @@ config_schema:
   claim_ttl_seconds: {type: int, default: 900, label: "Kanban claim TTL (seconds)", description: "How long a teammate's claim on a Kanban card lasts between heartbeats. 60-86400; anything else falls back to 900."}
   max_live_runs: {type: int, default: 4, label: "Max live runs per conversation", description: "Most teammate runs one conversation may have in flight. 1-16; anything else falls back to 4."}
   notify_on_completion: {type: bool, default: false, label: "Completion notices (not available on current Hermes)", description: "Reserved. No current Hermes build can confirm which conversation would receive a notice, so none is sent; use teammate_wait. See the README."}
+  roster_file: {type: str, default: "", label: "Roster file", description: "Optional YAML file holding the roster as one top-level teammates mapping (see teammates.example.yaml). A relative path starts at this profile's Hermes home. When set it replaces the Teammates setting; a missing or invalid file gives an empty roster and a config problem."}
   followup_context_chars: {type: int, default: 8000, label: "Follow-up context budget (characters)", description: "How much of a teammate's earlier results a follow-up carries. 0-24000; anything else falls back to 8000."}
 # Catalog/schema bridge hints: teammates_roster, teammate_assign, teammate_check, teammate_wait.
 # Hermes tool-search settings are global, not plugin settings; see README "Hermes tool search".

@@ -4,7 +4,9 @@ import re
 import threading
 
 DEFAULTS = {'teammates': {}, 'lane': 'teammates', 'claim_ttl_seconds': 900,
-            'max_live_runs': 4, 'followup_context_chars': 8000, 'notify_on_completion': False}
+            'max_live_runs': 4, 'followup_context_chars': 8000, 'notify_on_completion': False,
+            'roster_file': ''}
+ROSTER_FILE = '_roster_file'  # read() -> parse(): the file the roster came from, and any problem reading it
 FIELDS = {'description', 'instructions', 'toolsets', 'model', 'route', 'reasoning_effort'}
 NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
 # Bounded so that one explained teammate always fits the roster's reply budget.
@@ -19,7 +21,14 @@ def parse(raw):
     if not isinstance(raw, dict):
         raw = {}
         errors.append('settings must be a dict')
-    result = dict(DEFAULTS)
+    raw = dict(raw)
+    loaded = raw.pop(ROSTER_FILE, None) or {}
+    errors.extend(loaded.get('errors') or [])
+    result = dict(DEFAULTS, roster_path=loaded.get('path'))
+    if isinstance(raw.get('roster_file', ''), str):
+        result['roster_file'] = raw.get('roster_file', '').strip()
+    else:
+        errors.append('roster_file: expected a file path; using the teammates setting')
     if type(raw.get('notify_on_completion', False)) is bool:
         result['notify_on_completion'] = raw.get('notify_on_completion', False)
     else:
@@ -97,5 +106,12 @@ def parse(raw):
     return result
 
 
-def read(ctx):
-    return {key: ctx.get_config(key, default) for key, default in DEFAULTS.items()}
+def read(ctx, load_file=None):
+    """This profile's settings. When roster_file is set, the roster comes from that file (via load_file)
+    instead of the teammates setting; the resolved path and any read problem go to parse()."""
+    values = {key: ctx.get_config(key, default) for key, default in DEFAULTS.items()}
+    path = values['roster_file']
+    if load_file is not None and isinstance(path, str) and path.strip():
+        values['teammates'], error, resolved = load_file(path.strip())
+        values[ROSTER_FILE] = {'path': resolved, 'errors': [error] if error else []}
+    return values

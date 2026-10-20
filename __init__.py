@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 
 from . import teammates_config, teammates_tools
-from .teammates_host import HermesHost
+from .teammates_host import HermesHost, load_roster_file
 from .teammates_service import TeammatesService
 logger = logging.getLogger(__name__)
 REPORT_SKILL = 'teammates-report-problem'
@@ -30,15 +30,17 @@ def register_report_skill(ctx, root=Path(__file__).parent):
 def register(ctx):
     service, lock = None, threading.Lock()
     token_receipts = False
+    def read_settings():
+        return teammates_config.read(ctx, load_roster_file)
     def get_service():
         nonlocal service
         with lock:
             if service is None:
                 host = HermesHost(ctx)
                 host.token_receipts = token_receipts
-                service = TeammatesService(host, host.store_factory, lambda: teammates_config.read(ctx))
+                service = TeammatesService(host, host.store_factory, read_settings)
             return service
-    config = teammates_config.parse(teammates_config.read(ctx))
+    config = teammates_config.parse(read_settings())
     names = [name for name in config['teammates'] if name not in config['invalid_teammates']]
     for name in teammates_tools.SPECS:
         schema = teammates_tools.schema(name, names)

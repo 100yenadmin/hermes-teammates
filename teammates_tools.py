@@ -122,9 +122,16 @@ def render_roster(value):
     if not value.get('ok'):
         return f"hermes-teammates: {value.get('message') or value.get('error')}"
     lines, teammates = [], value.get('teammates') or []
-    lines.append(f'Teammates ({len(teammates)}):' if teammates else
-                 'No teammates configured. Add them in the plugin settings in Hermes Desktop, or under '
-                 'plugins.entries.hermes-teammates.settings.teammates in config.yaml.')
+    if value.get('roster_file'):
+        lines.append(f"Roster file: {value['roster_file']}")
+    if teammates:
+        lines.append(f'Teammates ({len(teammates)}):')
+    elif value.get('roster_file'):
+        lines.append('No teammates in the roster file.' +
+                     (' See the config problems below.' if value.get('config_errors') else ''))
+    else:
+        lines.append('No teammates configured. Add them in the plugin settings in Hermes Desktop, or under '
+                     'plugins.entries.hermes-teammates.settings.teammates in config.yaml.')
     for teammate in teammates:
         toolsets = ', '.join(teammate.get('toolsets') or []) or 'inherits parent'
         lines.append(f"  {teammate['name']} - {teammate.get('description') or '(no description)'} [toolsets: {toolsets}]")
