@@ -345,11 +345,17 @@ exploratory, two cases only, and not a measured claim.
 
 **What this means in practice:**
 - **Choose `delegate_task`** for a one-shot fan-out. It is built in, never sits behind tool search, and was cheaper
-  in slices 1 and 2.
+  in slices 1 and 2. Since Hermes 0.22 it also runs in the background in chat sessions, brings results back
+  between turns, and can list, steer or stop running children.
+- **Add [advanced-delegation](https://github.com/NousResearch/hermes-official-plugins/tree/main/advanced-delegation)**
+  when all you need is for `delegate_task` to pick a named model, or to run a task as one of your Hermes profiles. That
+  official plugin adds model routes and profile routes to `delegate_task`; Hermes core still runs the subagent. It
+  needs Hermes 0.22.5 or newer.
 - **Choose teammates** when the same specialists come back across a session or a project:
   - you write each role's rules, toolsets and model once, in config, instead of in every brief;
   - results are kept per run, with token receipts and a clipped flag;
-  - you can steer, follow up and use a Kanban review lane.
+  - you can check or wait on a run by its id within a turn, send a follow-up that carries the earlier result, and
+    hand finished work to a Kanban review lane.
 
   On that workload, slice 3 found teammates following the role rules at least as well as `delegate_task`; success
   and cost were unresolved. A quality or cost advantage is not established.
