@@ -41,6 +41,25 @@ def error(code, message=None):
     return {'ok': False, 'error': code, 'message': message or code.replace('_', ' ')}
 
 
+_NOT_READY_HINTS = {'todo': 'it becomes ready when its parent cards are done', 'running': 'it is already being worked on',
+                    'review': 'it is waiting for review', 'blocked': 'unblock it first', 'done': 'it is finished',
+                    'archived': 'it is archived'}
+
+
+def lane_refusal(task_id, assignee, lane, status=None):
+    held = f'is assigned to {assignee!r}' if assignee else 'has no assignee'
+    # Hermes refuses to reassign a card while a worker's claim holds it.
+    when = 'once its current run ends, ' if status == 'running' else ''
+    return (f'card {task_id} {held}, not the {lane!r} lane. Teammates only work cards assigned to {lane!r}; the '
+            f'teammate argument picks who works it. Create lane cards with assignee {lane!r}, or {when}ask the user '
+            f'to run: hermes kanban assign {task_id} {lane}')
+
+
+def not_ready_refusal(task_id, status):
+    hint = _NOT_READY_HINTS.get(status)
+    return f'card {task_id} is {status!r}; a teammate can only start a ready card' + (f' ({hint})' if hint else '')
+
+
 def safe(method):
     @wraps(method)
     def invoke(*args, **kwargs):
@@ -271,9 +290,9 @@ class TeammatesService:
                 if task is None:
                     return error('kanban_task_not_found')
                 if task.assignee != config['lane']:
-                    return error('kanban_task_not_in_lane')
+                    return error('kanban_task_not_in_lane', lane_refusal(kanban_task, task.assignee, config['lane'], task.status))
                 if task.status != 'ready':
-                    return error('kanban_task_not_ready')
+                    return error('kanban_task_not_ready', not_ready_refusal(kanban_task, task.status))
                 claimer = f'hermes-teammates:{run_id}'
                 claimed = self.host.claim_task(conn, kanban_task, ttl_seconds=config['claim_ttl_seconds'],
                                                claimer=claimer)

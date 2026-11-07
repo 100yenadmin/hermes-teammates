@@ -49,6 +49,12 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. You, or your agent, accept or request changes with the usual Kanban tools.
+   Lane cards keep the lane as their assignee; the `teammate` argument picks who works each one. On Hermes 0.21.6
+   or newer, when the agent creates cards with its Kanban tool in a Hermes Desktop, TUI or messaging chat, Hermes
+   wakes that chat when a card reaches review. So one request can run a chain of linked cards hands-off: the
+   agent approves a card, the next card becomes ready, and the agent gives it to the next teammate. Cards made
+   with `hermes kanban create`, or with `kanban.auto_subscribe_on_create: false`, wake no one; then tell the agent
+   when a card is in review, or have it wait with `teammate_wait`.
 
 ## Install
 
@@ -401,6 +407,12 @@ Manual walkthrough (5 minutes):
 4. Ask: "Follow up with the reviewer: which bullet is weakest?" The run starts with `follow_up: true`.
 5. Create a Kanban card assigned to `teammates`, then ask: "Have the reviewer work Kanban task <id>." The card
    goes running → review with the summary.
+6. Hands-off chain, in Hermes Desktop or the TUI, with the `scout` from `teammates.example.yaml` added too and the
+   `kanban` toolset enabled for that platform (next to `teammates`): ask
+   "Put three linked cards on the Kanban board, each assigned to the teammates lane: research X, write Y from the
+   research, review Y. Give the first card to the scout. Each time a card lands in review, approve it and give
+   the next card to the right teammate with the previous result as context." Each card goes
+   ready → running → review → done in turn, with no further prompts.
 
 ## Security
 
