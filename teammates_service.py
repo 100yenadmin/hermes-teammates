@@ -487,8 +487,7 @@ class TeammatesService:
             remaining = deadline - time.monotonic()
             interrupted = interrupted or bool(callable(interrupt) and interrupt())
             if interrupted or complete or remaining <= 0:
-                for row in done:
-                    self._handoff_within(session_id, row['run_id'], deadline)
+                self._handoffs_before_reply(session_id, [row['run_id'] for row in done], deadline)
                 summary_budget = max(1000, 24000 // len(done)) if done else 8000
                 done = [self._public_run(self._get(session_id, row['run_id']), summary_budget) for row in done]
                 for row in done:
@@ -627,18 +626,36 @@ class TeammatesService:
                 if attempt < 2:
                     time.sleep(2 ** attempt)
 
-    def _handoff_within(self, session_id, run_id, deadline):
-        """Before teammate_wait replies: one handoff attempt for a finished lane run that has none yet, so the reply
-        already shows the card in review and the caller doesn't approve a card that is still running. Retries stay with
-        teammate_check and the monitor, and the lock wait never runs past the wait's own deadline."""
-        row = self._get(session_id, run_id)
-        if row is None or not row['kanban_task'] or row['kanban_outcome'] is not None:
-            return
-        if not self._handoff_lock.acquire(timeout=max(0, min(deadline - time.monotonic(), 5))):
-            return
-        try:
+    def _handoffs_before_reply(self, session_id, run_ids, deadline):
+        """Before teammate_wait replies: one handoff attempt for each finished lane run that has none yet, so the reply
+        already shows the card in review and the caller doesn't approve a card that is still running. The attempts run
+        on a helper thread, and the wait waits for them only until its own deadline (at most 5 s); a slow board finishes
+        them in the background. Nothing starts once the deadline has passed. Retries stay with teammate_check and the
+        monitor."""
+        due = []
+        for run_id in run_ids:
             row = self._get(session_id, run_id)
-            if row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
+            if row is not None and row['kanban_task'] and row['kanban_outcome'] is None:
+                due.append(run_id)
+        remaining = deadline - time.monotonic()
+        if not due or remaining <= 0:
+            return
+        def attempts():
+            for run_id in due:
+                try:
+                    self._handoff_attempt(session_id, run_id)
+                except Exception:
+                    logger.info('teammate_wait handoff attempt failed', exc_info=True)
+        thread = threading.Thread(target=contextvars.copy_context().run, args=(attempts,),
+                                  name='hermes-teammates-wait-handoff', daemon=True)
+        thread.start()
+        thread.join(timeout=min(remaining, 5))
+
+    def _handoff_attempt(self, session_id, run_id):
+        """One handoff for a finished lane run with no outcome yet, under the same lock as the finalizer's."""
+        with self._handoff_lock:
+            row = self._get(session_id, run_id)
+            if row is None or row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
                     row['kanban_outcome'] is not None):
                 return
             try:
@@ -647,8 +664,6 @@ class TeammatesService:
                 outcome = f'error:{type(exc).__name__}'
             with self.store_factory() as store:
                 store.update(row['run_id'], kanban_outcome=outcome)
-        finally:
-            self._handoff_lock.release()
 
     def _handoff_once(self, row):
         claim = json.loads(row['kanban_claim'])

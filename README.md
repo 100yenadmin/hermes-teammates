@@ -266,8 +266,9 @@ definition would not fit, its instructions are shortened and `instructions_clipp
 use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs
 return `unknown_run` before waiting. Finished rows omit `goal` and share a summary budget: per-run budget is
 `max(1000, 24000 // number_of_done_runs)`. `summary_clipped` reports any cut; `teammate_check` keeps its full
-goal and 8,000-character summary budget. Wait skips blocking Kanban handoff retries; the monitor and later
-`teammate_check` still produce the handoff outcome.
+goal and 8,000-character summary budget. Before it replies, wait makes one attempt to hand each finished Kanban
+lane card to review, so its reply already shows `kanban_outcome`. It waits for that only until its own deadline
+(at most 5 s), and a slow board finishes it in the background. Retries stay with the monitor and `teammate_check`.
 Hermes interrupts (`/stop` or a new user message) end a wait promptly, returning `interrupted: true` and
 `timed_out: false` with the current finished and pending runs; the teammates keep running. Replies omit
 `interrupted` otherwise. Hermes's default tool-call timeout (`tools.sequential_call`) is 420 seconds;

@@ -71,6 +71,40 @@ def test_wait_reply_already_shows_the_card_handed_off(rig, state, status, outcom
     assert rig.service.check('s', run_id)['kanban_outcome'] == outcome      # exactly once: check doesn't redo it
 
 
+def test_wait_keeps_its_deadline_on_a_slow_board(rig, monkeypatch):
+    import time
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    release, calls, real = threading.Event(), [], rig.host.request_review
+    def slow_review(*args, **kwargs):
+        calls.append(True)
+        release.wait(10)                                # a board busy well past the wait's deadline
+        return real(*args, **kwargs)
+    monkeypatch.setattr(rig.host, 'request_review', slow_review)
+    before = time.monotonic()
+    waited = rig.service.wait('s', [run_id], wait_seconds=1)
+    assert time.monotonic() - before < 1.5
+    assert waited['done'][0]['status'] == 'succeeded' and waited['done'][0]['kanban_outcome'] is None
+    release.set()                                       # the attempt finishes in the background, exactly once
+    deadline = time.monotonic() + 5
+    while rig.service.check('s', run_id, _skip_handoff=True)['kanban_outcome'] is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert rig.service.check('s', run_id)['kanban_outcome'] == 'review' and len(calls) == 1
+    assert read(rig, task_id).status == 'review'
+
+
+def test_wait_with_no_time_left_starts_no_handoff(rig, monkeypatch):
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    calls, real = [], rig.host.request_review
+    monkeypatch.setattr(rig.host, 'request_review', lambda *a, **k: calls.append(True) or real(*a, **k))
+    waited = rig.service.wait('s', [run_id], wait_seconds=0)
+    assert waited['done'][0]['kanban_outcome'] is None and not calls
+    assert rig.service.check('s', run_id)['kanban_outcome'] == 'review' and len(calls) == 1
+
+
 def test_launch_failure_releases_claim_and_inserts_no_run(rig):
     task_id = create(rig)
     rig.lifecycle.fail_launch = True
