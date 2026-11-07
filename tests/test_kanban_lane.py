@@ -57,6 +57,78 @@ def test_claim_finalize_keeps_lane(rig, state, status, outcome):
     assert row['kanban_outcome'] == outcome
 
 
+@pytest.mark.parametrize('state,status,outcome', [('SUCCEEDED','review','review'), ('FAILED','blocked','blocked')])
+def test_wait_reply_already_shows_the_card_handed_off(rig, state, status, outcome):
+    # teammate_wait finalizes the run itself here (no monitor ran), so without its own handoff attempt the card would
+    # still be running when the agent reads "succeeded" and approves it.
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = state
+    waited = rig.service.wait('s', [run_id], wait_seconds=1)
+    assert waited['done'][0]['kanban_outcome'] == outcome
+    task = read(rig, task_id)
+    assert task.status == status and task.assignee == 'teammates'
+    assert rig.service.check('s', run_id)['kanban_outcome'] == outcome      # exactly once: check doesn't redo it
+
+
+def test_wait_keeps_its_deadline_on_a_slow_board(rig, monkeypatch):
+    import time
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    release, calls, real = threading.Event(), [], rig.host.request_review
+    def slow_review(*args, **kwargs):
+        calls.append(True)
+        release.wait(10)                                # a board busy well past the wait's deadline
+        return real(*args, **kwargs)
+    monkeypatch.setattr(rig.host, 'request_review', slow_review)
+    try:
+        before = time.monotonic()
+        waited = rig.service.wait('s', [run_id], wait_seconds=1)
+        assert time.monotonic() - before < 1.5
+        assert waited['done'][0]['status'] == 'succeeded' and waited['done'][0]['kanban_outcome'] is None
+        again = rig.service.wait('s', [run_id], wait_seconds=1)    # waiting again starts no second helper
+        assert again['done'][0]['kanban_outcome'] is None and len(calls) == 1
+        assert sum(t.name == 'hermes-teammates-wait-handoff' for t in threading.enumerate()) == 1
+    finally:
+        release.set()                                   # the attempt finishes in the background, exactly once
+    deadline = time.monotonic() + 5
+    while rig.service.check('s', run_id, _skip_handoff=True)['kanban_outcome'] is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert rig.service.check('s', run_id)['kanban_outcome'] == 'review' and len(calls) == 1
+    assert read(rig, task_id).status == 'review'
+
+
+def test_an_interrupt_ends_the_handoff_wait_promptly(rig, monkeypatch):
+    import time
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    release, real, stop = threading.Event(), rig.host.request_review, threading.Event()
+    monkeypatch.setattr(rig.host, 'request_review', lambda *a, **k: (release.wait(10), real(*a, **k))[1])
+    monkeypatch.setattr(rig.host, 'interrupted', stop.is_set, raising=False)
+    try:
+        threading.Timer(0.3, stop.set).start()          # /stop arrives while the board is still busy
+        before = time.monotonic()
+        waited = rig.service.wait('s', [run_id], wait_seconds=30)
+        assert time.monotonic() - before < 1.0
+        assert waited['interrupted'] is True and waited['timed_out'] is False
+        assert waited['done'][0]['status'] == 'succeeded'
+    finally:
+        release.set()
+
+
+def test_wait_with_no_time_left_starts_no_handoff(rig, monkeypatch):
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    calls, real = [], rig.host.request_review
+    monkeypatch.setattr(rig.host, 'request_review', lambda *a, **k: calls.append(True) or real(*a, **k))
+    waited = rig.service.wait('s', [run_id], wait_seconds=0)
+    assert waited['done'][0]['kanban_outcome'] is None and not calls
+    assert rig.service.check('s', run_id)['kanban_outcome'] == 'review' and len(calls) == 1
+
+
 def test_launch_failure_releases_claim_and_inserts_no_run(rig):
     task_id = create(rig)
     rig.lifecycle.fail_launch = True
