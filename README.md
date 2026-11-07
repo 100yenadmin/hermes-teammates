@@ -57,7 +57,8 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
    also wake the chat that created a card when that card reaches review. Messaging chats get this from Hermes
    0.21.6, and Hermes Desktop and CLI chats from 0.22.6. TUI chats don't get it. Cards made with `hermes kanban
    create`, or while `kanban.auto_subscribe_on_create` is `false`, get no automatic subscription, so they wake a
-   chat only if you subscribe it yourself with `hermes kanban notify-subscribe`. A wake for a card the agent already
+   chat only if you subscribe it yourself with `hermes kanban notify-subscribe --delivery-mode notify+wake` (a new
+   subscription is a passive `notify` otherwise). A wake for a card the agent already
    approved is only a late notice. Setting `kanban.auto_subscribe_on_create: false` stops these notices for new cards,
    and also their automatic completion and block notices; subscribe explicitly if you still want those. It only
    stops new automatic subscriptions: cards made from a subscribed card still inherit its subscription, and existing
