@@ -18,6 +18,7 @@ def test_hint_names_the_lane_and_kanban_task_only_with_a_usable_roster(plugin):
     text = content({'session_id': 's'})
     assert "create the card with assignee 'crew'" in text and "never a teammate's name" in text
     assert "card's id as kanban_task" in text and len(text) <= kwargs['max_chars']
+    assert "not the board, so pass anything else it needs" in text      # teammates have no Kanban tools of their own
     settings['teammates'] = {}                          # rendered per session: an emptied roster drops the hint
     assert content({'session_id': 's'}) == ''
     settings['teammates'] = {'Bad Name': {'description': 'x', 'instructions': 'y'}}

@@ -38,8 +38,9 @@ def lane_hint(config):
     lane = config['lane']
     return (f'Hermes Teammates: to have a teammate work a Kanban card, create the card with assignee {lane!r} (the '
             f"teammates lane, never a teammate's name), then call teammate_assign with the card's id as kanban_task. "
-            f'When the teammate finishes, the card moves to review; kanban_complete approves it and unlocks the cards '
-            f'that depend on it.')
+            f"A teammate sees the card's title and body but not the board, so pass anything else it needs, such as "
+            f"an earlier card's result, as context. When the teammate finishes, the card moves to review; "
+            f'kanban_complete approves it and unlocks the cards that depend on it.')
 
 
 def register_lane_hint(ctx, read_settings):
