@@ -57,6 +57,20 @@ def test_claim_finalize_keeps_lane(rig, state, status, outcome):
     assert row['kanban_outcome'] == outcome
 
 
+@pytest.mark.parametrize('state,status,outcome', [('SUCCEEDED','review','review'), ('FAILED','blocked','blocked')])
+def test_wait_reply_already_shows_the_card_handed_off(rig, state, status, outcome):
+    # teammate_wait finalizes the run itself here (no monitor ran), so without its own handoff attempt the card would
+    # still be running when the agent reads "succeeded" and approves it.
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = state
+    waited = rig.service.wait('s', [run_id], wait_seconds=1)
+    assert waited['done'][0]['kanban_outcome'] == outcome
+    task = read(rig, task_id)
+    assert task.status == status and task.assignee == 'teammates'
+    assert rig.service.check('s', run_id)['kanban_outcome'] == outcome      # exactly once: check doesn't redo it
+
+
 def test_launch_failure_releases_claim_and_inserts_no_run(rig):
     task_id = create(rig)
     rig.lifecycle.fail_launch = True

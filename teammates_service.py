@@ -487,6 +487,8 @@ class TeammatesService:
             remaining = deadline - time.monotonic()
             interrupted = interrupted or bool(callable(interrupt) and interrupt())
             if interrupted or complete or remaining <= 0:
+                for row in done:
+                    self._handoff_within(session_id, row['run_id'], deadline)
                 summary_budget = max(1000, 24000 // len(done)) if done else 8000
                 done = [self._public_run(self._get(session_id, row['run_id']), summary_budget) for row in done]
                 for row in done:
@@ -624,6 +626,29 @@ class TeammatesService:
                     return
                 if attempt < 2:
                     time.sleep(2 ** attempt)
+
+    def _handoff_within(self, session_id, run_id, deadline):
+        """Before teammate_wait replies: one handoff attempt for a finished lane run that has none yet, so the reply
+        already shows the card in review and the caller doesn't approve a card that is still running. Retries stay with
+        teammate_check and the monitor, and the lock wait never runs past the wait's own deadline."""
+        row = self._get(session_id, run_id)
+        if row is None or not row['kanban_task'] or row['kanban_outcome'] is not None:
+            return
+        if not self._handoff_lock.acquire(timeout=max(0, min(deadline - time.monotonic(), 5))):
+            return
+        try:
+            row = self._get(session_id, run_id)
+            if row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
+                    row['kanban_outcome'] is not None):
+                return
+            try:
+                outcome = self._handoff_once(row)
+            except Exception as exc:
+                outcome = f'error:{type(exc).__name__}'
+            with self.store_factory() as store:
+                store.update(row['run_id'], kanban_outcome=outcome)
+        finally:
+            self._handoff_lock.release()
 
     def _handoff_once(self, row):
         claim = json.loads(row['kanban_claim'])
