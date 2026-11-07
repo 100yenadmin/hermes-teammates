@@ -27,6 +27,39 @@ def register_report_skill(ctx, root=Path(__file__).parent):
     return True
 
 
+LANE_HINT_ID = 'hermes-teammates.kanban-lane'
+
+
+def lane_hint(config):
+    """Session-prompt guidance so an agent sets up lane cards correctly the first time. Agents otherwise assign cards to
+    a teammate's name and never pass kanban_task. Empty, so Hermes omits it, while the roster has no usable teammate."""
+    if not [name for name in config['teammates'] if name not in config['invalid_teammates']]:
+        return ''
+    lane = config['lane']
+    return (f'Hermes Teammates: to have a teammate work a Kanban card, create the card with assignee {lane!r} (the '
+            f"teammates lane, never a teammate's name), then call teammate_assign with the card's id as kanban_task. "
+            f'When the teammate finishes, the card moves to review; kanban_complete approves it and unlocks the cards '
+            f'that depend on it.')
+
+
+def register_lane_hint(ctx, read_settings):
+    """Hosts without plugin prompt sections (before Hermes 2026-08-12) go without the hint."""
+    register_section = getattr(ctx, 'register_system_prompt_section', None)
+    if not callable(register_section):
+        return False
+    def content(_session_info):
+        try:
+            return lane_hint(teammates_config.parse(read_settings()))
+        except Exception:
+            return ''
+    try:
+        register_section(LANE_HINT_ID, content, max_chars=600)
+    except Exception:
+        logger.debug('teammates lane hint not registered')
+        return False
+    return True
+
+
 def register(ctx):
     service, lock = None, threading.Lock()
     token_receipts = False
@@ -54,6 +87,7 @@ def register(ctx):
             return f'hermes-teammates: internal error: {str(exc)[:2000]}'
     ctx.register_command('teammates', handler=command, description='List teammates and lane tasks')
     register_report_skill(ctx)
+    register_lane_hint(ctx, read_settings)
     def callback(method):
         def on_hook(**kwargs):
             try:
