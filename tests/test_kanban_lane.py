@@ -27,12 +27,18 @@ def test_kanban_refusal_order_and_foreign_lane_untouched(rig):
     assert service.assign('s','worker','goal',kanban_task='missing')['error'] == 'kanban_task_not_found'
     task_id = create(rig, 'someone-else')
     before = read(rig, task_id)
-    assert service.assign('s','worker','goal',kanban_task=task_id)['error'] == 'kanban_task_not_in_lane'
+    refused = service.assign('s','worker','goal',kanban_task=task_id)
+    assert refused['error'] == 'kanban_task_not_in_lane'
+    # The refusal tells the agent what is wrong and how to fix it.
+    assert f"card {task_id} is assigned to 'someone-else', not the 'teammates' lane" in refused['message']
+    assert f'hermes kanban assign {task_id} teammates' in refused['message']
     assert read(rig, task_id) == before
     task_id = create(rig)
     with host.connection() as conn:
         host.block_task(conn, task_id, reason='parked')
-    assert service.assign('s','worker','goal',kanban_task=task_id)['error'] == 'kanban_task_not_ready'
+    refused = service.assign('s','worker','goal',kanban_task=task_id)
+    assert refused['error'] == 'kanban_task_not_ready'
+    assert refused['message'] == f"card {task_id} is 'blocked'; a teammate can only start a ready card (unblock it first)"
     task_id = create(rig)
     host.claim_task = lambda *args, **kwargs: None
     assert service.assign('s','worker','goal',kanban_task=task_id)['error'] == 'kanban_claim_failed'

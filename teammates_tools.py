@@ -31,7 +31,9 @@ SPECS = {
                                      'its result in this reply (0 = return at once). If it is still running at '
                                      'the deadline, the reply says timed_out and you can call teammate_wait later.',
                             minimum=0, maximum=300, default=0),
-         'kanban_task': _p('string', 'Id of a Kanban card on the teammates lane (for example t_1234abcd). Pass the id '
+         'kanban_task': _p('string', 'Id of a Kanban card assigned to the teammates lane (for example t_1234abcd). '
+                                     'Lane cards have the lane as their assignee (default "teammates"; see '
+                                     'teammates_roster), never a teammate name. Pass the id '
                                      'HERE, not only in the goal: the card is claimed while the teammate works and '
                                      'moved to review (or blocked) when the run ends.')},
         ['teammate', 'goal']),
