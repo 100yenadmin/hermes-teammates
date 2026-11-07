@@ -238,7 +238,7 @@ def test_seen_bound_and_evicted_id_can_be_observed(rig):
 
 
 @pytest.mark.parametrize('already_terminal', [True, False])
-def test_wait_deadline_skips_handoff_but_check_retries(rig, monkeypatch, already_terminal):
+def test_wait_tries_handoff_once_within_deadline_and_check_retries(rig, monkeypatch, already_terminal):
     from test_kanban_lane import create
     from hermes_teammates import teammates_service
     task_id = create(rig)
@@ -260,11 +260,12 @@ def test_wait_deadline_skips_handoff_but_check_retries(rig, monkeypatch, already
     elapsed = time.monotonic() - before
     assert elapsed < 1.5, elapsed
     assert waited['done'][0]['status'] == 'succeeded'
-    assert waited['done'][0]['kanban_outcome'] is None and not attempts
+    # One attempt, no retry sleeps, so the wait keeps its deadline.
+    assert waited['done'][0]['kanban_outcome'] == 'error:RuntimeError' and len(attempts) == 1
     # Subsequent teammate_check retains the regular three attempts and outcome.
     monkeypatch.setattr(teammates_service.time, 'sleep', lambda seconds: None)
     checked = rig.service.check('owner', run_id)
-    assert len(attempts) == 3 and checked['kanban_outcome'] == 'error:RuntimeError'
+    assert len(attempts) == 4 and checked['kanban_outcome'] == 'error:RuntimeError'
     with rig.store() as store:
         assert store.get(run_id, 'owner')['kanban_outcome'] == 'error:RuntimeError'
 
