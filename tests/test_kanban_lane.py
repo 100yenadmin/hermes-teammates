@@ -82,16 +82,40 @@ def test_wait_keeps_its_deadline_on_a_slow_board(rig, monkeypatch):
         release.wait(10)                                # a board busy well past the wait's deadline
         return real(*args, **kwargs)
     monkeypatch.setattr(rig.host, 'request_review', slow_review)
-    before = time.monotonic()
-    waited = rig.service.wait('s', [run_id], wait_seconds=1)
-    assert time.monotonic() - before < 1.5
-    assert waited['done'][0]['status'] == 'succeeded' and waited['done'][0]['kanban_outcome'] is None
-    release.set()                                       # the attempt finishes in the background, exactly once
+    try:
+        before = time.monotonic()
+        waited = rig.service.wait('s', [run_id], wait_seconds=1)
+        assert time.monotonic() - before < 1.5
+        assert waited['done'][0]['status'] == 'succeeded' and waited['done'][0]['kanban_outcome'] is None
+        again = rig.service.wait('s', [run_id], wait_seconds=1)    # waiting again starts no second helper
+        assert again['done'][0]['kanban_outcome'] is None and len(calls) == 1
+        assert sum(t.name == 'hermes-teammates-wait-handoff' for t in threading.enumerate()) == 1
+    finally:
+        release.set()                                   # the attempt finishes in the background, exactly once
     deadline = time.monotonic() + 5
     while rig.service.check('s', run_id, _skip_handoff=True)['kanban_outcome'] is None and time.monotonic() < deadline:
         time.sleep(0.05)
     assert rig.service.check('s', run_id)['kanban_outcome'] == 'review' and len(calls) == 1
     assert read(rig, task_id).status == 'review'
+
+
+def test_an_interrupt_ends_the_handoff_wait_promptly(rig, monkeypatch):
+    import time
+    task_id = create(rig)
+    run_id = rig.service.assign('s','worker','goal',kanban_task=task_id)['run_id']
+    rig.lifecycle.state = 'SUCCEEDED'
+    release, real, stop = threading.Event(), rig.host.request_review, threading.Event()
+    monkeypatch.setattr(rig.host, 'request_review', lambda *a, **k: (release.wait(10), real(*a, **k))[1])
+    monkeypatch.setattr(rig.host, 'interrupted', stop.is_set, raising=False)
+    try:
+        threading.Timer(0.3, stop.set).start()          # /stop arrives while the board is still busy
+        before = time.monotonic()
+        waited = rig.service.wait('s', [run_id], wait_seconds=30)
+        assert time.monotonic() - before < 1.0
+        assert waited['interrupted'] is True and waited['timed_out'] is False
+        assert waited['done'][0]['status'] == 'succeeded'
+    finally:
+        release.set()
 
 
 def test_wait_with_no_time_left_starts_no_handoff(rig, monkeypatch):

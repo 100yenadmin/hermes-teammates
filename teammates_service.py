@@ -27,6 +27,9 @@ _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', thread
 # Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
 _stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
+# Lane runs a teammate_wait helper is handing off right now: one helper per run, however often the agent waits.
+_wait_handoffs = sys.__dict__.setdefault('_hermes_teammates_wait_handoffs', set())
+_wait_handoffs_lock = sys.__dict__.setdefault('_hermes_teammates_wait_handoffs_lock', threading.Lock())
 _admission_locks = sys.__dict__.setdefault(
     '_hermes_teammates_admission_stripes', tuple(threading.Lock() for _ in range(64)))
 logger = logging.getLogger(__name__)
@@ -487,7 +490,9 @@ class TeammatesService:
             remaining = deadline - time.monotonic()
             interrupted = interrupted or bool(callable(interrupt) and interrupt())
             if interrupted or complete or remaining <= 0:
-                self._handoffs_before_reply(session_id, [row['run_id'] for row in done], deadline)
+                if not interrupted:
+                    interrupted = self._handoffs_before_reply(session_id, [row['run_id'] for row in done], deadline,
+                                                              interrupt)
                 summary_budget = max(1000, 24000 // len(done)) if done else 8000
                 done = [self._public_run(self._get(session_id, row['run_id']), summary_budget) for row in done]
                 for row in done:
@@ -626,30 +631,50 @@ class TeammatesService:
                 if attempt < 2:
                     time.sleep(2 ** attempt)
 
-    def _handoffs_before_reply(self, session_id, run_ids, deadline):
-        """Before teammate_wait replies: one handoff attempt for each finished lane run that has none yet, so the reply
-        already shows the card in review and the caller doesn't approve a card that is still running. The attempts run
-        on a helper thread, and the wait waits for them only until its own deadline (at most 5 s); a slow board finishes
-        them in the background. Nothing starts once the deadline has passed. Retries stay with teammate_check and the
-        monitor."""
+    def _handoffs_before_reply(self, session_id, run_ids, deadline, interrupt=None):
+        """Before teammate_wait replies: one attempt to hand each finished lane run with no outcome yet to review, so
+        the reply usually already shows the card in review. The attempts run on a helper thread (one per run, however
+        often the agent waits), and the wait waits for them only until its own deadline, at most 5 s, and not past a
+        Hermes interrupt; a slow board finishes them in the background. Nothing starts once the deadline has passed.
+        Retries stay with teammate_check and the monitor. Returns True if an interrupt arrived while waiting."""
         due = []
         for run_id in run_ids:
             row = self._get(session_id, run_id)
             if row is not None and row['kanban_task'] and row['kanban_outcome'] is None:
                 due.append(run_id)
-        remaining = deadline - time.monotonic()
-        if not due or remaining <= 0:
-            return
+        if not due or deadline - time.monotonic() <= 0:
+            return False
+        with _wait_handoffs_lock:
+            due = [run_id for run_id in due if run_id not in _wait_handoffs]
+            _wait_handoffs.update(due)
+        if not due:
+            return False
+        def release():
+            with _wait_handoffs_lock:
+                _wait_handoffs.difference_update(due)
         def attempts():
-            for run_id in due:
-                try:
-                    self._handoff_attempt(session_id, run_id)
-                except Exception:
-                    logger.info('teammate_wait handoff attempt failed', exc_info=True)
+            try:
+                for run_id in due:
+                    try:
+                        self._handoff_attempt(session_id, run_id)
+                    except Exception:
+                        logger.info('teammate_wait handoff attempt failed', exc_info=True)
+            finally:
+                release()
         thread = threading.Thread(target=contextvars.copy_context().run, args=(attempts,),
                                   name='hermes-teammates-wait-handoff', daemon=True)
-        thread.start()
-        thread.join(timeout=min(remaining, 5))
+        try:
+            thread.start()
+        except Exception:
+            release()
+            logger.info('teammate_wait handoff helper did not start', exc_info=True)
+            return False
+        until = min(deadline, time.monotonic() + 5)
+        while thread.is_alive() and time.monotonic() < until:
+            thread.join(timeout=min(0.1, max(0, until - time.monotonic())))
+            if callable(interrupt) and interrupt():
+                return True
+        return False
 
     def _handoff_attempt(self, session_id, run_id):
         """One handoff for a finished lane run with no outcome yet, under the same lock as the finalizer's."""

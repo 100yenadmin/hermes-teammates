@@ -47,8 +47,9 @@ SPECS = {
         'Wait 0-300 s (default 30) for any or all runs in this conversation. Returns finished results and pending '
         'statuses at the deadline, or promptly on a Hermes interrupt with interrupted=true and timed_out=false. '
         'Finished rows omit goal and share a summary budget; summary_clipped, summary_chars, role_hash and tokens_* '
-        'receipts are included. A finished Kanban lane card is handed to review before the reply; retries run via '
-        'the monitor or teammate_check.',
+        'receipts are included. Before replying it tries, within the deadline, to hand a finished Kanban lane card to '
+        'review; kanban_outcome shows the result (null = not yet: check before approving). Retries run via the monitor '
+        'or teammate_check.',
         {'run_ids': _p('array', 'Run IDs to wait for.', items={'type': 'string', 'minLength': 1}, minItems=1, maxItems=16,
                        uniqueItems=True),
          'mode': _p('string', 'Completion rule.', enum=['any', 'all'], default='any'),
