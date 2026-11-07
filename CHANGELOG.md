@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 (2026-11-08)
+
+Additive; tools, arguments, result fields and error codes are exactly 1.1.0's.
+
+- **Agents set up Kanban lane cards right the first time (#83).** On Hermes builds with plugin prompt sections, each new session's prompt carries one short paragraph, rendered from the settings. It says to create teammate cards with the lane as assignee and pass the card's id as `kanban_task`. Teammates can't see the board, so it also says to give them earlier results as context. Finished cards are approved from review with `kanban_complete`. Without it, agents assigned cards to teammate names and no card reached the lane. With it, a three-card chain ran hands-off in live runs: each card went ready → running → review → done. The paragraph is left out while the roster has no usable teammate, for delegated children, and under `plugins.isolation: host`.
+- Kanban lane refusals say what is wrong and how to fix it (#81). A card assigned to a teammate's name names its assignee and the lane, and suggests the lane as assignee or `hermes kanban assign <id> <lane>`. A card that is not ready names its status, for example a `todo` card waiting for its parent cards.
+- README: lane cards keep the lane as assignee. On Hermes 0.21.6 or newer, one request can run a chain of linked cards hands-off, because Hermes wakes the chat that created a card when it reaches review. The README gives the conditions and a fallback (#81). Routing-only users are pointed to advanced-delegation, and the `delegate_task` guide is refreshed (#76).
+- The report-a-problem skill sends Hermes Desktop and dashboard page errors, such as a Kanban page that fails to render, to Hermes itself: this plugin has no Desktop or dashboard code (#80).
+- Known limit: lane names are compared exactly as written, while Hermes lowercases assignees, so keep `lane` lowercase (the default `teammates` is). Tracked in #82.
+
 ## 1.1.0 (2026-10-20)
 
 Additive; with `roster_file` unset, tools, arguments and result fields are exactly 1.0's.
