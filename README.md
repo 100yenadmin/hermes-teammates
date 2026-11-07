@@ -407,7 +407,8 @@ Manual walkthrough (5 minutes):
 4. Ask: "Follow up with the reviewer: which bullet is weakest?" The run starts with `follow_up: true`.
 5. Create a Kanban card assigned to `teammates`, then ask: "Have the reviewer work Kanban task <id>." The card
    goes running → review with the summary.
-6. Hands-off chain, in Hermes Desktop or the TUI, with the `scout` from `teammates.example.yaml` added too: ask
+6. Hands-off chain, in Hermes Desktop or the TUI, with the `scout` from `teammates.example.yaml` added too and the
+   `kanban` toolset enabled for that platform (next to `teammates`): ask
    "Put three linked cards on the Kanban board, each assigned to the teammates lane: research X, write Y from the
    research, review Y. Give the first card to the scout. Each time a card lands in review, approve it and give
    the next card to the right teammate with the previous result as context." Each card goes
