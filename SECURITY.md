@@ -58,6 +58,9 @@ with `gh` only after the user approves that draft.
   - On failure or stop it blocks the card with the reason.
   - It never completes a card; acceptance stays with you.
   - It writes only to the board the current Hermes process uses.
+  - On Hermes builds with plugin prompt sections, it adds one short paragraph about the lane to new top-level session
+    prompts, rendered from its settings: no conversation content, and none for delegated children or under
+    `plugins.isolation: host`.
 - **Network and code.** The plugin makes no network requests of its own. It does not update itself or fetch
   code at runtime.
 
