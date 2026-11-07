@@ -46,11 +46,13 @@ _NOT_READY_HINTS = {'todo': 'it becomes ready when its parent cards are done', '
                     'archived': 'it is archived'}
 
 
-def lane_refusal(task_id, assignee, lane):
+def lane_refusal(task_id, assignee, lane, status=None):
     held = f'is assigned to {assignee!r}' if assignee else 'has no assignee'
+    # Hermes refuses to reassign a card while a worker's claim holds it.
+    when = 'once its current run ends, ' if status == 'running' else ''
     return (f'card {task_id} {held}, not the {lane!r} lane. Teammates only work cards assigned to {lane!r}; the '
-            f'teammate argument picks who works it. Create lane cards with assignee {lane!r}, or ask the user to run: '
-            f'hermes kanban assign {task_id} {lane}')
+            f'teammate argument picks who works it. Create lane cards with assignee {lane!r}, or {when}ask the user '
+            f'to run: hermes kanban assign {task_id} {lane}')
 
 
 def not_ready_refusal(task_id, status):
@@ -288,7 +290,7 @@ class TeammatesService:
                 if task is None:
                     return error('kanban_task_not_found')
                 if task.assignee != config['lane']:
-                    return error('kanban_task_not_in_lane', lane_refusal(kanban_task, task.assignee, config['lane']))
+                    return error('kanban_task_not_in_lane', lane_refusal(kanban_task, task.assignee, config['lane'], task.status))
                 if task.status != 'ready':
                     return error('kanban_task_not_ready', not_ready_refusal(kanban_task, task.status))
                 claimer = f'hermes-teammates:{run_id}'
