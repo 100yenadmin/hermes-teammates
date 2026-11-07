@@ -49,7 +49,9 @@ Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API 
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. You, or your agent, accept or request changes with the usual Kanban tools.
-   Lane cards keep the lane as their assignee; the `teammate` argument picks who works each one. On Hermes 0.21.6
+   Lane cards keep the lane as their assignee; the `teammate` argument picks who works each one. So that agents
+   set cards up this way from the start, each new session's prompt carries one short paragraph saying so (on
+   Hermes builds with plugin prompt sections; it is left out while the roster has no usable teammate). On Hermes 0.21.6
    or newer, when the agent creates cards with its Kanban tool in a Hermes Desktop, TUI or messaging chat, Hermes
    wakes that chat when a card reaches review. So one request can run a chain of linked cards hands-off: the
    agent approves a card, the next card becomes ready, and the agent gives it to the next teammate. Cards made
@@ -424,6 +426,8 @@ See [SECURITY.md](SECURITY.md). In short:
 - The ledger stays local and per profile.
 - The plugin makes no network calls of its own.
 - It only claims Kanban cards assigned to its lane.
+- It adds one short paragraph about the Kanban lane to new session prompts, rendered from its settings; no
+  conversation content goes into it.
 
 ## Troubleshooting and reporting a bug
 
