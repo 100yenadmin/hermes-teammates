@@ -21,8 +21,23 @@ def test_hint_names_the_lane_and_kanban_task_only_with_a_usable_roster(plugin):
     assert "not the board, so pass anything else it needs" in text      # teammates have no Kanban tools of their own
     settings['teammates'] = {}                          # rendered per session: an emptied roster drops the hint
     assert content({'session_id': 's'}) == ''
-    settings['teammates'] = {'Bad Name': {'description': 'x', 'instructions': 'y'}}
+    settings['teammates'] = {'scout': {'description': 'x', 'instructions': 'y', 'bogus': 1}}   # only invalid teammates
     assert content({'session_id': 's'}) == ''
+    settings['teammates'] = {'scout': {'description': 'Finds facts.', 'instructions': 'Quote sources.'}}
+    assert content({'session_id': 's', 'platform': 'subagent'}) == ''        # teammates themselves never get it
+    assert content({'session_id': 's', 'platform': 'cli'})
+
+
+def test_no_hint_under_isolation_or_when_settings_fail(plugin, monkeypatch):
+    sections = {}
+    ctx = _ctx({}, register_system_prompt_section=lambda section_id, content, **kw: sections.update({section_id: content}))
+    monkeypatch.setenv('HERMES_PLUGIN_HOST_PROCESS', '1')
+    assert plugin.register_lane_hint(ctx, dict) is False and sections == {}
+    monkeypatch.delenv('HERMES_PLUGIN_HOST_PROCESS')
+    def broken():
+        raise OSError('unreadable roster')
+    assert plugin.register_lane_hint(ctx, broken) is True
+    assert sections['hermes-teammates.kanban-lane']({'session_id': 's'}) == ''
 
 
 def test_hosts_without_prompt_sections_still_load(plugin):

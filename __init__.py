@@ -28,6 +28,7 @@ def register_report_skill(ctx, root=Path(__file__).parent):
 
 
 LANE_HINT_ID = 'hermes-teammates.kanban-lane'
+LANE_HINT_MAX_CHARS = 600
 
 
 def lane_hint(config):
@@ -46,15 +47,21 @@ def lane_hint(config):
 def register_lane_hint(ctx, read_settings):
     """Hosts without plugin prompt sections (before Hermes 2026-08-12) go without the hint."""
     register_section = getattr(ctx, 'register_system_prompt_section', None)
-    if not callable(register_section):
+    # Under plugins.isolation: host the teammate tools refuse, so the hint would point at tools that can't run.
+    if not callable(register_section) or os.environ.get('HERMES_PLUGIN_HOST_PROCESS', '').strip().lower() not in (
+            '', '0', 'false'):
         return False
-    def content(_session_info):
+    def content(session_info):
+        # Delegated children (the teammates themselves) can't use the lane or start teammates.
+        if (session_info or {}).get('platform') == 'subagent':
+            return ''
         try:
-            return lane_hint(teammates_config.parse(read_settings()))
+            text = lane_hint(teammates_config.parse(read_settings()))
         except Exception:
             return ''
+        return text if len(text) <= LANE_HINT_MAX_CHARS else ''
     try:
-        register_section(LANE_HINT_ID, content, max_chars=600)
+        register_section(LANE_HINT_ID, content, max_chars=LANE_HINT_MAX_CHARS)
     except Exception:
         logger.debug('teammates lane hint not registered')
         return False
