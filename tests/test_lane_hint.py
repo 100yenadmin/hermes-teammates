@@ -26,6 +26,8 @@ def test_hint_names_the_lane_and_kanban_task_only_with_a_usable_roster(plugin):
     settings['teammates'] = {'scout': {'description': 'Finds facts.', 'instructions': 'Quote sources.'}}
     assert content({'session_id': 's', 'platform': 'subagent'}) == ''        # teammates themselves never get it
     assert content({'session_id': 's', 'platform': 'cli'})
+    settings['lane'] = 'x' * 200                        # a lane long enough to push the hint past its cap drops it
+    assert content({'session_id': 's'}) == ''
 
 
 def test_no_hint_under_isolation_or_when_settings_fail(plugin, monkeypatch):
