@@ -624,7 +624,8 @@ class TeammatesService:
         acquired = (self._handoff_lock.acquire() if wait_for_lock else
                     self._handoff_lock.acquire(timeout=HANDOFF_LOCK_TIMEOUT))
         if not acquired:
-            return
+            logger.info('handoff skipped for run %s: lock busy for %ss', row['run_id'], HANDOFF_LOCK_TIMEOUT)
+            return None
         try:
             row = self._get(row['owner_session_id'], row['run_id'])
             outcome = row['kanban_outcome']
@@ -697,7 +698,8 @@ class TeammatesService:
         if row is None or row['kanban_outcome'] is not None:
             return row['kanban_outcome'] if row else None
         if not self._handoff_lock.acquire(timeout=HANDOFF_LOCK_TIMEOUT):
-            return
+            logger.info('handoff skipped for run %s: lock busy for %ss', run_id, HANDOFF_LOCK_TIMEOUT)
+            return None
         try:
             row = self._get(session_id, run_id)
             if row is None or row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
