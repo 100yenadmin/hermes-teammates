@@ -115,6 +115,15 @@ class Store:
                 (*values.values(), run_id, status))
         return cursor.rowcount == 1
 
+    def set_kanban_outcome(self, run_id, outcome):
+        """Keep the first non-error handoff outcome, including across processes."""
+        with self.conn:
+            cursor = self.conn.execute(
+                "UPDATE runs SET kanban_outcome=? WHERE run_id=? "
+                "AND (kanban_outcome IS NULL OR kanban_outcome LIKE 'error:%')",
+                (outcome, run_id))
+        return cursor.rowcount == 1
+
     def finish(self, run_id, status, **values):
         if status not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}:
             raise ValueError('not a terminal status')
