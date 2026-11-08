@@ -2,25 +2,51 @@
 
 ![Hermes Teammates](docs/media/banner.png)
 
-**Named subagent teammates for [Hermes Agent](https://github.com/NousResearch/hermes-agent).**
-You define a small roster of teammates (a reviewer, a scout, a test-writer), each with its own instructions,
-toolsets and model. Your agent hands them work, checks on them, steers them mid-run, follows up with the context
-of earlier assignments, and can work a Kanban lane with a review handoff.
+**Give your [Hermes Agent](https://github.com/NousResearch/hermes-agent) a team.** You define a small roster of
+named teammates, such as a scout, a writer and a reviewer. Each has its own instructions, tools and, optionally, its
+own model. Your agent hands them work, checks on them, steers them mid-task and follows up with what they did before.
+On Hermes' own Kanban board, they work linked cards one after another, and each card a teammate finishes waits in
+Review for approval before the next one starts.
 
-Stock Hermes; no patched core. It uses the public plugin subagent lifecycle API (`ctx.subagent_lifecycle`).
+![One message, three linked cards: the scout's research is approved and the writer's card is running](docs/media/screenshot-chain.png)
 
-- **For:** people who already delegate with Hermes and want the same specialists every time, without rewriting
-  the brief, and with a durable record of what each teammate did.
+One message ran the chain above: research, a one-page plan from the research, then a review of the plan against the
+brief. The agent gave each card to a teammate and waited for it. When the card landed in **Review**, the agent
+approved it and handed the result to the next teammate. The reviewer, with its own brief and no web or file tools,
+marked the plan "Revise" for a pricing claim the research didn't support. It took about 90 seconds, with no further
+input.
+
+![All three cards done; the agent's summary credits each teammate](docs/media/screenshot-chain-done.png)
+
+### What it adds to Hermes
+
+- **A roster the model can't change.** The model picks only a teammate's **name**; your settings decide what that
+  name can do. A teammate's toolsets can only narrow the parent's tools, toolset by toolset, so a reviewer given
+  only `todo` gets no web, file or terminal tools, whatever the prompt says. (Hermes can add inherited MCP toolsets
+  back unless `delegation.inherit_mcp_toolsets` is false.)
+- **A teammates lane on Hermes' Kanban board.** Hermes hands board cards to whole Hermes profiles. This lane is
+  worked by your roster, inside one conversation. The plugin claims the card and keeps the claim alive while the
+  teammate works. It writes the result onto the card and moves the card to **review**; the plugin never completes
+  a card. An approval (`kanban_complete`) finishes it and unlocks the cards that depend on it.
+- **Background runs with a memory.** Teammates are real Hermes subagents started through the public plugin
+  subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
+  per-profile ledger records every run's goal, status and result across turns. Follow-ups carry a digest of earlier
+  results, so nothing is pasted between chats.
+
+Stock Hermes; no patched core.
+
+- **For:** people who want the same specialists every time, without rewriting the brief, with each teammate's work
+  handed to review and a durable record of what each teammate did.
 - **Not for:** DAG workflows with gates and fan-out. Use
   [hermes-workflows](https://github.com/jacobhausler/hermes-workflows) for those. Teammates is about who does the
   work; workflows is about the shape of a long job.
 
 ## Screenshots
 
-| Roster | Two teammates in parallel, one working a Kanban card |
+| `/teammates`: the roster and the lane | Two teammates in parallel, one working a Kanban card |
 |---|---|
 | ![Roster](docs/media/screenshot-roster.png) | ![Assign](docs/media/screenshot-assign.png) |
-| **Results; the card moved to review** | **`/teammates` in any chat** |
+| **Results; the card moved to review** | **`/teammates` in Hermes' dashboard** |
 | ![Results](docs/media/screenshot-results.png) | ![Slash command](docs/media/screenshot-slash-command.png) |
 
 ## How it works
