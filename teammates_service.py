@@ -9,18 +9,20 @@ import json
 import logging
 import math
 import os
+import shlex
 import sys
 import threading
 import time
 from uuid import uuid4
 
-from .teammates_config import parse
+from .teammates_config import canonical_lane, parse
 from .teammates_store import INSTANCE_ID
 
 TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
             'INTERRUPTED': 'interrupted', 'CANCELLED': 'cancelled'}
 RESTART_ERROR = 'Hermes restarted before this run finished; the result was not recovered'
 UNKNOWN_ERROR = "parent session changed or the result expired; the teammate's result is unavailable"
+HANDOFF_LOCK_TIMEOUT = 10
 _swept_paths = sys.__dict__.setdefault('_hermes_teammates_swept_paths', set())
 # Shared across plugin reloads in one process, so an old monitor and a new service never hand off the same card twice.
 _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', threading.Lock())
@@ -55,7 +57,7 @@ def lane_refusal(task_id, assignee, lane, status=None):
     when = 'once its current run ends, ' if status == 'running' else ''
     return (f'card {task_id} {held}, not the {lane!r} lane. Teammates only work cards assigned to {lane!r}; the '
             f'teammate argument picks who works it. Create lane cards with assignee {lane!r}, or {when}ask the user '
-            f'to run: hermes kanban assign {task_id} {lane}')
+            f'to run: hermes kanban assign {shlex.quote(task_id)} {shlex.quote(lane)}')
 
 
 def not_ready_refusal(task_id, status):
@@ -292,7 +294,7 @@ class TeammatesService:
                 task = self.host.get_task(conn, kanban_task)
                 if task is None:
                     return error('kanban_task_not_found')
-                if task.assignee != config['lane']:
+                if canonical_lane(task.assignee) != config['lane']:
                     return error('kanban_task_not_in_lane', lane_refusal(kanban_task, task.assignee, config['lane'], task.status))
                 if task.status != 'ready':
                     return error('kanban_task_not_ready', not_ready_refusal(kanban_task, task.status))
@@ -513,7 +515,7 @@ class TeammatesService:
             current = store.get(row['run_id'], row['owner_session_id'])
         self._completion(current, won, notify)
         if not _skip_handoff:
-            self._handoff(row)
+            self._handoff(row, wait_for_lock=notify)
 
     def finalize(self, run_id, result, *, notify=False, _skip_handoff=False):
         owner = self._owners.get(run_id)
@@ -559,7 +561,7 @@ class TeammatesService:
                 self._token_usage.pop(child_session, None)
         self._completion(dict(row, status=status), won, notify)
         if not _skip_handoff:
-            self._handoff(row)
+            self._handoff(row, wait_for_lock=notify)
         return dict(public_row(self._get(owner, run_id)), finalized=won)
 
     def _completion(self, row, won, notify):
@@ -609,27 +611,40 @@ class TeammatesService:
         except Exception:
             logger.info('completion notice failed')
 
-    def _handoff(self, row):
+    def _handoff(self, row, *, wait_for_lock=False):
         if not row['kanban_task']:
             return
+        row = self._get(row['owner_session_id'], row['run_id'])
+        outcome = row['kanban_outcome']
+        if outcome is not None and not outcome.startswith('error:'):
+            return outcome
         # Serialize terminal handoffs; losing finalizers re-read the winner's outcome.
-        with self._handoff_lock:
+        # The finishing monitor cannot retry after it exits, so let its daemon
+        # wait for the lock. Readers keep a bounded wait and can retry later.
+        acquired = (self._handoff_lock.acquire() if wait_for_lock else
+                    self._handoff_lock.acquire(timeout=HANDOFF_LOCK_TIMEOUT))
+        if not acquired:
+            return
+        try:
             row = self._get(row['owner_session_id'], row['run_id'])
             outcome = row['kanban_outcome']
             if row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
                     outcome is not None and not outcome.startswith('error:')):
-                return
+                return outcome
             for attempt in range(3):
                 try:
                     outcome = self._handoff_once(row)
                 except Exception as exc:
                     outcome = f'error:{type(exc).__name__}'
                 with self.store_factory() as store:
-                    store.update(row['run_id'], kanban_outcome=outcome)
+                    if not store.set_kanban_outcome(row['run_id'], outcome):
+                        outcome = store.get(row['run_id'], row['owner_session_id'])['kanban_outcome']
                 if not outcome.startswith('error:'):
-                    return
+                    return outcome
                 if attempt < 2:
                     time.sleep(2 ** attempt)
+        finally:
+            self._handoff_lock.release()
 
     def _handoffs_before_reply(self, session_id, run_ids, deadline, interrupt=None):
         """Before teammate_wait replies: one attempt to hand each finished lane run with no outcome yet to review, so
@@ -678,17 +693,26 @@ class TeammatesService:
 
     def _handoff_attempt(self, session_id, run_id):
         """One handoff for a finished lane run with no outcome yet, under the same lock as the finalizer's."""
-        with self._handoff_lock:
+        row = self._get(session_id, run_id)
+        if row is None or row['kanban_outcome'] is not None:
+            return row['kanban_outcome'] if row else None
+        if not self._handoff_lock.acquire(timeout=HANDOFF_LOCK_TIMEOUT):
+            return
+        try:
             row = self._get(session_id, run_id)
             if row is None or row['status'] not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'} or (
                     row['kanban_outcome'] is not None):
-                return
+                return row['kanban_outcome'] if row else None
             try:
                 outcome = self._handoff_once(row)
             except Exception as exc:
                 outcome = f'error:{type(exc).__name__}'
             with self.store_factory() as store:
-                store.update(row['run_id'], kanban_outcome=outcome)
+                if not store.set_kanban_outcome(row['run_id'], outcome):
+                    outcome = store.get(row['run_id'], session_id)['kanban_outcome']
+            return outcome
+        finally:
+            self._handoff_lock.release()
 
     def _handoff_once(self, row):
         claim = json.loads(row['kanban_claim'])

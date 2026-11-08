@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 _logged_errors, _log_lock = set(), threading.Lock()
 
 
+def canonical_lane(value):
+    """Match Hermes's assignee normalization (normalize_profile_name)."""
+    return value.strip().lower() if value is not None else None
+
+
 def parse(raw):
     errors, teammates, invalid = [], {}, {}
     if not isinstance(raw, dict):
@@ -45,10 +50,10 @@ def parse(raw):
         else:
             errors.append(f'{key}: expected integer {low}..{high}; using default')
     lane = raw.get('lane', 'teammates')
-    if isinstance(lane, str) and lane.strip():
-        result['lane'] = lane
+    if isinstance(lane, str) and canonical_lane(lane) not in {'', 'none', 'null', '-'}:
+        result['lane'] = canonical_lane(lane)
     else:
-        errors.append('lane: expected non-empty string; using default')
+        errors.append('lane: expected non-empty assignee other than none, null or -; using default')
     configured = raw.get('teammates', {})
     if not isinstance(configured, dict):
         errors.append('teammates must be a dict')
