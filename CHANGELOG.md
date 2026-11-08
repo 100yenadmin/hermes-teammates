@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 (2026-11-08)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.1's.
+
+- **The README now opens with the Kanban chain (#91).** One message gives three linked cards to three teammates. Each card waits in Review for approval before its result goes to the next teammate. Two new screenshots from a recorded run show the chain mid-run and finished. A new "What it adds to Hermes" section covers the enforced roster, the teammates lane and the run ledger. The roster screenshot is a fresh capture of `/teammates` on the current build. This is also what the catalog page shows.
+
 ## 1.2.1 (2026-11-08)
 
 Fixes only. Tool names, argument names and types, result field names and error codes are unchanged from 1.2.0.
