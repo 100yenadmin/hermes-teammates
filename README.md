@@ -5,8 +5,8 @@
 **Give your [Hermes Agent](https://github.com/NousResearch/hermes-agent) a team.** You define a small roster of
 named teammates, such as a scout, a writer and a reviewer. Each has its own instructions, tools and, optionally, its
 own model. Your agent hands them work, checks on them, steers them mid-task and follows up with what they did before.
-On Hermes' own Kanban board, they work linked cards one after another, and no card counts as done until it passes
-review.
+On Hermes' own Kanban board, they work linked cards one after another, and each card a teammate finishes waits in
+Review for approval before the next one starts.
 
 ![One message, three linked cards: the scout's research is approved and the writer's card is running](docs/media/screenshot-chain.png)
 
@@ -21,12 +21,13 @@ input.
 ### What it adds to Hermes
 
 - **A roster the model can't change.** The model picks only a teammate's **name**; your settings decide what that
-  name can do. A teammate's toolsets can only narrow the parent's tools, so a reviewer without file tools cannot
-  edit a file, whatever the prompt says.
+  name can do. A teammate's toolsets can only narrow the parent's tools, toolset by toolset, so a reviewer given
+  only `todo` gets no web, file or terminal tools, whatever the prompt says. (Hermes can add inherited MCP toolsets
+  back unless `delegation.inherit_mcp_toolsets` is false.)
 - **A teammates lane on Hermes' Kanban board.** Hermes hands board cards to whole Hermes profiles. This lane is
   worked by your roster, inside one conversation. The plugin claims the card and keeps the claim alive while the
-  teammate works. It writes the result onto the card and moves the card to **review**, never to done. Only an
-  approval finishes the card and unlocks the cards that depend on it.
+  teammate works. It writes the result onto the card and moves the card to **review**; the plugin never completes
+  a card. An approval (`kanban_complete`) finishes it and unlocks the cards that depend on it.
 - **Background runs with a memory.** Teammates are real Hermes subagents started through the public plugin
   subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
   per-profile ledger records every run's goal, status and result across turns. Follow-ups carry a digest of earlier
@@ -34,8 +35,8 @@ input.
 
 Stock Hermes; no patched core.
 
-- **For:** people who want the same specialists every time, without rewriting the brief, with a review step before
-  work counts as done and a durable record of what each teammate did.
+- **For:** people who want the same specialists every time, without rewriting the brief, with each teammate's work
+  handed to review and a durable record of what each teammate did.
 - **Not for:** DAG workflows with gates and fan-out. Use
   [hermes-workflows](https://github.com/jacobhausler/hermes-workflows) for those. Teammates is about who does the
   work; workflows is about the shape of a long job.
