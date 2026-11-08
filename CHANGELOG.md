@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 (2026-11-08)
+
+Fixes only. Tool names, argument names and types, result field names and error codes are unchanged from 1.2.0.
+
+- **Lane names match whatever case you write them in (#82).** Hermes stores card assignees stripped and lowercased, so a `lane: Teammates` setting used to refuse every card. The lane setting and the card's assignee are now compared in Hermes' own form. A lane of `none`, `null`, `-` or blank is a config problem and falls back to the default `teammates`, because Hermes reads those as "no assignee". The `hermes kanban assign` hint in the lane refusal is shell-quoted. This replaces 1.2.0's known limit.
+- **A recorded review outcome is never overwritten (#87).** When two processes, or two plugin loads, hand off the same run, a later refused attempt could replace an outcome of `review` that the first one had already recorded, and the lead then saw a refusal for a card that was in review. The first non-error outcome now stays, and a writer that loses reports the stored outcome.
+- **One stuck board call no longer stalls every handoff (#88).** `teammate_check` returns an already-recorded outcome without waiting on other handoffs. While another handoff holds the board, it waits at most 10 s, then skips that attempt (logged at info level) and stores nothing, so the next check retries. The finishing monitor still waits for the board, so a run whose monitor saw it finish is still handed to review without anyone calling `teammate_check`.
+
 ## 1.2.0 (2026-11-08)
 
 Additive. Tool names, argument names and types, result field names and error codes are unchanged from 1.1.0. Only the `kanban_task` argument and `teammate_wait` descriptions and the message text of the two lane refusals are reworded.

@@ -79,7 +79,7 @@ Then restart the gateway (or the CLI session) so the tools register.
 | Setting | What it does | Valid values (invalid teammates are refused; other settings fall back to defaults) |
 |---|---|---|
 | **Teammates** | Your roster, as a JSON object (example below) | Names: lowercase letters, digits, `-` or `_`, up to 32 characters |
-| **Kanban lane** | Kanban assignee for teammate cards | Any name that is not a Hermes profile; default `teammates` |
+| **Kanban lane** | Kanban assignee for teammate cards | Any name that is not a Hermes profile, `none`, `null` or `-`; case and surrounding spaces are ignored; default `teammates` |
 | **Kanban claim TTL (seconds)** | How long a claim on a lane card lasts between heartbeats | 60–86400; default 900 |
 | **Max live runs per conversation** | Teammate runs one conversation may have in flight | 1–16; default 4 |
 | **Follow-up context budget (characters)** | How much of earlier results a follow-up carries | 0–24000; default 8000 |
