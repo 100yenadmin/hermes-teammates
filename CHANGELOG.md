@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.1 (2026-11-09)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.4.0's.
+
+- **The README's opening lists what 1.3.0 and 1.4.0 added (#119).** It now covers the review loop the agent drives (`teammate_request_changes`, `source_run_ids`) and history the agent can search (roster search, paging and per-teammate stats, plus complete results paged with `teammate_check`). These are what the GitHub page and the catalog page show first.
+- **Two corrections (#119):**
+  - `teammate_request_changes` adds its card comment on a best-effort basis. If the comment can't be saved, the run still starts with the feedback. Saying so in the reply is #120.
+  - `source_run_ids` hands over each run's stored summary (up to 8,000 characters), quoted as is and marked when clipped to fit. It doesn't hand over the complete 1.4.0 result.
+
 ## 1.4.0 (2026-11-09)
 
 Searchable run history, per-teammate stats, and complete results the agent can page through. No new tools.
