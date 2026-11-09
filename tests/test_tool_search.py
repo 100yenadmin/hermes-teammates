@@ -12,6 +12,7 @@ def catalog(rig, monkeypatch):
     from hermes_teammates.teammates_tools import SPECS, handler, schema
     from tools import registry as registry_module
     from tools import tool_search
+    from tools import kanban_tools  # noqa: F401  register core tools in the real registry before it is swapped out
 
     registry = registry_module.ToolRegistry()
     monkeypatch.setattr(registry_module, 'registry', registry)
