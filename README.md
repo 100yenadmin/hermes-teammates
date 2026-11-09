@@ -34,10 +34,11 @@ input.
   carries a digest of that teammate's earlier results, so you don't paste them back in.
 - **A review loop the agent drives.** When a card in Review needs changes, `teammate_request_changes` reopens it and
   starts the teammate again with the feedback and its previous result. It also adds the feedback as a card comment
-  on a best-effort basis: if the comment can't be saved, the run still starts with the feedback. It works from any
-  chat, and it never completes a card. `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the
-  next teammate: each run's stored summary (up to 8,000 characters), quoted as is and marked if it had to be clipped
-  to fit. The writer gets the scout's research without the agent retyping it.
+  on a best-effort basis: if the comment can't be saved, the run still starts with the feedback and the reply says
+  `comment_saved: false`. It works from any chat, and it never completes a card.
+  `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the next teammate: each run's stored summary
+  (up to 8,000 characters), quoted as is and marked if it had to be clipped to fit. The writer gets the scout's
+  research without the agent retyping it.
 - **History the agent can search.** `teammates_roster` filters this conversation's runs by status, text or date,
   pages through them, and shows each teammate's record: runs, failures and median time. The ledger keeps each
   run's complete result, up to 256 KB of text, and `teammate_check` reads it 8,000 characters at a time.

@@ -269,7 +269,8 @@ class TeammatesService:
             return dict(reply, wait_error=waited['error'])
         if waited['done']:
             row = dict(waited['done'][0], ok=True, timed_out=False)
-            for key in ('teammate', 'provider', 'model', 'unsupported', 'reopened', 'previous_run_id'):
+            for key in ('teammate', 'provider', 'model', 'unsupported', 'reopened', 'previous_run_id', 'from_card',
+                        'comment_saved'):
                 if key not in row and key in reply:
                     row[key] = reply[key]
             if waited.get('interrupted'):
@@ -371,9 +372,10 @@ class TeammatesService:
                 card = self.host.get_task(conn, kanban_task)
                 status = card.status if card is not None else None
             return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status, commented))
+        extra = {} if commented else {'comment_saved': False}  # only when unsaved, so normal replies are unchanged
         if previous is None:
-            return dict(reply, reopened=True, from_card=True)
-        return dict(reply, reopened=True, previous_run_id=previous['run_id'])
+            return dict(reply, reopened=True, from_card=True, **extra)
+        return dict(reply, reopened=True, previous_run_id=previous['run_id'], **extra)
 
     def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids=None):
         if self.host.isolated:

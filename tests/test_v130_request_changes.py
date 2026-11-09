@@ -229,6 +229,7 @@ def test_comment_failure_keeps_the_reopen_receipt(rig, reviewed, monkeypatch):
     reply = rig.service.request_changes('s', task_id, 'Fix it')
     assert reply['ok'] and reply['reopened'] is True and reply['previous_run_id'] == previous_id
     assert 'Changes requested on this card:\nFix it' in rig.lifecycle.requests[-1].context
+    assert reply['comment_saved'] is False  # the run started, but the card has no record of the feedback (#120)
 
 
 def test_retry_note_does_not_claim_an_unsaved_comment(rig, reviewed, monkeypatch):
@@ -251,6 +252,18 @@ def test_wait_returns_finished_row_and_preserves_reopen_receipt(rig, reviewed):
     assert reply['status'] == 'succeeded' and reply['summary'] == 'done'
     assert reply['reopened'] is True and reply['previous_run_id'] == previous_id
     assert reply['timed_out'] is False and reply['kanban_outcome'] == 'review'
+
+
+def test_wait_preserves_an_unsaved_comment_receipt(rig, reviewed, monkeypatch):
+    task_id, _ = reviewed
+
+    def busy(*_args, **_kwargs):
+        raise RuntimeError('database is locked')
+
+    monkeypatch.setattr(rig.host, 'add_comment', busy)
+    rig.lifecycle.state = 'SUCCEEDED'
+    reply = rig.service.request_changes('s', task_id, 'Fix it', wait_seconds=1)
+    assert reply['status'] == 'succeeded' and reply['comment_saved'] is False and reply['reopened'] is True
 
 
 @pytest.mark.parametrize('seconds', [-1, 301, True, '1', float('nan')])
@@ -305,3 +318,9 @@ def test_schema_and_total_handler_forwarding(rig, reviewed):
     parent = SimpleNamespace(session_id='s')
     reply = json.loads(fn({'kanban_task': reviewed[0], 'feedback': 'Fix it'}, parent_agent=parent))
     assert reply['ok'] and reply['reopened'] is True
+
+
+def test_saved_comment_adds_no_field(rig, reviewed):
+    task_id, _ = reviewed
+    reply = rig.service.request_changes('s', task_id, 'Fix it')
+    assert reply['ok'] and 'comment_saved' not in reply
