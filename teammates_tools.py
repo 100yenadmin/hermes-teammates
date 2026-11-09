@@ -124,7 +124,7 @@ def handler(name, get_service):
             if name == 'teammates_roster':
                 value = service.roster(session_id, args.get('include_runs', True), args.get('teammate'),
                                        **{key: args[key] for key in ('status', 'search', 'since', 'limit', 'offset')
-                                          if key in args})
+                                          if args.get(key) is not None})
             elif name == 'teammate_assign':
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
@@ -173,7 +173,8 @@ def render_roster(value):
             if stats['cancelled']:
                 suffix += f", {stats['cancelled']} cancelled"
             if stats['median_duration_seconds'] is not None:
-                suffix += f", median {stats['median_duration_seconds']:g} s"
+                median = stats['median_duration_seconds']
+                suffix += f", median {median:,.0f} s" if median >= 100 else f", median {round(median, 1):g} s"
         lines.append(f"  {teammate['name']} - {teammate.get('description') or '(no description)'} [toolsets: {toolsets}]" + suffix)
         if teammate.get('unsupported'):
             lines.append(f"    not supported by this Hermes build: {', '.join(teammate['unsupported'])}")

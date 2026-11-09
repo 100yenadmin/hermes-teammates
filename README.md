@@ -373,7 +373,8 @@ Teammates with runs in this conversation also have `stats`: `runs`, `succeeded`,
 and unknown), `cancelled`, `median_duration_seconds` (ignoring missing durations, or `null` if none), and
 `last_run_at` (unix seconds). Stats cover this conversation's history regardless of run filters or paging.
 `/teammates` shows a compact stats suffix. Teammates without runs have no `stats` key; stats are dropped before
-teammate entries if needed to keep the reply within 16,000 characters.
+teammate entries if needed to keep the reply within 16,000 characters, and `stats_omitted` then counts the
+teammates whose stats were dropped. Explicit `null` for a filter argument means "not given".
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs
