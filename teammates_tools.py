@@ -62,8 +62,10 @@ SPECS = {
     'teammate_check': (
         "Get a teammate run's status and, once finished, its result. wait_seconds waits up to 60 s for it to finish "
         "first; if it is still running, call again later. Includes summary_clipped, summary_chars, role_hash and "
-        "tokens_input/output/cache_read/cache_write/reasoning receipts (null when unknown). Use teammate_wait for several runs.",
-        {'run_id': _RUN_ID, 'wait_seconds': _p('integer', 'Seconds to wait for completion, 0-60.', minimum=0, maximum=60)},
+        "tokens_input/output/cache_read/cache_write/reasoning receipts (null when unknown). Use teammate_wait for several runs. "
+        "If summary_clipped is true, page the complete result with offset (8,000 characters per page).",
+        {'run_id': _RUN_ID, 'wait_seconds': _p('integer', 'Seconds to wait for completion, 0-60.', minimum=0, maximum=60),
+         'offset': _p('integer', 'Character offset into the retained result.', minimum=0)},
         ['run_id']),
     'teammate_wait': (
         'Wait 0-300 s (default 30) for any or all runs in this conversation. Returns finished results and pending '
@@ -135,7 +137,8 @@ def handler(name, get_service):
                                                 teammate=args.get('teammate'), parent_agent=kwargs.get('parent_agent'),
                                                 wait_seconds=args.get('wait_seconds', 0))
             elif name == 'teammate_check':
-                value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0))
+                value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0),
+                                      **({'offset': args['offset']} if args.get('offset') is not None else {}))
             elif name == 'teammate_wait':
                 value = service.wait(session_id, args.get('run_ids'), args.get('mode', 'any'),
                                      args.get('wait_seconds', 30))
@@ -201,5 +204,5 @@ def render_roster(value):
     push = features.get('push_completion', {})
     lines.append(f"teammate_wait=yes; push completion={push.get('status')} ({push.get('reason')})")
     lines.append('Results: use teammate_check or teammate_wait for summaries. ' + RELAY_INSTRUCTION +
-                 ' If summary_clipped is true, report the text as incomplete.')
+                 ' If summary_clipped is true, report the text as incomplete; page the rest with teammate_check offset.')
     return '\n'.join(lines)
