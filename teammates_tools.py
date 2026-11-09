@@ -16,9 +16,16 @@ SPECS = {
         "recent teammate runs, open cards on the Kanban teammates lane, and which optional features this Hermes "
         "build supports. Call it first if you do not know the teammate names. Pass teammate to explain its parsed "
         "definition, current role_hash, launch toolsets, delegation settings and ignored fields; "
-        "counts of entries not shown are included when a list is cut short.",
+        "counts of entries not shown are included when a list is cut short. "
+        "Filter or page this conversation's runs with status, search, since, limit and offset.",
         {'include_runs': _p('boolean', "Include this conversation's recent runs (default true)."),
-         'teammate': _p('string', 'Explain only this named teammate.')}, []),
+         'teammate': _p('string', 'Explain only this named teammate.'),
+         'status': _p('string', 'Filter runs by ledger status.',
+                      enum=['running', 'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown']),
+         'search': _p('string', 'Case-insensitive literal substring in goal, summary or error.', minLength=1, maxLength=200),
+         'since': _p('number', 'Include runs created at or after these unix seconds.'),
+         'limit': _p('integer', 'Maximum runs to return.', minimum=1, maximum=50, default=20),
+         'offset': _p('integer', 'Skip this many matching runs.', minimum=0, maximum=10000, default=0)}, []),
     'teammate_assign': (
         'Start a named teammate (a Hermes subagent with operator-set instructions and toolsets) on a goal. Returns a '
         'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait. '
@@ -115,7 +122,9 @@ def handler(name, get_service):
         try:
             service, session_id = get_service(), current_session_id(kwargs)
             if name == 'teammates_roster':
-                value = service.roster(session_id, args.get('include_runs', True), args.get('teammate'))
+                value = service.roster(session_id, args.get('include_runs', True), args.get('teammate'),
+                                       **{key: args[key] for key in ('status', 'search', 'since', 'limit', 'offset')
+                                          if key in args})
             elif name == 'teammate_assign':
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
@@ -158,7 +167,14 @@ def render_roster(value):
                      'plugins.entries.hermes-teammates.settings.teammates in config.yaml.')
     for teammate in teammates:
         toolsets = ', '.join(teammate.get('toolsets') or []) or 'inherits parent'
-        lines.append(f"  {teammate['name']} - {teammate.get('description') or '(no description)'} [toolsets: {toolsets}]")
+        stats, suffix = teammate.get('stats'), ''
+        if stats:
+            suffix = f" · {stats['runs']} runs: {stats['succeeded']} ok, {stats['failed']} failed"
+            if stats['cancelled']:
+                suffix += f", {stats['cancelled']} cancelled"
+            if stats['median_duration_seconds'] is not None:
+                suffix += f", median {stats['median_duration_seconds']:g} s"
+        lines.append(f"  {teammate['name']} - {teammate.get('description') or '(no description)'} [toolsets: {toolsets}]" + suffix)
         if teammate.get('unsupported'):
             lines.append(f"    not supported by this Hermes build: {', '.join(teammate['unsupported'])}")
     lane = value.get('lane') or {}
