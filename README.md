@@ -19,13 +19,15 @@ hermes plugins install 100yenadmin/hermes-teammates --enable
 
 It needs [Hermes Agent](https://github.com/NousResearch/hermes-agent) 0.21.4 or newer (tested on 0.23.0), with
 plugins running in process, which is the default. There are no extra packages and no API keys to add: teammates use
-your agent's own provider and credentials. Restart the gateway (or the CLI session) so the tools register, then add
-a roster.
+your agent's own provider and credentials. Add a roster, then restart the gateway (or the CLI session) so the tools
+register, and start a new chat.
 
 ## Try it
 
-1. Paste the three-teammate roster from the [Quick start](#quick-start-the-team-from-the-screenshots) (a scout, a
-   writer and a reviewer) into your profile's `config.yaml`. The chat also needs Hermes' `kanban` toolset.
+1. Add the three-teammate roster from the [Quick start](#quick-start-the-team-from-the-screenshots) (a scout, a
+   writer and a reviewer) to your profile's `config.yaml`, under the `plugins:` key the install created (keep its
+   `enabled` list). Restart, then start a new chat. The chat needs Hermes' `kanban` toolset, and `web` for the
+   scout's research (Hermes' web search works without a key on a fresh install).
 2. Send one message: *"We're launching a weekend coffee pop-up. Put three linked cards on the Kanban board for the
    team…"* (the full message is in the [Quick start](#quick-start-the-team-from-the-screenshots)).
 3. Watch the `teammates` lane on Hermes Desktop's Kanban page, or with `hermes kanban watch`. Three linked cards
@@ -163,8 +165,10 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
 
 ## Quick start: the team from the screenshots
 
-This is the roster behind the screenshots above. Paste it into the profile's `config.yaml`; in Hermes Desktop, the
-same three entries go in the **Teammates** setting as JSON (see [Configure](#configure)).
+This is the roster behind the screenshots above. Merge it into the profile's `config.yaml`: the install already
+added a `plugins:` key with an `enabled` list, so put `entries:` under that key rather than adding a second
+`plugins:`. In Hermes Desktop, the same three entries go in the **Teammates** setting as JSON (see
+[Configure](#configure)).
 
 ```yaml
 plugins:
@@ -188,7 +192,9 @@ plugins:
 
 The writer and the reviewer get only `todo`, so they have no web, file or terminal tools. If the profile has MCP
 servers, also set `delegation.inherit_mcp_toolsets: false`, or Hermes adds their tools back. The chat needs
-Hermes' `kanban` toolset so the agent can create and approve cards.
+Hermes' `kanban` toolset so the agent can create and approve cards, and `web` so the scout can search. Restart and
+start a new chat after adding the roster: the lane paragraph goes into new session prompts only while the roster has
+a usable teammate.
 
 Then send one message:
 
