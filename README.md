@@ -32,10 +32,12 @@ input.
   subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
   per-profile ledger records every run's goal, status and result across turns. A follow-up in the same conversation
   carries a digest of that teammate's earlier results, so you don't paste them back in.
-- **A review loop the agent drives.** When a card in Review needs changes, `teammate_request_changes` reopens it,
-  adds the feedback as a card comment and starts the teammate again with its previous result. It works from any
-  chat, and it never completes a card. `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the
-  next teammate word for word, so the writer gets the scout's research without the agent retyping it.
+- **A review loop the agent drives.** When a card in Review needs changes, `teammate_request_changes` reopens it
+  and starts the teammate again with the feedback and its previous result. It also tries to add the feedback as a
+  card comment; if that can't be saved, the run still starts and the reply says so. It works from any chat, and it
+  never completes a card. `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the next teammate:
+  each run's stored summary (up to 8,000 characters), quoted as is and marked if it had to be clipped to fit. The
+  writer gets the scout's research without the agent retyping it.
 - **History the agent can search.** `teammates_roster` filters this conversation's runs by status, text or date,
   pages through them, and shows each teammate's record: runs, failures and median time. The ledger keeps each
   run's complete result, up to 256 KB of text, and `teammate_check` reads it 8,000 characters at a time.
@@ -91,7 +93,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    saved when the child finishes, even if you never call `teammate_check`. A result longer than 8,000 characters is
    kept in full (up to 256 KB of text); `teammate_check(run_id, offset=N)` pages through it.
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
-   picks up where it left off. `source_run_ids` hands over finished results from any teammate in this conversation verbatim.
+   picks up where it left off. `source_run_ids` hands over the stored summaries of finished runs from any teammate in this conversation, quoted as is and marked when clipped to fit the launch budget.
    With `follow_up=True`, a source that is the same teammate's own earlier run also appears in the follow-up digest and uses budget twice; leave it out of `source_run_ids` in that case.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
    `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
