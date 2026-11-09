@@ -242,6 +242,14 @@ class HermesHost:
     def request_review(self, conn, task_id, **kwargs):
         return self.kanban.request_review(conn, task_id, **kwargs)
 
+    def reopen_review(self, conn, task_id):
+        reopen = getattr(self.kanban, 'reopen_review_task', None)
+        return reopen(conn, task_id) if callable(reopen) else None
+
+    def add_comment(self, conn, task_id, author, body):
+        add = getattr(self.kanban, 'add_comment', None)
+        return add(conn, task_id, author, body) if callable(add) else False
+
     def block_task(self, conn, task_id, **kwargs):
         return self.kanban.block_task(conn, task_id, **kwargs)
 

@@ -4,7 +4,7 @@ import json
 import pytest
 
 
-PARENT_TOOLS = ('teammate_assign', 'teammate_wait', 'teammate_check', 'teammates_roster')
+PARENT_TOOLS = ('teammate_assign', 'teammate_request_changes', 'teammate_wait', 'teammate_check', 'teammates_roster')
 
 
 @pytest.fixture
@@ -52,6 +52,14 @@ def test_described_example_resolves_validates_and_calls_plugin(catalog, rig, nam
     args = envelope['calls'][0]['arguments']
     if name == 'teammate_assign':
         args['teammate'] = 'worker'
+    if name == 'teammate_request_changes':
+        from hermes_cli.kanban_db import create_task
+        with rig.host.connection() as conn:
+            args['kanban_task'] = create_task(conn, title='Synthetic lane task', assignee='teammates')
+        run = rig.service.assign('owner', 'worker', 'Synthetic fixture task', kanban_task=args['kanban_task'])
+        rig.lifecycle.state = 'SUCCEEDED'
+        assert rig.service.check('owner', run['run_id'])['kanban_outcome'] == 'review'
+        rig.lifecycle.state = 'RUNNING'
     if name in ('teammate_check', 'teammate_wait'):
         run = rig.service.assign('owner', 'worker', 'Synthetic fixture task')
         if name == 'teammate_check':

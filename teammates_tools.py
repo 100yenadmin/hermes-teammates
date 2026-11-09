@@ -37,6 +37,16 @@ SPECS = {
                                      'HERE, not only in the goal: the card is claimed while the teammate works and '
                                      'moved to review (or blocked) when the run ends.')},
         ['teammate', 'goal']),
+    'teammate_request_changes': (
+        'Send a Kanban teammates-lane card that is in Review back for changes. Reopens it with your feedback as a '
+        'card comment and starts a teammate on it again (by default the one that worked it last), with the feedback '
+        'and its previous result as context. Use this, not kanban_request_changes, for lane cards. '
+        'The card returns to Review when the run ends.',
+        {'kanban_task': _p('string', 'Id of a teammates-lane card that is in Review (for example t_1234abcd).', minLength=1),
+         'feedback': _p('string', 'What to change, at most 4000 characters.', minLength=1, maxLength=4000),
+         'teammate': _p('string', 'Teammate name; defaults to the one that worked this card last.'),
+         'wait_seconds': _p('number', 'Seconds to wait for the new run, 0-300 (0 = return at once).',
+                            minimum=0, maximum=300, default=0)}, ['kanban_task', 'feedback']),
     'teammate_check': (
         "Get a teammate run's status and, once finished, its result. wait_seconds waits up to 60 s for it to finish "
         "first; if it is still running, call again later. Includes summary_clipped, summary_chars, role_hash and "
@@ -71,6 +81,7 @@ SPECS = {
 _BRIDGE_EXAMPLES = {
     'teammates_roster': ('List roster', {}),
     'teammate_assign': ('Assign a goal', {'teammate': 'reviewer', 'goal': 'Review the requested diff.'}),
+    'teammate_request_changes': ('Request changes', {'kanban_task': 'CARD_ID', 'feedback': 'Address the review feedback.'}),
     'teammate_check': ('Check a run', {'run_id': 'RUN_ID'}),
     'teammate_wait': ('Wait for runs', {'run_ids': ['RUN_ID']}),
 }
@@ -78,7 +89,7 @@ _BRIDGE_EXAMPLES = {
 
 def schema(name, names=()):
     description, properties, required = SPECS[name]
-    if name in ('teammate_assign', 'teammate_check', 'teammate_wait'):
+    if name in ('teammate_assign', 'teammate_request_changes', 'teammate_check', 'teammate_wait'):
         description += ' ' + RELAY_INSTRUCTION + ' Read relay_instruction and summary_clipped before relaying summary.'
     if name in _BRIDGE_EXAMPLES:
         action, arguments = _BRIDGE_EXAMPLES[name]
@@ -105,6 +116,10 @@ def handler(name, get_service):
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
                                        kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'),
                                        wait_seconds=args.get('wait_seconds', 0))
+            elif name == 'teammate_request_changes':
+                value = service.request_changes(session_id, args.get('kanban_task'), args.get('feedback'),
+                                                teammate=args.get('teammate'), parent_agent=kwargs.get('parent_agent'),
+                                                wait_seconds=args.get('wait_seconds', 0))
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0))
             elif name == 'teammate_wait':

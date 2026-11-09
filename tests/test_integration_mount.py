@@ -21,7 +21,8 @@ def test_pinned_loader_registers_and_real_lifecycle_launches(monkeypatch, tmp_pa
     manager.discover_and_load()
     try:
         assert 'teammates' in manager._plugin_commands
-        names = {'teammates_roster','teammate_assign','teammate_check','teammate_message','teammate_stop'}
+        names = {'teammates_roster','teammate_assign','teammate_request_changes','teammate_check',
+                 'teammate_wait','teammate_message','teammate_stop'}
         assert names <= manager._plugin_tool_names
         loaded = manager._plugins['hermes-teammates']
         assert not loaded.error
