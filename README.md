@@ -92,7 +92,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
    `teammate_request_changes(kanban_task=…, feedback=…)`: it reopens the card, records the feedback as a comment and
-   starts a teammate again with the feedback and previous result as context. It works from any chat: for a card another conversation worked, it takes the teammate and the last result from the card itself. The manual route remains
+   starts a teammate again with the feedback and previous result as context; it never completes a card. It works from any chat: for a card another conversation worked, it takes the teammate and the last result from the card itself. The manual route remains
    `hermes kanban reopen-review <card> --reason "what to change"`, followed by `teammate_assign` with that context.
    (Hermes' `kanban_request_changes` tool only returns an active review run to its implementer, and a lane card in
    review has none.)
@@ -259,7 +259,7 @@ Ask in plain language:
 |---|---|
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0) |
-| `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it |
+| `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |

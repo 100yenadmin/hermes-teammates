@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.3.0 (2026-11-09)
+
+Two new agent abilities for the review loop, and rosters that say when they leave something out.
+
+- **`teammate_request_changes`: send a lane card in Review back for changes (#97).** The agent can now do this in one call:
+  - it reopens a teammates-lane card that is in Review, through Hermes' Kanban (`reopen_review_task`);
+  - it adds the feedback as a card comment;
+  - it starts a teammate on the card again, by default the one that worked it last, with the feedback and the previous result as context.
+
+  When the run ends, the card goes back to Review. Like the rest of the plugin, it never completes a card.
+
+  It works from any chat. For a card another conversation worked, it uses only the card's own data (teammate, last result, title), never that conversation's ledger. If the new run can't start, the reply gives the card's real status and the next step.
+
+  Hermes' own `kanban_request_changes` can't act on these cards: it needs an active review run, and the plugin hands lane cards to review without one. The plugin now adds seven tools.
+- **`teammate_assign(source_run_ids=[...])`: hand chosen earlier results to the next teammate (#98).**
+  - Up to 8 finished runs from this conversation, from any teammate, go into the launch context verbatim and labelled. The scout's research reaches the writer without the lead copying or paraphrasing it.
+  - A run from another conversation is refused exactly like an unknown id.
+- **Rosters say when a list is cut short (#99).**
+  - `teammates_roster` adds `runs_omitted`, `lane.cards_omitted` and `lane.cards_waiting` (every lane card still in `todo`, usually one waiting on parent cards) only when something was left out, and still stays within its 16,000-character limit.
+  - `/teammates` prints "…and N more card(s) not shown" and "N card(s) not ready yet (todo, usually waiting on parent cards)".
+
 ## 1.2.4 (2026-11-09)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.3's.
