@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.4 (2026-11-09)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.3's.
+
+- **Quick start with the team from the screenshots (#95).** The README gives the exact scout, writer and reviewer roster, the one message that runs the three-card chain, what you should see, and how long it takes.
+- **Four corrections (#96):**
+  - Follow-up digests are per conversation.
+  - A lane card in Review is sent back with `hermes kanban reopen-review <card> --reason "..."` and then reassigned. Hermes' `kanban_request_changes` needs an active review run, which these cards don't have. This path was tested live on Hermes 0.23.0.
+  - Provider routing (`route`) is in the 0.23.0 release.
+  - Teammate names must start with a lowercase letter.
+
 ## 1.2.3 (2026-11-09)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.2's.
