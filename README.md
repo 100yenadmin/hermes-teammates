@@ -32,6 +32,13 @@ input.
   subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
   per-profile ledger records every run's goal, status and result across turns. A follow-up in the same conversation
   carries a digest of that teammate's earlier results, so you don't paste them back in.
+- **A review loop the agent drives.** When a card in Review needs changes, `teammate_request_changes` reopens it,
+  adds the feedback as a card comment and starts the teammate again with its previous result. It works from any
+  chat, and it never completes a card. `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the
+  next teammate word for word, so the writer gets the scout's research without the agent retyping it.
+- **History the agent can search.** `teammates_roster` filters this conversation's runs by status, text or date,
+  pages through them, and shows each teammate's record: runs, failures and median time. The ledger keeps each
+  run's complete result, up to 256 KB of text, and `teammate_check` reads it 8,000 characters at a time.
 
 Stock Hermes; no patched core.
 
@@ -81,7 +88,8 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    teammate's instructions travel in its context. Its toolsets can only narrow the parent's, never widen them.
 3. `teammate_check` reports status, or waits up to 60 s and returns the result. Every run is recorded in a
    per-profile SQLite ledger (`<HERMES_HOME>/plugin-data/hermes-teammates/data.db`). Results of plain runs are
-   saved when the child finishes, even if you never call `teammate_check`.
+   saved when the child finishes, even if you never call `teammate_check`. A result longer than 8,000 characters is
+   kept in full (up to 256 KB of text); `teammate_check(run_id, offset=N)` pages through it.
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
    picks up where it left off. `source_run_ids` hands over finished results from any teammate in this conversation verbatim.
    With `follow_up=True`, a source that is the same teammate's own earlier run also appears in the follow-up digest and uses budget twice; leave it out of `source_run_ids` in that case.
