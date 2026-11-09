@@ -308,3 +308,59 @@ def test_chain_schema_and_total_handler(board):
         assert json.loads(call(args, session_id='s'))['ok'] is False
     reply = json.loads(call({'steps': STEPS, 'start': None, 'wait_seconds': None}, parent_agent=board.parent))
     assert reply['ok'] and len(reply['cards']) == 3
+
+
+def test_failed_archive_reports_cards_left_on_board(board, monkeypatch):
+    dispatch = board.host.ctx.dispatch_tool
+    board.host.ctx.dispatch_tool = lambda name, args, **kw: dispatch(name, args, **kw) if not board.calls else 'not json'
+    monkeypatch.setattr(board.host.kanban, 'archive_task', lambda conn, task_id, **kw: (_ for _ in ()).throw(RuntimeError('locked')))
+    reply = board.service.chain('s', STEPS)
+    assert reply['error'] == 'kanban_chain_failed' and reply['archived'] == []
+    assert len(reply['left_on_board']) == 1 and reply['left_on_board'][0] in reply['message']
+
+
+def test_archive_runs_children_first(board, monkeypatch):
+    dispatch, order = board.host.ctx.dispatch_tool, []
+    board.host.ctx.dispatch_tool = lambda name, args, **kw: dispatch(name, args, **kw) if len(board.calls) < 2 else 'not json'
+    real = board.host.kanban.archive_task
+    def spy(conn, task_id, **kw):
+        order.append(task_id)
+        return real(conn, task_id, **kw)
+    monkeypatch.setattr(board.host.kanban, 'archive_task', spy)
+    reply = board.service.chain('s', STEPS)
+    assert reply['error'] == 'kanban_chain_failed' and len(order) == 2
+    with board.host.connection() as conn:
+        assert board.host.kanban.parent_ids(conn, order[0]) == [order[1]]  # the child went first
+
+
+def test_identical_retry_never_stitches_a_changed_chain(board):
+    first = board.service.chain('s', STEPS)
+    head = first['cards'][0]['kanban_task']
+    with board.host.connection() as conn:
+        assert board.host.kanban.archive_task(conn, head)
+    reply = board.service.chain('s', STEPS)
+    assert reply['error'] == 'kanban_chain_failed' and 'no longer linked' in reply['message']
+    live = [card for card in cards(board) if card.status != 'archived']
+    assert {card.id for card in live} == {c['kanban_task'] for c in first['cards'][1:]}  # nothing new left behind
+
+
+def test_retry_after_mid_chain_failure_creates_a_fresh_chain(board):
+    dispatch = board.host.ctx.dispatch_tool
+    board.host.ctx.dispatch_tool = lambda name, args, **kw: dispatch(name, args, **kw) if not board.calls else 'not json'
+    failed = board.service.chain('s', STEPS)
+    board.host.ctx.dispatch_tool = dispatch
+    reply = board.service.chain('s', STEPS)
+    assert reply['ok'] and failed['archived'][0] not in {c['kanban_task'] for c in reply['cards']}
+
+
+def test_unfinished_parent_is_never_quoted_as_a_result(board, monkeypatch):
+    first, second = approved_first(board)
+    with board.host.connection() as conn:
+        task = board.host.get_task(conn, first)
+    monkeypatch.setattr(board.host, 'get_task', lambda conn, task_id, _real=board.host.get_task:
+                        SimpleNamespace(**{**vars(_real(conn, task_id)), 'status': 'archived'}) if task_id == first
+                        else _real(conn, task_id))
+    assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
+    ctx = board.lifecycle.requests[-1].context
+    assert f'From card {first} (Research):\n(not a result: this card is archived)' in ctx
+    assert 'Parent result verbatim' not in ctx

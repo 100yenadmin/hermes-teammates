@@ -53,7 +53,7 @@ with `gh` only after the user approves that draft.
   - It holds no transcripts, hidden reasoning or credentials.
   - Remove the file to erase the history.
 - **Kanban.**
-  - `teammate_chain` writes cards only through Hermes' `kanban_create` in the configured lane and never completes a card.
+  - `teammate_chain` creates cards only through Hermes' `kanban_create` in the configured lane, archives the cards it created if the chain can't be finished, and never completes a card.
   - The plugin claims a card only if it is assigned to the configured lane, the lane is not a Hermes profile name,
     and the card is `ready`.
   - On success it moves the card to `review` without naming a reviewer, so no profile is spawned automatically.

@@ -356,6 +356,11 @@ class TeammatesService:
                     created.append(task_id)
                 with self.host.connection() as conn:
                     task = self.host.get_task(conn, task_id)
+                    if task_id in existing and cards and callable(getattr(self.host.kanban, 'parent_ids', None)) and \
+                            list(self.host.kanban.parent_ids(conn, task_id)) != [cards[-1]['kanban_task']]:
+                        # An identical earlier chain was changed (for example a card archived): never stitch it.
+                        raise RuntimeError(f'card {task_id} from an earlier identical chain is no longer linked to '
+                                           f"{cards[-1]['kanban_task']}; change the steps (for example a title) to make a new chain")
                 cards.append(dict(kanban_task=task_id, title=step['title'].strip(),
                                   teammate=step['teammate'], status=task.status))
         except Exception as exc:
@@ -366,11 +371,16 @@ class TeammatesService:
                     created = list(dict.fromkeys(created + [task.id for task in self.host.kanban.list_tasks(conn)
                                    if task.id not in existing and task.idempotency_key in attempted]))
             archived = []
-            for task_id in created:
+            for task_id in reversed(created):  # children first, so no card briefly turns ready
                 with suppress(Exception), self.host.connection() as conn:
                     if self.host.kanban.archive_task(conn, task_id):
                         archived.append(task_id)
-            return dict(error('kanban_chain_failed', clip(exc, 500)), archived=archived)
+            left = [task_id for task_id in created if task_id not in archived]
+            value = dict(error('kanban_chain_failed', clip(exc, 500)), archived=archived)
+            if left:
+                value.update(left_on_board=left, message=value['message'] + ' Some created cards could not be '
+                             'archived and are still on the board: ' + ', '.join(left))
+            return value
         result = dict(ok=True, lane=lane, cards=cards, note=(
             'Give each card to its teammate with teammate_assign(kanban_task=…, teammate=…) when it is ready; '
             'approve each card in Review with kanban_complete. '
@@ -395,7 +405,9 @@ class TeammatesService:
             for parent in parents:
                 task = self.host.get_task(conn, parent)
                 prefix = f'From card {parent} ({clip(task.title if task else "", 200)}):\n'
-                summary = summaries.get(parent) or '(no result recorded)'
+                status = getattr(task, 'status', None)
+                summary = ((summaries.get(parent) or '(no result recorded)') if status == 'done' else
+                           f'(not a result: this card is {status or "missing"})')
                 entries.append(budget_clip(prefix, share) + budget_clip(summary, share - len(prefix), tail=True))
         return budget_clip(header + '\n\n'.join(entries), budget)
 
