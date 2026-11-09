@@ -261,6 +261,11 @@ class HermesHost:
             "SELECT id,title,status FROM tasks WHERE assignee=? AND status IN "
             "('ready','running','review','blocked') ORDER BY created_at DESC LIMIT 20", (lane,))]
 
+    def lane_counts(self, conn, lane):
+        return dict(conn.execute(
+            "SELECT status,COUNT(*) FROM tasks WHERE assignee=? AND status IN "
+            "('ready','running','review','blocked','todo') GROUP BY status", (lane,)))
+
     @staticmethod
     def store_factory():
         from plugins.plugin_storage import plugin_db

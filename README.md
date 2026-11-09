@@ -83,7 +83,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    per-profile SQLite ledger (`<HERMES_HOME>/plugin-data/hermes-teammates/data.db`). Results of plain runs are
    saved when the child finishes, even if you never call `teammate_check`.
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
-   picks up where it left off.
+   picks up where it left off. `source_run_ids` hands over finished results from any teammate in this conversation verbatim.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
    `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
    Refused cancellations leave completed work intact.
@@ -199,7 +199,7 @@ toolset names are trimmed. `model`, `route` and `reasoning_effort` over 100 char
 toolset name that is not 1–48 printable ASCII characters without spaces make the teammate invalid.
 
 Launch context reserves operator instructions, then card text (up to 6,000 characters), the follow-up digest,
-and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
+handed-over results, and caller context, within 30,000 characters. Clipped parts show `[… N characters omitted]`; instructions stay intact.
 
 **With the CLI, headless, or on Hermes 0.21.4,** put the same settings in `config.yaml`:
 
@@ -258,7 +258,7 @@ Ask in plain language:
 | Tool | What it does |
 |---|---|
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
-| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task`, `wait_seconds` (0–300, default 0) |
+| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0) |
 | `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
@@ -356,6 +356,9 @@ most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes
 `config`, `managed`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
 The reply stays within 16,000 characters, measured as JSON with non-ASCII text left unescaped. If an explained
 definition would not fit, its instructions are shortened and `instructions_clipped` is true.
+When a list is cut short, the reply says how many entries it left out: `runs_omitted` for recent runs and
+`lane.cards_omitted` for open lane cards. `lane.cards_waiting` counts every lane card in `todo`, whether it waits on
+parent cards or was set to `todo` another way; the rendered roster calls these cards "not ready yet".
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs

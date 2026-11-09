@@ -15,7 +15,8 @@ SPECS = {
         "List the operator-defined teammates you can delegate to (name, description, toolsets), this conversation's "
         "recent teammate runs, open cards on the Kanban teammates lane, and which optional features this Hermes "
         "build supports. Call it first if you do not know the teammate names. Pass teammate to explain its parsed "
-        "definition, current role_hash, launch toolsets, delegation settings and ignored fields.",
+        "definition, current role_hash, launch toolsets, delegation settings and ignored fields; "
+        "counts of entries not shown are included when a list is cut short.",
         {'include_runs': _p('boolean', "Include this conversation's recent runs (default true)."),
          'teammate': _p('string', 'Explain only this named teammate.')}, []),
     'teammate_assign': (
@@ -25,6 +26,10 @@ SPECS = {
         {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
          'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
+         'source_run_ids': _p('array', 'Optional: run_ids of finished runs in this conversation, from any teammate, '
+                                      'whose results this teammate should get verbatim (for example the scout\'s '
+                                      'research for the writer). Use instead of pasting results into context.',
+                              items={'type': 'string'}, minItems=1, maxItems=8, uniqueItems=True),
          'follow_up': _p('boolean', "true when continuing earlier work: the teammate also gets a digest of its earlier "
                                     "results in this conversation."),
          'wait_seconds': _p('number', 'Optional: wait up to this many seconds for the teammate to finish and return '
@@ -115,7 +120,7 @@ def handler(name, get_service):
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
                                        kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'),
-                                       wait_seconds=args.get('wait_seconds', 0))
+                                       wait_seconds=args.get('wait_seconds', 0), source_run_ids=args.get('source_run_ids'))
             elif name == 'teammate_request_changes':
                 value = service.request_changes(session_id, args.get('kanban_task'), args.get('feedback'),
                                                 teammate=args.get('teammate'), parent_agent=kwargs.get('parent_agent'),
@@ -159,9 +164,14 @@ def render_roster(value):
     lane = value.get('lane') or {}
     if lane.get('available'):
         tasks = lane.get('open_tasks') or []
-        lines.append(f"Kanban lane '{lane.get('name')}': {len(tasks)} open card(s)" +
+        lines.append(f"Kanban lane '{lane.get('name')}': {len(tasks) + lane.get('cards_omitted', 0)} open card(s)" +
                      (' - WARNING: this lane name is also a profile, so lane work is refused' if lane.get('is_profile') else ''))
         lines.extend(f"  {task['id']} [{task['status']}] {task['title']}" for task in tasks[:10])
+        omitted = max(0, len(tasks) - 10) + lane.get('cards_omitted', 0)
+        if omitted:
+            lines.append(f'…and {omitted} more card(s) not shown')
+        if lane.get('cards_waiting', 0):
+            lines.append(f"{lane['cards_waiting']} card(s) not ready yet (todo, usually waiting on parent cards)")
     else:
         lines.append('Kanban lane: unavailable in this process')
     features = value.get('features') or {}
