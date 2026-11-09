@@ -35,6 +35,22 @@ input.
 
 Stock Hermes; no patched core.
 
+### Teammates and Hermes' built-in `delegate_task`
+
+Hermes already runs subagents in the background and lets the agent list, steer and stop them. Teammates keeps
+that and changes who decides what a subagent is.
+
+| | `delegate_task` (built in) | Teammates |
+|---|---|---|
+| The brief | The model writes the goal and context on every call | You write each teammate's instructions once, in settings; the model picks a name |
+| Tools | Every child inherits the parent's toolsets, minus a block list | Each teammate has its own toolsets, narrowed from the parent's: a reviewer on `todo` gets no web, file or terminal tools |
+| Model | The same delegation model for every child | Optionally one per teammate |
+| Record | `action='list'` shows live children; a result arrives once | A SQLite ledger per profile keeps every run's goal, status and result across turns and restarts; follow-ups carry a digest |
+| Kanban | Board cards go to whole Hermes profiles | A `teammates` lane worked by your roster inside the chat; each card ends in review, never done |
+
+Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are spawned with `toolsets=None`,
+"always inherit the parent's toolsets").
+
 - **For:** people who want the same specialists every time, without rewriting the brief, with each teammate's work
   handed to review and a durable record of what each teammate did.
 - **Not for:** DAG workflows with gates and fan-out. Use
