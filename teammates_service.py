@@ -30,6 +30,7 @@ _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', thread
 # Serialises a stop's record/cancel/rollback with finalization, so a refused stop never changes an outcome.
 _stop_lock = sys.__dict__.setdefault('_hermes_teammates_stop_lock', threading.Lock())
 _sweep_lock = sys.__dict__.setdefault('_hermes_teammates_sweep_lock', threading.Lock())
+_chain_lock = sys.__dict__.setdefault('_hermes_teammates_chain_lock', threading.Lock())
 # Lane runs a teammate_wait helper is handing off right now: one helper per run, however often the agent waits.
 _wait_handoffs = sys.__dict__.setdefault('_hermes_teammates_wait_handoffs', set())
 _wait_handoffs_lock = sys.__dict__.setdefault('_hermes_teammates_wait_handoffs_lock', threading.Lock())
@@ -333,54 +334,58 @@ class TeammatesService:
         if not callable(dispatch):
             return error('unsupported', 'This Hermes build has no dispatch_tool support for kanban_create.')
         parent_agent = parent_agent if parent_agent is not None else self.host.active_parent()
-        digest = hashlib.sha256((session_id + json.dumps(
+        # The lane is part of the key: after a lane change, an identical call makes a new chain in the new lane.
+        digest = hashlib.sha256((session_id + '\0' + lane + '\0' + json.dumps(
             steps, sort_keys=True, separators=(',', ':'), ensure_ascii=False)).encode()).hexdigest()[:16]
-        cards, created, attempted, existing = [], [], set(), None
-        try:
-            with self.host.connection() as conn:
-                existing = {task.id for task in self.host.kanban.list_tasks(conn)}
-            for index, step in enumerate(steps):
-                args = dict(title=step['title'].strip(), assignee=lane,
-                            body=(step.get('body', '') + '\n' if step.get('body') else '') +
-                                 f"Teammate: {step['teammate']}",
-                            idempotency_key=f'hermes-teammates:chain:{digest}:{index}')
-                if cards:
-                    args['parents'] = [cards[-1]['kanban_task']]
-                attempted.add(args['idempotency_key'])
-                reply = json.loads(dispatch('kanban_create', args, parent_agent=parent_agent))
-                if not isinstance(reply, dict) or reply.get('error') or not reply.get('task_id') or reply.get('ok') is False:
-                    raise RuntimeError(reply.get('error') or reply.get('message') or str(reply)
-                                       if isinstance(reply, dict) else str(reply))
-                task_id = reply['task_id']
-                if task_id not in existing:
-                    created.append(task_id)
+        # Serialized so overlapping identical calls cannot each take the other's cards as their own and
+        # archive them on a failure: the board snapshot below decides which cards this call created.
+        with _chain_lock:
+            cards, created, attempted, existing = [], [], set(), None
+            try:
                 with self.host.connection() as conn:
-                    task = self.host.get_task(conn, task_id)
-                    if task_id in existing and cards and callable(getattr(self.host.kanban, 'parent_ids', None)) and \
-                            list(self.host.kanban.parent_ids(conn, task_id)) != [cards[-1]['kanban_task']]:
-                        # An identical earlier chain was changed (for example a card archived): never stitch it.
-                        raise RuntimeError(f'card {task_id} from an earlier identical chain is no longer linked to '
-                                           f"{cards[-1]['kanban_task']}; change the steps (for example a title) to make a new chain")
-                cards.append(dict(kanban_task=task_id, title=step['title'].strip(),
-                                  teammate=step['teammate'], status=task.status))
-        except Exception as exc:
-            # Core may have committed before a malformed reply reached us. Recover those ids too,
-            # while preserving every card that existed before this call (including idempotent retries).
-            if existing is not None:
-                with suppress(Exception), self.host.connection() as conn:
-                    created = list(dict.fromkeys(created + [task.id for task in self.host.kanban.list_tasks(conn)
-                                   if task.id not in existing and task.idempotency_key in attempted]))
-            archived = []
-            for task_id in reversed(created):  # children first, so no card briefly turns ready
-                with suppress(Exception), self.host.connection() as conn:
-                    if self.host.kanban.archive_task(conn, task_id):
-                        archived.append(task_id)
-            left = [task_id for task_id in created if task_id not in archived]
-            value = dict(error('kanban_chain_failed', clip(exc, 500)), archived=archived)
-            if left:
-                value.update(left_on_board=left, message=value['message'] + ' Some created cards could not be '
-                             'archived and are still on the board: ' + ', '.join(left))
-            return value
+                    existing = {task.id for task in self.host.kanban.list_tasks(conn)}
+                for index, step in enumerate(steps):
+                    args = dict(title=step['title'].strip(), assignee=lane,
+                                body=(step.get('body', '') + '\n' if step.get('body') else '') +
+                                     f"Teammate: {step['teammate']}",
+                                idempotency_key=f'hermes-teammates:chain:{digest}:{index}')
+                    if cards:
+                        args['parents'] = [cards[-1]['kanban_task']]
+                    attempted.add(args['idempotency_key'])
+                    reply = json.loads(dispatch('kanban_create', args, parent_agent=parent_agent))
+                    if not isinstance(reply, dict) or reply.get('error') or not reply.get('task_id') or reply.get('ok') is False:
+                        raise RuntimeError(reply.get('error') or reply.get('message') or str(reply)
+                                           if isinstance(reply, dict) else str(reply))
+                    task_id = reply['task_id']
+                    if task_id not in existing:
+                        created.append(task_id)
+                    with self.host.connection() as conn:
+                        task = self.host.get_task(conn, task_id)
+                        if task_id in existing and cards and callable(getattr(self.host.kanban, 'parent_ids', None)) and \
+                                list(self.host.kanban.parent_ids(conn, task_id)) != [cards[-1]['kanban_task']]:
+                            # An identical earlier chain was changed (for example a card archived): never stitch it.
+                            raise RuntimeError(f'card {task_id} from an earlier identical chain is no longer linked to '
+                                               f"{cards[-1]['kanban_task']}; change the steps (for example a title) to make a new chain")
+                    cards.append(dict(kanban_task=task_id, title=step['title'].strip(),
+                                      teammate=step['teammate'], status=task.status))
+            except Exception as exc:
+                # Core may have committed before a malformed reply reached us. Recover those ids too,
+                # while preserving every card that existed before this call (including idempotent retries).
+                if existing is not None:
+                    with suppress(Exception), self.host.connection() as conn:
+                        created = list(dict.fromkeys(created + [task.id for task in self.host.kanban.list_tasks(conn)
+                                       if task.id not in existing and task.idempotency_key in attempted]))
+                archived = []
+                for task_id in reversed(created):  # children first, so no card briefly turns ready
+                    with suppress(Exception), self.host.connection() as conn:
+                        if self.host.kanban.archive_task(conn, task_id):
+                            archived.append(task_id)
+                left = [task_id for task_id in created if task_id not in archived]
+                value = dict(error('kanban_chain_failed', clip(exc, 500)), archived=archived)
+                if left:
+                    value.update(left_on_board=left, message=value['message'] + ' Some created cards could not be '
+                                 'archived and are still on the board: ' + ', '.join(left))
+                return value
         result = dict(ok=True, lane=lane, cards=cards, note=(
             'Give each card to its teammate with teammate_assign(kanban_task=…, teammate=…) when it is ready; '
             'approve each card in Review with kanban_complete. '

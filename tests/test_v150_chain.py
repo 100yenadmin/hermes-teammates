@@ -40,8 +40,8 @@ def test_three_linked_cards_retry_and_no_ledger_writes(board):
     assert [card['status'] for card in reply['cards']] == ['ready', 'todo', 'todo']
     assert [card['title'] for card in reply['cards']] == [step['title'] for step in STEPS]
     assert [card['teammate'] for card in reply['cards']] == [step['teammate'] for step in STEPS]
-    digest = hashlib.sha256(('s' + json.dumps(STEPS, sort_keys=True, separators=(',', ':'),
-                                             ensure_ascii=False)).encode()).hexdigest()[:16]
+    digest = hashlib.sha256(('s\0teammates\0' + json.dumps(STEPS, sort_keys=True, separators=(',', ':'),
+                                                         ensure_ascii=False)).encode()).hexdigest()[:16]
     with board.host.connection() as conn:
         for index, task_id in enumerate(ids):
             task = board.host.get_task(conn, task_id)
@@ -245,7 +245,7 @@ def test_optional_helper_failure_never_breaks_launch(board, monkeypatch, helper,
 
 
 def test_parent_result_budget_reserves_before_digest_sources_and_caller(board):
-    # A card completed outside the review flow (no review run) can carry a summary far over the budget.
+    # Review summaries are already clipped; a card completed outside the review flow can carry one far over budget.
     with board.host.connection() as conn:
         first = board.host.kanban.create_task(conn, title='Research', assignee='teammates')
         assert board.host.kanban.complete_task(conn, first, summary='parent-start ' + 'p' * 60000 + ' parent-end')
@@ -422,3 +422,26 @@ def test_without_run_history_falls_back_to_newest_summary(board, monkeypatch, mo
         monkeypatch.setattr(board.host.kanban, 'list_runs', broken)
     assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
     assert f'From card {first} (Research):\n{APPROVAL}' in board.lifecycle.requests[-1].context
+
+
+def test_lane_change_makes_a_new_chain_in_the_new_lane(board):
+    old = board.service.chain('s', STEPS)
+    board.raw['lane'] = 'crew'
+    new = board.service.chain('s', STEPS)
+    assert new['ok'] and new['lane'] == 'crew'
+    assert not {c['kanban_task'] for c in old['cards']} & {c['kanban_task'] for c in new['cards']}
+    with board.host.connection() as conn:
+        assert {board.host.get_task(conn, c['kanban_task']).assignee for c in new['cards']} == {'crew'}
+
+
+def test_chain_creation_is_serialized(board):
+    import sys
+    lock, held = sys.__dict__['_hermes_teammates_chain_lock'], []
+    dispatch = board.host.ctx.dispatch_tool
+    def watching(name, args, **kwargs):
+        held.append(lock.locked())
+        return dispatch(name, args, **kwargs)
+    board.host.ctx.dispatch_tool = watching
+    assert board.service.chain('s', STEPS)['ok']
+    assert held == [True] * 3 and not lock.locked()
+
