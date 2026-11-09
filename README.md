@@ -360,6 +360,21 @@ When a list is cut short, the reply says how many entries it left out: `runs_omi
 `lane.cards_omitted` for open lane cards. `lane.cards_waiting` counts every lane card in `todo`, whether it waits on
 parent cards or was set to `todo` another way; the rendered roster calls these cards "not ready yet".
 
+Filter or page this conversation's runs with `status`, `search`, `since`, `limit` and `offset`.
+`status` accepts `running`, `succeeded`, `failed`, `interrupted`, `cancelled` or `unknown`; `search` is a
+case-insensitive literal substring (1–200 characters) in goal, summary or error, including literal `%` and `_`.
+`since` is inclusive unix seconds. `limit` is 1–50 (default 20), and `offset` is 0–10000 (default 0).
+Combine them with `teammate`, for example `teammates_roster(teammate="reviewer", status="failed", limit=5, offset=5)`.
+`runs_total` counts matching rows when status, search, since or offset is given, or runs are omitted;
+`runs_omitted` counts matches remaining after the offset and returned page. Invalid values return `invalid_roster`.
+Run previews stay at 300 characters; use `teammate_check` for full retained text.
+
+Teammates with runs in this conversation also have `stats`: `runs`, `succeeded`, `failed` (including interrupted
+and unknown), `cancelled`, `median_duration_seconds` (ignoring missing durations, or `null` if none), and
+`last_run_at` (unix seconds). Stats cover this conversation's history regardless of run filters or paging.
+`/teammates` shows a compact stats suffix. Teammates without runs have no `stats` key; stats are dropped before
+teammate entries if needed to keep the reply within 16,000 characters.
+
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs
 return `unknown_run` before waiting. Finished rows omit `goal` and share a summary budget: per-run budget is
