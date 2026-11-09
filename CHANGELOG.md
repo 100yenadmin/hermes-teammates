@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.2 (2026-11-09)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.5.1's.
+
+- **The README's first screen (#129).** It now opens with one sentence on what the plugin does, a link to the 86-second demo film, badges (release, license, Hermes ≥ 0.21.4, CI), the install command with what it needs, and three steps to a first result. A contents line and a "Releases and license" section (Releases, this CHANGELOG, CONTRIBUTING, the security policy, LICENSE) were added.
+- **A broken link fixed (#129).** The tool-search section linked a private evidence release. It now links the public slice 3 report, which holds the numbers it quotes.
+- **Clearer setup (#129).** Add the roster under the `plugins:` key that the install created (keep its `enabled` list), then restart and start a new chat. The chat needs Hermes' `web` toolset for the scout's research, as well as `kanban`.
+
 ## 1.5.1 (2026-11-09)
 
 Fixes only. Tool names, arguments and error codes are unchanged from 1.5.0.
