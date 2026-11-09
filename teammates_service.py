@@ -40,6 +40,7 @@ TOKEN_KEYS = {'tokens_input': 'input_tokens', 'tokens_output': 'output_tokens',
               'tokens_reasoning': 'reasoning_tokens'}
 RELAY_INSTRUCTION = ('When reporting teammate results, relay findings, citations and verdict verbatim. '
                      'Keep your commentary separate.')
+_ROSTER_UNSET = object()
 
 
 def error(code, message=None):
@@ -980,7 +981,27 @@ class TeammatesService:
         return dict(value, ok=bool(value.get('accepted')))
 
     @safe
-    def roster(self, session_id, include_runs=True, teammate=None):
+    def roster(self, session_id, include_runs=True, teammate=None, *, status=_ROSTER_UNSET, search=_ROSTER_UNSET,
+               since=_ROSTER_UNSET, limit=20, offset=_ROSTER_UNSET):
+        if status is not _ROSTER_UNSET and (not isinstance(status, str) or status not in
+                                  {'running', 'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}):
+            return error('invalid_roster', 'status must be running, succeeded, failed, interrupted, cancelled or unknown')
+        if search is not _ROSTER_UNSET and (not isinstance(search, str) or not 1 <= len(search) <= 200):
+            return error('invalid_roster', 'search must be a string of 1-200 characters')
+        if since is not _ROSTER_UNSET and (type(since) not in (int, float) or
+                                  not -sys.float_info.max <= since <= sys.float_info.max):
+            return error('invalid_roster', 'since must be finite unix seconds')
+        if type(limit) is not int or not 1 <= limit <= 50:
+            return error('invalid_roster', 'limit must be an integer from 1 to 50')
+        if offset is not _ROSTER_UNSET and (type(offset) is not int or not 0 <= offset <= 10000):
+            return error('invalid_roster', 'offset must be an integer from 0 to 10000')
+        if teammate is not None and not isinstance(teammate, str):
+            return error('invalid_roster', 'teammate must be a name')
+        filtered = any(arg is not _ROSTER_UNSET for arg in (status, search, since, offset))
+        status = None if status is _ROSTER_UNSET else status
+        search = None if search is _ROSTER_UNSET else search
+        since = None if since is _ROSTER_UNSET else float(since)
+        offset = 0 if offset is _ROSTER_UNSET else offset
         self._sweep()
         config, features = parse(self.config_reader()), self.host.features()
         features = dict(features, teammate_wait=True,
@@ -1005,8 +1026,14 @@ class TeammatesService:
                                      launch_toolsets=teammate['toolsets'] or 'inherits parent',
                                      delegation=delegation, delegation_sources=delegation_sources)
         with self.store_factory() as store:
-            runs = [self._public_run(row, 300) for row in store.list(session_id, teammate=selected, limit=20)] if include_runs else []
-            total_runs = store.count(session_id, teammate=selected) if include_runs else 0
+            filters = dict(teammate=selected, status=status, search=search, since=since)
+            runs = [self._public_run(row, 300) for row in
+                    store.list(session_id, **filters, limit=limit, offset=offset)] if include_runs else []
+            total_runs = store.count(session_id, **filters) if include_runs or filtered else 0
+            stats = store.stats(session_id)
+        for entry in teammates:
+            if entry['name'] in stats:
+                entry['stats'] = stats[entry['name']]
         for row in runs:
             row.pop('relay_instruction', None)
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
@@ -1024,16 +1051,22 @@ class TeammatesService:
         if config['roster_path']:
             value['roster_file'] = clip(config['roster_path'], 500)  # only when set, so 1.0 payloads are unchanged
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
-        trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
-                      (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))
+        stats_entries = [entry for entry in teammates if 'stats' in entry]
+        stats_total = len(stats_entries)
+        trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors'], stats_entries) if selected is not None else
+                      (runs, lane['open_tasks'], value['config_errors'], stats_entries, teammates, invalid))
         open_cards = sum(lane_counts.get(status, 0) for status in ('ready', 'running', 'review', 'blocked'))
 
         def annotate():
             # Omission counts are part of the bounded payload: refresh them before every size check,
             # and add each key only when something is left out, so complete payloads are unchanged.
-            for holder, key, count in ((value, 'runs_omitted', total_runs - len(runs) if include_runs else 0),
+            omitted = max(0, total_runs - offset - len(runs)) if include_runs else 0
+            if filtered or omitted:
+                value['runs_total'] = total_runs
+            for holder, key, count in ((value, 'runs_omitted', omitted),
                                        (lane, 'cards_omitted', open_cards - len(lane['open_tasks'])),
-                                       (lane, 'cards_waiting', lane_counts.get('todo', 0))):
+                                       (lane, 'cards_waiting', lane_counts.get('todo', 0)),
+                                       (value, 'stats_omitted', stats_total - len(stats_entries))):
                 if count > 0:
                     holder[key] = count
                 else:
@@ -1043,7 +1076,9 @@ class TeammatesService:
         while len(json.dumps(annotate(), ensure_ascii=False)) > 16000:
             for entries in trim_lists:
                 if entries:
-                    entries.pop()
+                    entry = entries.pop()
+                    if entries is stats_entries:
+                        entry.pop('stats', None)
                     break
             else:
                 # Last resort for an explained teammate: halve its instructions, flagged, before overflowing.

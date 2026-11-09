@@ -131,7 +131,7 @@ def test_run_counts_and_no_extra_keys(rig, count):
     finished(rig, owner='foreign')
     value = rig.service.roster('s')
     base_keys = {'ok', 'teammates', 'invalid_teammates', 'features', 'config_errors', 'runs', 'lane', 'relay_instruction'}
-    assert set(value) == base_keys | ({'runs_omitted'} if count > 20 else set())
+    assert set(value) == base_keys | ({'runs_omitted', 'runs_total'} if count > 20 else set())
     assert set(value['lane']) == {'name', 'available', 'is_profile', 'open_tasks'}
     assert len(value['runs']) == min(20, count)
     if count > 20:
