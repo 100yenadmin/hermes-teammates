@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3 (2026-11-09)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.2's.
+
+- **The README compares Teammates with Hermes' built-in `delegate_task` (#93).** A five-row table covers who writes the brief, tools, model, the record of runs and Kanban. It also says what stock Hermes already does: background subagents the agent can list, steer and stop. Checked against Hermes 0.23.0 and main.
+
 ## 1.2.2 (2026-11-08)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.2.1's.
