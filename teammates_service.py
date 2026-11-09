@@ -410,10 +410,26 @@ class TeammatesService:
                 if status == 'archived':  # approved, then archived to tidy the board: its result still counts
                     with suppress(Exception):
                         finished = getattr(self.host.latest_run(conn, parent), 'outcome', None) == 'completed'
-                summary = ((summaries.get(parent) or '(no result recorded)') if finished else
-                           f'(not a result: this card is {status or "missing"})')
+                summary = ((self._handed_to_review(conn, parent) or summaries.get(parent) or '(no result recorded)')
+                           if finished else f'(not a result: this card is {status or "missing"})')
                 entries.append(budget_clip(prefix, share) + budget_clip(summary, share - len(prefix), tail=True))
         return budget_clip(header + '\n\n'.join(entries), budget)
+
+    def _handed_to_review(self, conn, task_id):
+        """The newest result handed to Review for this card, or None.
+
+        Approving with kanban_complete(summary=...) records a newer run carrying the approver's note, so the newest
+        summary on the card is often that note, not the work. A card worked outside the review flow has no such run;
+        the caller then falls back to the newest summary."""
+        list_runs = getattr(self.host.kanban, 'list_runs', None)
+        if not callable(list_runs):
+            return None
+        with suppress(Exception):
+            runs = list_runs(conn, task_id, include_active=False, state_type='outcome', state_name='review_requested')
+            for run in reversed(list(runs)):
+                if getattr(run, 'summary', None):
+                    return run.summary
+        return None
 
     @safe
     def request_changes(self, session_id, kanban_task, feedback, teammate=None, parent_agent=None, wait_seconds=0):

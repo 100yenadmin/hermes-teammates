@@ -199,15 +199,19 @@ def test_start_running_then_review_and_failed_start_keeps_cards(board):
     assert board.service.check('s', reply['started']['run_id'])['kanban_outcome'] == 'review'
 
 
-def approved_first(board, summary='Parent result verbatim'):
+APPROVAL = 'Approved: research looks complete.'
+
+
+def approved_first(board, summary='Parent result verbatim', approval=APPROVAL):
+    """Card 1 worked by a teammate, handed to Review, then approved the way agents do: with their own note."""
     reply = board.service.chain('s', STEPS)
     first, second = [card['kanban_task'] for card in reply['cards'][:2]]
     run = board.service.assign('s', 'worker', 'First goal', kanban_task=first)
-    board.lifecycle.state = 'SUCCEEDED'
+    board.lifecycle.state, board.lifecycle.summary = 'SUCCEEDED', summary
     assert board.service.check('s', run['run_id'])['kanban_outcome'] == 'review'
     with board.host.connection() as conn:
-        assert board.host.kanban.complete_task(conn, first, summary=summary)
-    board.lifecycle.state = 'RUNNING'
+        assert board.host.kanban.complete_task(conn, first, summary=approval)
+    board.lifecycle.state, board.lifecycle.summary = 'RUNNING', 'done'
     return first, second
 
 
@@ -241,7 +245,11 @@ def test_optional_helper_failure_never_breaks_launch(board, monkeypatch, helper,
 
 
 def test_parent_result_budget_reserves_before_digest_sources_and_caller(board):
-    first, second = approved_first(board, 'parent-start ' + 'p' * 60000 + ' parent-end')
+    # A card completed outside the review flow (no review run) can carry a summary far over the budget.
+    with board.host.connection() as conn:
+        first = board.host.kanban.create_task(conn, title='Research', assignee='teammates')
+        assert board.host.kanban.complete_task(conn, first, summary='parent-start ' + 'p' * 60000 + ' parent-end')
+        second = board.host.kanban.create_task(conn, title='Write', assignee='teammates', parents=[first])
     source = board.service.assign('s', 'other', 'Prior goal')
     board.lifecycle.state = 'SUCCEEDED'
     assert board.service.check('s', source['run_id'])['status'] == 'succeeded'
@@ -263,6 +271,7 @@ def test_parent_result_budget_reserves_before_digest_sources_and_caller(board):
 def test_parent_without_summary_is_listed(board, monkeypatch):
     first, second = approved_first(board)
     monkeypatch.setattr(board.host.kanban, 'latest_summaries', lambda conn, ids: {})
+    monkeypatch.setattr(board.host.kanban, 'list_runs', lambda conn, task_id, **kwargs: [])
     assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
     assert f'From card {first} (Research):\n(no result recorded)' in board.lifecycle.requests[-1].context
 
@@ -372,3 +381,44 @@ def test_parent_approved_then_archived_still_hands_over_its_result(board):
         assert board.host.kanban.archive_task(conn, first)
     assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
     assert 'Parent result verbatim' in board.lifecycle.requests[-1].context
+
+
+def test_approval_note_never_replaces_the_result_handed_to_review(board):
+    first, second = approved_first(board)
+    assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
+    ctx = board.lifecycle.requests[-1].context
+    assert HEADER + f'From card {first} (Research):\nParent result verbatim' in ctx
+    assert APPROVAL not in ctx
+
+
+def test_newest_review_result_wins_after_request_changes(board):
+    reply = board.service.chain('s', STEPS)
+    first, second = [card['kanban_task'] for card in reply['cards'][:2]]
+    run = board.service.assign('s', 'worker', 'First goal', kanban_task=first)
+    board.lifecycle.state, board.lifecycle.summary = 'SUCCEEDED', 'First draft'
+    assert board.service.check('s', run['run_id'])['kanban_outcome'] == 'review'
+    board.lifecycle.state = 'RUNNING'
+    again = board.service.request_changes('s', first, 'Add sources.')
+    assert again['ok'], again
+    board.lifecycle.state, board.lifecycle.summary = 'SUCCEEDED', 'Second draft with sources'
+    assert board.service.check('s', again['run_id'])['kanban_outcome'] == 'review'
+    with board.host.connection() as conn:
+        assert board.host.kanban.complete_task(conn, first, summary=APPROVAL)
+    board.lifecycle.state, board.lifecycle.summary = 'RUNNING', 'done'
+    assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
+    ctx = board.lifecycle.requests[-1].context
+    assert f'From card {first} (Research):\nSecond draft with sources' in ctx
+    assert 'First draft' not in ctx and APPROVAL not in ctx
+
+
+@pytest.mark.parametrize('mode', ['missing', 'raises'])
+def test_without_run_history_falls_back_to_newest_summary(board, monkeypatch, mode):
+    first, second = approved_first(board)
+    if mode == 'missing':
+        monkeypatch.delattr(board.host.kanban, 'list_runs')
+    else:
+        def broken(*args, **kwargs):
+            raise RuntimeError('optional helper failed')
+        monkeypatch.setattr(board.host.kanban, 'list_runs', broken)
+    assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
+    assert f'From card {first} (Research):\n{APPROVAL}' in board.lifecycle.requests[-1].context

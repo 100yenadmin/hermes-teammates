@@ -102,7 +102,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    Refused cancellations leave completed work intact.
 6. **Kanban teammates lane.** Create 1–8 linked cards with `teammate_chain`, or assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
-   the teammate works. Parent cards' latest results travel automatically with the card's title and body;
+   the teammate works. Each finished parent card's result (what its teammate handed to Review, not the approval note) travels automatically with the card's title and body;
    the agent no longer needs to pass those results as context. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
    `teammate_request_changes(kanban_task=…, feedback=…)`: it reopens the card, records the feedback as a comment and
