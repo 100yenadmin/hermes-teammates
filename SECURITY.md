@@ -23,7 +23,7 @@ Do not open a public issue for them.
 
 ## Model
 
-Hermes Teammates is an in-agent plugin. It adds six tools, one slash command and one read-only skill, and it runs
+Hermes Teammates is an in-agent plugin. It adds seven tools, one slash command and one read-only skill, and it runs
 subagents only through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`). The skill
 (`teammates-report-problem`) has no code of its own: it guides the agent to draft a bug report, and the agent files it
 with `gh` only after the user approves that draft.

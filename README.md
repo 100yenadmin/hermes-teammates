@@ -90,9 +90,10 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
 6. **Kanban teammates lane.** Assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
-   **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, run
-   `hermes kanban reopen-review <card> --reason "what to change"`: Hermes records the request as a comment and puts
-   the card back to ready in the lane, and the agent then gives it to a teammate again with the feedback as context.
+   **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
+   `teammate_request_changes(kanban_task=…, feedback=…)`: it reopens the card, records the feedback as a comment and
+   starts a teammate again with the feedback and previous result as context. The manual route remains
+   `hermes kanban reopen-review <card> --reason "what to change"`, followed by `teammate_assign` with that context.
    (Hermes' `kanban_request_changes` tool only returns an active review run to its implementer, and a lane card in
    review has none.)
    Lane cards keep the lane as their assignee; the `teammate` argument picks who works each one. So that agents
@@ -258,6 +259,7 @@ Ask in plain language:
 |---|---|
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `kanban_task`, `wait_seconds` (0–300, default 0) |
+| `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
@@ -280,7 +282,7 @@ and [main revision](https://github.com/NousResearch/hermes-agent/blob/3b63f7b0a4
 limits the catalog listing, not activation. Neither `defer: []` nor a smaller schema keeps teammate tools direct.
 There is no supported selective opt-out at these revisions; [upstream request](https://github.com/NousResearch/hermes-agent/issues/135762).
 
-`teammate_assign`, `teammate_wait`, `teammate_check` and `teammates_roster` include short catalog hints and
+`teammate_assign`, `teammate_request_changes`, `teammate_wait`, `teammate_check` and `teammates_roster` include short catalog hints and
 schema examples for the bridge. If the tool is deferred, use `tool_search` to find its name, then
 `tool_describe` for its parameters, then `tool_call` to invoke it. Skip search when the catalog already shows
 the exact name. Describing a tool does not make it directly callable. For example, after describing the roster:
@@ -400,6 +402,7 @@ output, goals or child error text. Runs already read with check/wait or stopped 
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
+| `teammate_request_changes` | Kanban `reopen_review_task` | Returns `unsupported` |
 | push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 

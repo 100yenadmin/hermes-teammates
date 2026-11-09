@@ -41,7 +41,7 @@ def lane_hint(config):
             f"teammates lane, never a teammate's name), then call teammate_assign with the card's id as kanban_task. "
             f"A teammate sees the card's title and body but not the board, so pass anything else it needs, such as "
             f"an earlier card's result, as context. When the teammate finishes, the card moves to review; "
-            f'kanban_complete approves it and unlocks the cards that depend on it.')
+            f'kanban_complete approves it and unlocks dependent cards; teammate_request_changes sends it back for changes.')
 
 
 def register_lane_hint(ctx, read_settings):

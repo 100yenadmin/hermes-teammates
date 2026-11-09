@@ -83,6 +83,12 @@ class Store:
     def running(self):
         return [dict(row) for row in self.conn.execute("SELECT * FROM runs WHERE status='running'")]
 
+    def latest_for_task(self, owner_session_id, task_id):
+        row = self.conn.execute(
+            'SELECT * FROM runs WHERE owner_session_id=? AND kanban_task=? '
+            'ORDER BY created_at DESC, rowid DESC LIMIT 1', (owner_session_id, task_id)).fetchone()
+        return dict(row) if row else None
+
     def list(self, owner_session_id, *, status=None, teammate=None, terminal=False, limit=None):
         sql, params = 'SELECT * FROM runs WHERE owner_session_id=?', [owner_session_id]
         if status:

@@ -162,6 +162,21 @@ ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process. Unde
                      'plugin cannot see the delegation depth or spawn pause it enforces.')
 
 
+def _retry_note(task_id, status):
+    """What a reopened card needs after its new run could not start, from the card's actual status."""
+    if status == 'ready':
+        return ('The card is back in ready with your feedback as a comment; '
+                'call teammate_assign with kanban_task to retry.')
+    if status == 'blocked':
+        return ('The new run could not start, so the card is blocked with the reason; your feedback is a comment '
+                f'on it. Fix the cause, unblock it (hermes kanban unblock {task_id}), then call teammate_assign '
+                'with kanban_task.')
+    if status == 'todo':
+        return ('The card is back in todo until its parent cards are done; your feedback is a comment on it. '
+                'Call teammate_assign with kanban_task once it is ready.')
+    return f'The card is {status or "in an unknown state"}; your feedback is a comment on it.'
+
+
 class TeammatesService:
     def __init__(self, host, store_factory, config_reader, *, monitor_interval=None, clock=time.time):
         self.host, self.store_factory, self.config_reader = host, store_factory, config_reader
@@ -234,13 +249,17 @@ class TeammatesService:
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
                kanban_task=None, parent_agent=None, wait_seconds=0):
+        return self._admit_and_wait(session_id, wait_seconds, lambda: self._assign(
+            session_id, teammate, goal, context, follow_up, kanban_task, parent_agent))
+
+    def _admit_and_wait(self, session_id, wait_seconds, start):
         if wait_seconds is None:  # an explicit null from the model means the default
             wait_seconds = 0
         if type(wait_seconds) not in (int, float) or not 0 <= wait_seconds <= 300:
             return error('invalid_assign', 'wait_seconds must be a number from 0 to 300')
         stripe = int.from_bytes(hashlib.sha256(str(session_id).encode()).digest()[:8], 'big') % 64
         with _admission_locks[stripe]:
-            reply = self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
+            reply = start()
         if wait_seconds == 0 or not reply['ok']:
             return reply
         waited = self.wait(session_id, [reply['run_id']], mode='all', wait_seconds=wait_seconds)
@@ -248,7 +267,7 @@ class TeammatesService:
             return dict(reply, wait_error=waited['error'])
         if waited['done']:
             row = dict(waited['done'][0], ok=True, timed_out=False)
-            for key in ('teammate', 'provider', 'model', 'unsupported'):
+            for key in ('teammate', 'provider', 'model', 'unsupported', 'reopened', 'previous_run_id'):
                 if key not in row and key in reply:
                     row[key] = reply[key]
             if waited.get('interrupted'):
@@ -259,30 +278,96 @@ class TeammatesService:
             row['interrupted'] = True
         return row
 
-    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
-        if self.host.isolated:
-            return error('unsupported_isolation', ISOLATION_MESSAGE)
-        if not session_id:
-            return error('no_session')
-        config = parse(self.config_reader())
+    def _teammate_error(self, config, teammate):
         if teammate in config['invalid_teammates']:
             return error('config_error', '; '.join(config['invalid_teammates'][teammate]))
         if teammate not in config['teammates']:
             return error('unknown_teammate')
-        if not isinstance(goal, str) or not goal.strip() or len(goal) > 12000:
-            return error('invalid_goal')
-        if self.host.spawn_paused():
-            return error('spawn_paused')
-        if getattr(self.host.active_parent(), '_delegate_depth', 0) > 0:
-            return error('nested_teammate')
+
+    def _at_live_cap(self, session_id, config):
         self._sweep()
         with self.store_factory() as store:
             live = store.list(session_id, status='running')
         for row in live:
             self.check(session_id, row['run_id'])
         with self.store_factory() as store:
-            if len(store.list(session_id, status='running')) >= config['max_live_runs']:
-                return error('too_many_live_runs')
+            return len(store.list(session_id, status='running')) >= config['max_live_runs']
+
+    @safe
+    def request_changes(self, session_id, kanban_task, feedback, teammate=None, parent_agent=None, wait_seconds=0):
+        return self._admit_and_wait(session_id, wait_seconds, lambda: self._request_changes(
+            session_id, kanban_task, feedback, teammate, parent_agent))
+
+    def _request_changes(self, session_id, kanban_task, feedback, teammate, parent_agent):
+        if not isinstance(feedback, str) or not feedback.strip() or len(feedback) > 4000:
+            return error('invalid_feedback')
+        if not isinstance(kanban_task, str) or not kanban_task.strip():
+            return error('invalid_kanban_task')
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if not session_id:
+            return error('no_session')
+        if not self.host.kanban_available:
+            return error('kanban_unavailable')
+        config = parse(self.config_reader())
+        if self.host.lane_is_profile(config['lane']) is True:
+            return error('lane_is_profile')
+        if self._at_live_cap(session_id, config):
+            return error('too_many_live_runs')
+        if self.host.spawn_paused():
+            return error('spawn_paused')
+        if not callable(getattr(self.host.kanban, 'reopen_review_task', None)):
+            return error('unsupported', 'This Hermes build has no Kanban reopen_review_task support.')
+        with self.store_factory() as store:
+            previous = store.latest_for_task(session_id, kanban_task)
+        if previous is None:
+            return error('kanban_task_not_yours', 'Only cards previously worked in this conversation can be sent back.')
+        teammate = previous['teammate'] if teammate is None else teammate
+        refusal = self._teammate_error(config, teammate)
+        if refusal:
+            return refusal
+        with self.host.connection() as conn:
+            task = self.host.get_task(conn, kanban_task)
+            if task is None:
+                return error('kanban_task_not_found')
+            if canonical_lane(task.assignee) != config['lane']:
+                return error('kanban_task_not_in_lane', lane_refusal(kanban_task, task.assignee, config['lane'], task.status))
+            if task.status != 'review':
+                return error('kanban_task_not_in_review',
+                             f'{kanban_task} is {task.status}; only a card in review can be sent back')
+            if not self.host.reopen_review(conn, kanban_task):
+                return error('kanban_reopen_failed')
+            with suppress(Exception):  # best-effort, like a build without add_comment
+                self.host.add_comment(conn, kanban_task, config['lane'], f'CHANGES REQUESTED: {feedback}')
+        result = budget_clip(previous['summary'] or previous['error'] or previous['status'], 8000, tail=True)
+        context = (f'Changes requested on this card:\n{feedback}\n\n'
+                   f"The last result on this card from this conversation (run {previous['run_id']}):\n{result}")
+        reply = self._assign(session_id, teammate, previous['goal'], context, False, kanban_task, parent_agent)
+        if not reply['ok']:
+            status = None
+            with suppress(Exception), self.host.connection() as conn:
+                card = self.host.get_task(conn, kanban_task)
+                status = card.status if card is not None else None
+            return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status))
+        return dict(reply, reopened=True, previous_run_id=previous['run_id'])
+
+    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if not session_id:
+            return error('no_session')
+        config = parse(self.config_reader())
+        refusal = self._teammate_error(config, teammate)
+        if refusal:
+            return refusal
+        if not isinstance(goal, str) or not goal.strip() or len(goal) > 12000:
+            return error('invalid_goal')
+        if self.host.spawn_paused():
+            return error('spawn_paused')
+        if getattr(self.host.active_parent(), '_delegate_depth', 0) > 0:
+            return error('nested_teammate')
+        if self._at_live_cap(session_id, config):
+            return error('too_many_live_runs')
         run_id = 'tm_' + uuid4().hex[:12]
         claim, task = None, None
         if kanban_task:
