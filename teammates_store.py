@@ -89,6 +89,13 @@ class Store:
             'ORDER BY created_at DESC, rowid DESC LIMIT 1', (owner_session_id, task_id)).fetchone()
         return dict(row) if row else None
 
+    def count(self, session_id, teammate=None):
+        sql, params = 'SELECT COUNT(*) FROM runs WHERE owner_session_id=?', [session_id]
+        if teammate:
+            sql += ' AND teammate=?'
+            params.append(teammate)
+        return self.conn.execute(sql, params).fetchone()[0]
+
     def list(self, owner_session_id, *, status=None, teammate=None, terminal=False, limit=None):
         sql, params = 'SELECT * FROM runs WHERE owner_session_id=?', [owner_session_id]
         if status:
