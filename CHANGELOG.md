@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2 (2026-11-09)
+
+Fixes only. Tool names, arguments and error codes are unchanged from 1.4.1.
+
+- **`teammate_request_changes` says when its card comment wasn't saved (#120).** The new run still starts with the feedback. The reply now carries `comment_saved: false`, so the agent can tell the user that the card has no record of the feedback. The field is present only in that case. It, and `from_card`, are now also kept when `wait_seconds` returns the finished row.
+
 ## 1.4.1 (2026-11-09)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.4.0's.
