@@ -233,14 +233,14 @@ class TeammatesService:
 
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
-               kanban_task=None, parent_agent=None, wait_seconds=0):
+               kanban_task=None, parent_agent=None, wait_seconds=0, source_run_ids=None):
         if wait_seconds is None:  # an explicit null from the model means the default
             wait_seconds = 0
         if type(wait_seconds) not in (int, float) or not 0 <= wait_seconds <= 300:
             return error('invalid_assign', 'wait_seconds must be a number from 0 to 300')
         stripe = int.from_bytes(hashlib.sha256(str(session_id).encode()).digest()[:8], 'big') % 64
         with _admission_locks[stripe]:
-            reply = self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent)
+            reply = self._assign(session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids)
         if wait_seconds == 0 or not reply['ok']:
             return reply
         waited = self.wait(session_id, [reply['run_id']], mode='all', wait_seconds=wait_seconds)
@@ -259,7 +259,7 @@ class TeammatesService:
             row['interrupted'] = True
         return row
 
-    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):
+    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids=None):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
@@ -271,6 +271,20 @@ class TeammatesService:
             return error('unknown_teammate')
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 12000:
             return error('invalid_goal')
+        sources = []
+        if source_run_ids is not None:
+            if (not isinstance(source_run_ids, list) or not 1 <= len(source_run_ids) <= 8
+                    or any(not isinstance(run, str) or not run.strip() for run in source_run_ids)
+                    or len(set(source_run_ids)) != len(source_run_ids)):
+                return error('invalid_assign', 'source_run_ids must be a list of 1 to 8 unique, non-blank strings')
+            with self.store_factory() as store:
+                for source_id in source_run_ids:
+                    row = store.get(source_id, session_id)
+                    if row is None:
+                        return error('source_run_not_found', f'{source_id} is not a run in this conversation')
+                    if row['status'] == 'running':  # Same terminal predicate as Store.list(terminal=True).
+                        return error('source_run_not_finished', f'{source_id} is still {row["status"]}; wait for it first')
+                    sources.append(row)
         if self.host.spawn_paused():
             return error('spawn_paused')
         if getattr(self.host.active_parent(), '_delegate_depth', 0) > 0:
@@ -312,6 +326,16 @@ class TeammatesService:
         teammate_config = config['teammates'][teammate]
         role_receipt = role_hash(teammate_config)
         try:
+            source_header = 'Results handed over from earlier runs (quoted verbatim):\n\n'
+            source_parts = []
+            for row in sources:
+                label = 'Result (clipped; incomplete): ' if public_row(row)['summary_clipped'] else 'Result: '
+                prefix = f'From {row["teammate"]} (run {row["run_id"]}). Goal: {clip(row["goal"], 500)}\n{label}'
+                source_parts.append((prefix, row['summary'] or row['error'] or row['status']))
+            # Keep every source labelled even if the digest leaves room only for omission markers.
+            source_overhead = len(source_header) + sum(len(prefix) for prefix, _ in source_parts) + 2 * (len(sources) - 1)
+            source_reserve = (source_overhead + len(sources) * max(
+                len(f'[… {len(result)} characters omitted]') for _, result in source_parts) + 2) if sources else 0
             parts = [teammate_config['instructions']]
             if task:
                 parts.append(budget_clip(f'{task.title}\n{task.body or ""}', 6000))
@@ -324,7 +348,7 @@ class TeammatesService:
                     previous = store.list(session_id, teammate=teammate, terminal=True)
                 header = ('Previous assignments:\n'
                           'Prior results are quoted verbatim below; continue from them.\n')
-                entries, remaining = [], min(config['followup_context_chars'], remaining) - len(header)
+                entries, remaining = [], min(config['followup_context_chars'], remaining - source_reserve) - len(header)
                 for row in previous:  # newest first; retain that suffix in chronological order
                     result = row['summary'] or row['error'] or row['status']
                     label = 'Result (clipped; incomplete): ' if public_row(row)['summary_clipped'] else 'Result: '
@@ -343,6 +367,13 @@ class TeammatesService:
                     remaining -= len(entries[-1]) + 2
                 if entries:
                     parts.append(header + '\n\n'.join(reversed(entries)))
+            if sources:
+                remaining = 30000 - len('\n\n'.join(part for part in parts if part)) - 2
+                if context:
+                    remaining -= len(f'[… {len(str(context))} characters omitted]') + 2
+                share = (remaining - source_overhead) // len(sources)
+                parts.append(source_header + '\n\n'.join(
+                    prefix + budget_clip(result, share, tail=True) for prefix, result in source_parts))
             if context:
                 remaining = 30000 - len('\n\n'.join(part for part in parts if part)) - 2
                 parts.append(budget_clip(context, remaining))
@@ -868,13 +899,16 @@ class TeammatesService:
                                      delegation=delegation, delegation_sources=delegation_sources)
         with self.store_factory() as store:
             runs = [self._public_run(row, 300) for row in store.list(session_id, teammate=selected, limit=20)] if include_runs else []
+            total_runs = store.count(session_id, teammate=selected) if include_runs else 0
         for row in runs:
             row.pop('relay_instruction', None)
         lane = {'name': config['lane'], 'available': self.host.kanban_available,
                 'is_profile': self.host.lane_is_profile(config['lane']), 'open_tasks': []}
+        lane_counts = {}
         if lane['available']:
             with self.host.connection() as conn:
                 lane['open_tasks'] = self.host.open_tasks(conn, config['lane'])
+                lane_counts = self.host.lane_counts(conn, config['lane'])
         invalid = [dict(name=clip(name, 300), errors=errors) for name, errors in config['invalid_teammates'].items()]
         value = dict(ok=True, teammates=teammates, invalid_teammates=invalid, features=features,
                      config_errors=config['config_errors'], runs=runs, lane=lane,
@@ -885,7 +919,21 @@ class TeammatesService:
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors']) if selected is not None else
                       (runs, lane['open_tasks'], value['config_errors'], teammates, invalid))
-        while len(json.dumps(value, ensure_ascii=False)) > 16000:
+        open_cards = sum(lane_counts.get(status, 0) for status in ('ready', 'running', 'review', 'blocked'))
+
+        def annotate():
+            # Omission counts are part of the bounded payload: refresh them before every size check,
+            # and add each key only when something is left out, so complete payloads are unchanged.
+            for holder, key, count in ((value, 'runs_omitted', total_runs - len(runs) if include_runs else 0),
+                                       (lane, 'cards_omitted', open_cards - len(lane['open_tasks'])),
+                                       (lane, 'cards_waiting', lane_counts.get('todo', 0))):
+                if count > 0:
+                    holder[key] = count
+                else:
+                    holder.pop(key, None)
+            return value
+
+        while len(json.dumps(annotate(), ensure_ascii=False)) > 16000:
             for entries in trim_lists:
                 if entries:
                     entries.pop()
@@ -899,4 +947,4 @@ class TeammatesService:
                     continue
                 lane['name'] = clip(lane['name'], 300)
                 break
-        return value
+        return annotate()
