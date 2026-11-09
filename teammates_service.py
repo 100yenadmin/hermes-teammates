@@ -321,24 +321,6 @@ class TeammatesService:
         with self.store_factory() as store:
             previous = store.latest_for_task(session_id, kanban_task)
         card_summary = None
-        if previous is None:
-            # Worked in another conversation (for example a later review chat): use only what is on the
-            # card itself, never another conversation's ledger rows.
-            card_run = None
-            with suppress(Exception), self.host.connection() as conn:
-                card_run = self.host.latest_run(conn, kanban_task)
-            metadata = getattr(card_run, 'metadata', None)
-            marker = metadata.get('hermes_teammates') if isinstance(metadata, dict) else None
-            if teammate is None and isinstance(marker, dict) and isinstance(marker.get('teammate'), str):
-                teammate = marker['teammate']
-            if teammate is None:
-                return error('teammate_required', 'No teammate in this conversation worked this card; pass teammate.')
-            card_summary = getattr(card_run, 'summary', None)
-        elif teammate is None:
-            teammate = previous['teammate']
-        refusal = self._teammate_error(config, teammate)
-        if refusal:
-            return refusal
         with self.host.connection() as conn:
             task = self.host.get_task(conn, kanban_task)
             if task is None:
@@ -348,6 +330,24 @@ class TeammatesService:
             if task.status != 'review':
                 return error('kanban_task_not_in_review',
                              f'{kanban_task} is {task.status}; only a card in review can be sent back')
+            if previous is None:
+                # Worked in another conversation (for example a later review chat): use only what is on the
+                # card itself, never another conversation's ledger rows.
+                card_run = None
+                with suppress(Exception):
+                    card_run = self.host.latest_run(conn, kanban_task)
+                metadata = getattr(card_run, 'metadata', None)
+                marker = metadata.get('hermes_teammates') if isinstance(metadata, dict) else None
+                if teammate is None and isinstance(marker, dict) and isinstance(marker.get('teammate'), str):
+                    teammate = marker['teammate']
+                if teammate is None:
+                    return error('teammate_required', 'No teammate in this conversation worked this card; pass teammate.')
+                card_summary = getattr(card_run, 'summary', None)
+            elif teammate is None:
+                teammate = previous['teammate']
+            refusal = self._teammate_error(config, teammate)
+            if refusal:
+                return refusal
             if not self.host.reopen_review(conn, kanban_task):
                 return error('kanban_reopen_failed')
             commented = False
