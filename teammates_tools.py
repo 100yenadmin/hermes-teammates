@@ -171,7 +171,7 @@ def render_roster(value):
         if omitted:
             lines.append(f'…and {omitted} more card(s) not shown')
         if lane.get('cards_waiting', 0):
-            lines.append(f"{lane['cards_waiting']} card(s) waiting on parent cards")
+            lines.append(f"{lane['cards_waiting']} card(s) not ready yet (todo, usually waiting on parent cards)")
     else:
         lines.append('Kanban lane: unavailable in this process')
     features = value.get('features') or {}

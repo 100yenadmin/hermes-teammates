@@ -162,7 +162,7 @@ def test_lane_counts_and_rendering(rig):
     text = render_roster(value)
     assert '23 open card(s)' in text
     assert '…and 13 more card(s) not shown' in text
-    assert '2 card(s) waiting on parent cards' in text
+    assert '2 card(s) not ready yet (todo, usually waiting on parent cards)' in text
     assert 'counts of entries not shown are included when a list is cut short' in schema('teammates_roster')['description']
 
 
