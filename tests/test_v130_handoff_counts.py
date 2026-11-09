@@ -166,6 +166,21 @@ def test_lane_counts_and_rendering(rig):
     assert 'counts of entries not shown are included when a list is cut short' in schema('teammates_roster')['description']
 
 
+def test_cards_waiting_counts_parent_free_todo_cards(rig):
+    """cards_waiting is the lane's whole `todo` count: a todo card with no parents (set by hand or by another
+    tool) counts too, and the rendered line says "not ready yet", not "waiting on parents"."""
+    from hermes_teammates.teammates_tools import render_roster
+    create(rig)
+    loose = create(rig)
+    with rig.host.connection() as conn:
+        conn.execute("UPDATE tasks SET status='todo' WHERE id=?", (loose,))
+        assert not conn.execute("SELECT 1 FROM task_links WHERE child_id=?", (loose,)).fetchall()
+        assert rig.host.lane_counts(conn, 'teammates') == {'ready': 1, 'todo': 1}
+    value = rig.service.roster('s')
+    assert value['lane']['cards_waiting'] == 1
+    assert '1 card(s) not ready yet (todo, usually waiting on parent cards)' in render_roster(value)
+
+
 def test_run_counts_after_payload_trimming(rig):
     for _ in range(20):
         finished(rig, goal='g' * 1000, summary='s' * 1000)

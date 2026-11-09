@@ -356,6 +356,9 @@ most 1,024 sessions, so evicted sessions cannot supply complete receipts. Hermes
 `config`, `managed`, `default` or `unknown`. Unavailable values are `unknown`; an unknown name returns `unknown_teammate`.
 The reply stays within 16,000 characters, measured as JSON with non-ASCII text left unescaped. If an explained
 definition would not fit, its instructions are shortened and `instructions_clipped` is true.
+When a list is cut short, the reply says how many entries it left out: `runs_omitted` for recent runs and
+`lane.cards_omitted` for open lane cards. `lane.cards_waiting` counts every lane card in `todo`, whether it waits on
+parent cards or was set to `todo` another way; the rendered roster calls these cards "not ready yet".
 
 `teammate_wait(run_ids, mode="any", wait_seconds=30)` returns as soon as any requested run ends;
 use `mode="all"` for fan-in. The wait is bounded to 0–300 seconds (default 30). Unknown or cross-conversation IDs
