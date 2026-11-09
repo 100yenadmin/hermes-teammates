@@ -33,8 +33,8 @@ input.
   per-profile ledger records every run's goal, status and result across turns. A follow-up in the same conversation
   carries a digest of that teammate's earlier results, so you don't paste them back in.
 - **A review loop the agent drives.** When a card in Review needs changes, `teammate_request_changes` reopens it
-  and starts the teammate again with the feedback and its previous result. It also tries to add the feedback as a
-  card comment; if that can't be saved, the run still starts and the reply says so. It works from any chat, and it
+  and starts the teammate again with the feedback and its previous result. It also adds the feedback as a card
+  comment on a best-effort basis: if the comment can't be saved, the run still starts with the feedback. It works from any chat, and it
   never completes a card. `teammate_assign(source_run_ids=[…])` hands chosen earlier results to the next teammate:
   each run's stored summary (up to 8,000 characters), quoted as is and marked if it had to be clipped to fit. The
   writer gets the scout's research without the agent retyping it.
