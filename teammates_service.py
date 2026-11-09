@@ -320,9 +320,22 @@ class TeammatesService:
             return error('unsupported', 'This Hermes build has no Kanban reopen_review_task support.')
         with self.store_factory() as store:
             previous = store.latest_for_task(session_id, kanban_task)
+        card_summary = None
         if previous is None:
-            return error('kanban_task_not_yours', 'Only cards previously worked in this conversation can be sent back.')
-        teammate = previous['teammate'] if teammate is None else teammate
+            # Worked in another conversation (for example a later review chat): use only what is on the
+            # card itself, never another conversation's ledger rows.
+            card_run = None
+            with suppress(Exception), self.host.connection() as conn:
+                card_run = self.host.latest_run(conn, kanban_task)
+            metadata = getattr(card_run, 'metadata', None)
+            marker = metadata.get('hermes_teammates') if isinstance(metadata, dict) else None
+            if teammate is None and isinstance(marker, dict) and isinstance(marker.get('teammate'), str):
+                teammate = marker['teammate']
+            if teammate is None:
+                return error('teammate_required', 'No teammate in this conversation worked this card; pass teammate.')
+            card_summary = getattr(card_run, 'summary', None)
+        elif teammate is None:
+            teammate = previous['teammate']
         refusal = self._teammate_error(config, teammate)
         if refusal:
             return refusal
@@ -340,16 +353,24 @@ class TeammatesService:
             commented = False
             with suppress(Exception):  # best-effort, like a build without add_comment
                 commented = bool(self.host.add_comment(conn, kanban_task, config['lane'], f'CHANGES REQUESTED: {feedback}'))
-        result = budget_clip(previous['summary'] or previous['error'] or previous['status'], 8000, tail=True)
-        context = (f'Changes requested on this card:\n{feedback}\n\n'
-                   f"The last result on this card from this conversation (run {previous['run_id']}):\n{result}")
-        reply = self._assign(session_id, teammate, previous['goal'], context, False, kanban_task, parent_agent)
+        if previous is not None:
+            result = budget_clip(previous['summary'] or previous['error'] or previous['status'], 8000, tail=True)
+            label = f"The last result on this card from this conversation (run {previous['run_id']}):"
+            goal = previous['goal']
+        else:
+            result = budget_clip(card_summary or '(no result recorded on the card)', 8000, tail=True)
+            label = "The card's last result, as recorded on the board:"
+            goal = f'Revise your work on this Kanban card ({clip(task.title, 300)}) as requested.'
+        context = f'Changes requested on this card:\n{feedback}\n\n{label}\n{result}'
+        reply = self._assign(session_id, teammate, goal, context, False, kanban_task, parent_agent)
         if not reply['ok']:
             status = None
             with suppress(Exception), self.host.connection() as conn:
                 card = self.host.get_task(conn, kanban_task)
                 status = card.status if card is not None else None
             return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status, commented))
+        if previous is None:
+            return dict(reply, reopened=True, from_card=True)
         return dict(reply, reopened=True, previous_run_id=previous['run_id'])
 
     def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):

@@ -42,7 +42,7 @@ SPECS = {
         'card comment and starts a teammate on it again (by default the one that worked it last), with the feedback '
         'and its previous result as context. Use this, not kanban_request_changes, for lane cards. '
         'The card returns to Review when the run ends.',
-        {'kanban_task': _p('string', 'Id of a lane card previously worked in this conversation.', minLength=1),
+        {'kanban_task': _p('string', 'Id of a teammates-lane card that is in Review (for example t_1234abcd).', minLength=1),
          'feedback': _p('string', 'What to change, at most 4000 characters.', minLength=1, maxLength=4000),
          'teammate': _p('string', 'Teammate name; defaults to the one that worked this card last.'),
          'wait_seconds': _p('number', 'Seconds to wait for the new run, 0-300 (0 = return at once).',

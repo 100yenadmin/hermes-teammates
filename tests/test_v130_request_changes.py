@@ -92,13 +92,32 @@ def test_foreign_lane_does_not_mutate(rig, reviewed):
     assert snapshot(rig, task_id) == before
 
 
-def test_another_conversations_card_is_private(rig, reviewed):
+def test_card_from_another_conversation_uses_only_card_data(rig, reviewed):
+    """A later review chat can send the card back. It gets the teammate from the card's run metadata and the
+    previous result from the card itself, never from the other conversation's ledger rows (goal, run id)."""
     task_id, previous_id = reviewed
-    before = snapshot(rig, task_id)
     reply = rig.service.request_changes('another-session', task_id, 'Fix it')
-    assert reply['error'] == 'kanban_task_not_yours'
-    assert previous_id not in json.dumps(reply) and 'Original goal' not in json.dumps(reply)
+    assert reply['ok'] and reply['reopened'] is True and reply['from_card'] is True
+    assert reply['teammate'] == 'worker' and 'previous_run_id' not in reply
+    request = rig.lifecycle.requests[-1]
+    assert 'Original goal' not in request.goal and 'Revise the fixture' in request.goal
+    assert "Changes requested on this card:\nFix it\n\nThe card's last result, as recorded on the board:\ndone" in request.context
+    assert previous_id not in json.dumps(reply)
+    assert snapshot(rig, task_id)[0].status == 'running'
+    rig.lifecycle.state = 'SUCCEEDED'
+    assert rig.service.check('another-session', reply['run_id'])['kanban_outcome'] == 'review'
+
+
+def test_card_without_teammate_marker_needs_a_teammate(rig, reviewed, monkeypatch):
+    task_id, _ = reviewed
+    before = snapshot(rig, task_id)
+    monkeypatch.setattr(rig.host, 'latest_run', lambda conn, tid: SimpleNamespace(metadata=None, summary='Board result'))
+    reply = rig.service.request_changes('another-session', task_id, 'Fix it')
+    assert reply['error'] == 'teammate_required'
     assert snapshot(rig, task_id) == before
+    reply = rig.service.request_changes('another-session', task_id, 'Fix it', teammate='worker')
+    assert reply['ok'] and reply['from_card'] is True
+    assert 'as recorded on the board:\nBoard result' in rig.lifecycle.requests[-1].context
 
 
 @pytest.mark.parametrize('name,expected', [('missing', 'unknown_teammate'), ('invalid', 'config_error')])

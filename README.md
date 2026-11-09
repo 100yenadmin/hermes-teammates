@@ -92,7 +92,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
    `teammate_request_changes(kanban_task=…, feedback=…)`: it reopens the card, records the feedback as a comment and
-   starts a teammate again with the feedback and previous result as context. The manual route remains
+   starts a teammate again with the feedback and previous result as context. It works from any chat: for a card another conversation worked, it takes the teammate and the last result from the card itself. The manual route remains
    `hermes kanban reopen-review <card> --reason "what to change"`, followed by `teammate_assign` with that context.
    (Hermes' `kanban_request_changes` tool only returns an active review run to its implementer, and a lane card in
    review has none.)
