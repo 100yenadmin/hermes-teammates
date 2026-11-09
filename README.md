@@ -30,8 +30,8 @@ input.
   a card. An approval (`kanban_complete`) finishes it and unlocks the cards that depend on it.
 - **Background runs with a memory.** Teammates are real Hermes subagents started through the public plugin
   subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
-  per-profile ledger records every run's goal, status and result across turns. Follow-ups carry a digest of earlier
-  results, so nothing is pasted between chats.
+  per-profile ledger records every run's goal, status and result across turns. A follow-up in the same conversation
+  carries a digest of that teammate's earlier results, so you don't paste them back in.
 
 Stock Hermes; no patched core.
 
@@ -90,7 +90,11 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
 6. **Kanban teammates lane.** Assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
-   **blocked** with the reason. You, or your agent, accept or request changes with the usual Kanban tools.
+   **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, run
+   `hermes kanban reopen-review <card> --reason "what to change"`: Hermes records the request as a comment and puts
+   the card back to ready in the lane, and the agent then gives it to a teammate again with the feedback as context.
+   (Hermes' `kanban_request_changes` tool only returns an active review run to its implementer, and a lane card in
+   review has none.)
    Lane cards keep the lane as their assignee; the `teammate` argument picks who works each one. So that agents
    set cards up this way from the start, each new session's prompt carries one short paragraph saying so (on
    Hermes builds with plugin prompt sections; it is left out while the roster has no usable teammate). One request
@@ -113,6 +117,48 @@ hermes plugins install 100yenadmin/hermes-teammates --enable
 
 Then restart the gateway (or the CLI session) so the tools register.
 
+## Quick start: the team from the screenshots
+
+This is the roster behind the screenshots above. Paste it into the profile's `config.yaml`; in Hermes Desktop, the
+same three entries go in the **Teammates** setting as JSON (see [Configure](#configure)).
+
+```yaml
+plugins:
+  entries:
+    hermes-teammates:
+      settings:
+        teammates:
+          scout:
+            description: "Researcher: finds the facts a task needs and quotes sources."
+            instructions: "Find the facts asked for with at most three web searches, then stop searching and answer from what you found. Quote your sources. Keep it under 150 words."
+            toolsets: [web]
+          writer:
+            description: "Writer: turns research into a clear, short draft."
+            instructions: "Write the requested piece from the material you are given. Plain words, short sections, under 200 words. Reply with the piece itself; don't create files."
+            toolsets: [todo]
+          reviewer:
+            description: "Editor: checks a draft against its brief and returns the corrected version."
+            instructions: "Check the draft you are given against its brief and research. Answer in one final reply, text only. Line 1: a one-line verdict that names the problems you found. Then those problems (at most 3, one line each), then the corrected version in under 200 words. Don't call tools or create files."
+            toolsets: [todo]
+```
+
+The writer and the reviewer get only `todo`, so they have no web, file or terminal tools. If the profile has MCP
+servers, also set `delegation.inherit_mcp_toolsets: false`, or Hermes adds their tools back. The chat needs
+Hermes' `kanban` toolset so the agent can create and approve cards.
+
+Then send one message:
+
+> We're launching a weekend coffee pop-up. Put three linked cards on the Kanban board for the team: research what
+> makes pop-ups succeed, write a one-page launch plan from the research, and review the plan against the brief.
+> Give the research card to the scout. Each time a card lands in Review, approve it and give the next card to the
+> right teammate, with the previous card's result as context.
+
+You should see three linked cards in the `teammates` lane. Each lands in **Review**; the agent approves it and gives
+the next card to the next teammate. The agent's last reply sums up what each teammate did. On a fast model the
+chain takes about two minutes: our daily check finished all three cards in 131 seconds with no errors. Watch it on
+Hermes Desktop's Kanban page or with `hermes kanban watch`. The approvals come from your message: without "approve
+it", each finished card waits in Review for you.
+
 ## Configure
 
 **In Hermes Desktop** (0.21.5 or newer), open the plugin's settings. On current builds they are under
@@ -120,7 +166,7 @@ Then restart the gateway (or the CLI session) so the tools register.
 
 | Setting | What it does | Valid values (invalid teammates are refused; other settings fall back to defaults) |
 |---|---|---|
-| **Teammates** | Your roster, as a JSON object (example below) | Names: lowercase letters, digits, `-` or `_`, up to 32 characters |
+| **Teammates** | Your roster, as a JSON object (example below) | Names: up to 32 characters, starting with a lowercase letter, then lowercase letters, digits, `-` or `_` |
 | **Kanban lane** | Kanban assignee for teammate cards | Any name that is not a Hermes profile, `none`, `null` or `-`; case and surrounding spaces are ignored; default `teammates` |
 | **Kanban claim TTL (seconds)** | How long a claim on a lane card lasts between heartbeats | 60–86400; default 900 |
 | **Max live runs per conversation** | Teammate runs one conversation may have in flight | 1–16; default 4 |
@@ -350,7 +396,7 @@ output, goals or child error text. Runs already read with check/wait or stopped 
 |---|---|---|
 | `model` | any supported version | Must be served by the child's selected provider (normally inherited from the parent) |
 | `delegation:` config (provider, model, reasoning effort) | provider and model: builds with #137167; reasoning effort: any supported version | Teammates use the parent's provider and model; `delegation.reasoning_effort` still applies to every teammate |
-| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12; first in the v0.21.7 canary of 2026-10-13; not yet in a stable release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
+| `route` (a configured Hermes provider name, such as `openrouter`) | `SubagentLaunchRequest.provider`, in Hermes builds with NousResearch/hermes-agent#137167 (on Hermes main since 2026-10-12, first in the v0.21.7 canary of 2026-10-13, and in the 0.23.0 release) | Listed in the run's `unsupported` field; the run uses the parent's provider. With support, a routed teammate does not use the `delegation:` provider settings (provider, model, base URL, API mode, request overrides); the global `delegation.reasoning_effort` still applies on any build (a per-teammate `reasoning_effort` is the separate row below). Always set `model` together with `route`. |
 | `reasoning_effort` | `SubagentLaunchRequest.reasoning_effort` (upstream PR #89936) | Listed in the run's `unsupported` field |
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |

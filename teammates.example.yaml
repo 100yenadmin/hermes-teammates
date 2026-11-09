@@ -8,7 +8,8 @@
 #           roster_file: teammates.yaml     # relative to this profile's Hermes home, or an absolute path
 #
 # The file replaces the Teammates setting. Each teammate is checked exactly like the setting; problems are
-# listed by /teammates. Names: lowercase letters, digits, - or _, up to 32 characters.
+# listed by /teammates. Names: up to 32 characters, starting with a lowercase letter, then lowercase
+# letters, digits, - or _.
 #
 # Per teammate:
 #   description       (shown to your agent; how it picks a teammate)
