@@ -42,11 +42,11 @@ that and changes who decides what a subagent is.
 
 | | `delegate_task` (built in) | Teammates |
 |---|---|---|
-| The brief | The model writes the goal and context on every call | You write each teammate's instructions once, in settings; the model picks a name |
-| Tools | Every child inherits the parent's toolsets, minus a block list | Each teammate has its own toolsets, narrowed from the parent's: a reviewer on `todo` gets no web, file or terminal tools |
+| The brief | The model writes the whole brief, goal and context, on every call | Each teammate's standing instructions live in settings; the model picks a name and gives the task's goal |
+| Tools | Every child inherits the parent's toolsets, minus a block list | Each teammate has its own toolsets, narrowed from the parent's: a reviewer on `todo` gets no web, file or terminal tools (Hermes adds inherited MCP toolsets back unless `delegation.inherit_mcp_toolsets` is false) |
 | Model | The same delegation model for every child | Optionally one per teammate |
-| Record | `action='list'` shows live children; a result arrives once | A SQLite ledger per profile keeps every run's goal, status and result across turns and restarts; follow-ups carry a digest |
-| Kanban | Board cards go to whole Hermes profiles | A `teammates` lane worked by your roster inside the chat; each card ends in review, never done |
+| Record | `action='list'` shows live children; a result arrives once | A SQLite ledger per profile keeps every run's goal, status and result summary (up to 8,000 characters) across turns and restarts; follow-ups carry a digest |
+| Kanban | Board cards go to whole Hermes profiles | A `teammates` lane worked by your roster inside the chat; a finished card goes to review and a failed run blocks its card; the plugin never marks a card done |
 
 Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are spawned with `toolsets=None`,
 "always inherit the parent's toolsets").
