@@ -5,6 +5,7 @@ import threading
 from uuid import uuid4
 
 INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().hex)
+RESULT_CAP = 262144
 _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
               'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
@@ -20,6 +21,9 @@ CREATE TABLE IF NOT EXISTS runs (
  instance_id TEXT NOT NULL, pid INTEGER NOT NULL, kanban_task TEXT, kanban_claim TEXT,
  kanban_outcome TEXT, created_at REAL NOT NULL, completed_at REAL, summary TEXT, error TEXT,
  result_hash TEXT);
+CREATE TABLE IF NOT EXISTS run_results (
+ run_id TEXT PRIMARY KEY REFERENCES runs(run_id), text TEXT NOT NULL,
+ chars INTEGER NOT NULL, truncated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 INSERT OR IGNORE INTO meta VALUES ('schema_version', '1');
 '''
@@ -41,7 +45,7 @@ class Store:
                         if name not in columns:
                             conn.execute(f'ALTER TABLE runs ADD COLUMN {name} {kind}')
                     conn.execute('CREATE INDEX IF NOT EXISTS runs_owner_status ON runs(owner_session_id, status)')
-                    conn.execute("UPDATE meta SET value='4' WHERE key='schema_version'")
+                    conn.execute("UPDATE meta SET value='5' WHERE key='schema_version'")
                 if self.path:
                     _schema_paths.add(self.path)
         self.columns = {r['name'] for r in conn.execute('PRAGMA table_info(runs)')}
@@ -137,7 +141,11 @@ class Store:
                 (outcome, run_id))
         return cursor.rowcount == 1
 
-    def finish(self, run_id, status, **values):
+    def result(self, run_id):
+        row = self.conn.execute('SELECT * FROM run_results WHERE run_id=?', (run_id,)).fetchone()
+        return dict(row) if row else None
+
+    def finish(self, run_id, status, *, full_result=None, **values):
         if status not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}:
             raise ValueError('not a terminal status')
         values = dict(values, status=status)
@@ -146,4 +154,8 @@ class Store:
             cursor = self.conn.execute(
                 f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=? AND status='running'",
                 (*values.values(), run_id))
+            if cursor.rowcount == 1 and full_result is not None:
+                text = full_result[:RESULT_CAP]
+                self.conn.execute('INSERT INTO run_results (run_id, text, chars, truncated) VALUES (?, ?, ?, ?)',
+                                  (run_id, text, len(text), int(len(full_result) > RESULT_CAP)))
         return cursor.rowcount == 1

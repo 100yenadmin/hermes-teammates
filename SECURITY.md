@@ -48,7 +48,8 @@ with `gh` only after the user approves that draft.
   - Hermes's lifecycle handles enforce the same rule independently.
 - **Data at rest.**
   - The ledger is a SQLite file at `<HERMES_HOME>/plugin-data/hermes-teammates/data.db`, per profile.
-  - It holds each run's goal, status, summary or error (clipped), provider/model names and timestamps.
+  - It holds each run's goal, status, clipped summary or error, provider/model names and timestamps.
+  - It also retains complete final results up to 262,144 characters per run (256 KB of text; Unicode can take more bytes), scoped to the same conversation. Text past the cap is omitted and flagged.
   - It holds no transcripts, hidden reasoning or credentials.
   - Remove the file to erase the history.
 - **Kanban.**
