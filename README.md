@@ -4,7 +4,7 @@
 
 **Give your Hermes agent a fixed team: named teammates with roles, follow-ups that keep context, and a Kanban review lane.**
 
-▶ **[Watch the 90-second demo](https://x.com/ElectricSheepIO/status/2119799763600306451)**
+▶ **[Watch the 86-second demo](https://x.com/ElectricSheepIO/status/2119799763600306451)**
 
 [![Latest release](https://img.shields.io/github/v/release/100yenadmin/hermes-teammates?label=release)](https://github.com/100yenadmin/hermes-teammates/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/100yenadmin/hermes-teammates)](LICENSE)
