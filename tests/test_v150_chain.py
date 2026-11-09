@@ -358,9 +358,17 @@ def test_unfinished_parent_is_never_quoted_as_a_result(board, monkeypatch):
     with board.host.connection() as conn:
         task = board.host.get_task(conn, first)
     monkeypatch.setattr(board.host, 'get_task', lambda conn, task_id, _real=board.host.get_task:
-                        SimpleNamespace(**{**vars(_real(conn, task_id)), 'status': 'archived'}) if task_id == first
+                        SimpleNamespace(**{**vars(_real(conn, task_id)), 'status': 'blocked'}) if task_id == first
                         else _real(conn, task_id))
     assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
     ctx = board.lifecycle.requests[-1].context
-    assert f'From card {first} (Research):\n(not a result: this card is archived)' in ctx
+    assert f'From card {first} (Research):\n(not a result: this card is blocked)' in ctx
     assert 'Parent result verbatim' not in ctx
+
+
+def test_parent_approved_then_archived_still_hands_over_its_result(board):
+    first, second = approved_first(board)
+    with board.host.connection() as conn:
+        assert board.host.kanban.archive_task(conn, first)
+    assert board.service.assign('s', 'other', 'Second', kanban_task=second)['ok']
+    assert 'Parent result verbatim' in board.lifecycle.requests[-1].context

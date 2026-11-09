@@ -406,7 +406,11 @@ class TeammatesService:
                 task = self.host.get_task(conn, parent)
                 prefix = f'From card {parent} ({clip(task.title if task else "", 200)}):\n'
                 status = getattr(task, 'status', None)
-                summary = ((summaries.get(parent) or '(no result recorded)') if status == 'done' else
+                finished = status == 'done'
+                if status == 'archived':  # approved, then archived to tidy the board: its result still counts
+                    with suppress(Exception):
+                        finished = getattr(self.host.latest_run(conn, parent), 'outcome', None) == 'completed'
+                summary = ((summaries.get(parent) or '(no result recorded)') if finished else
                            f'(not a result: this card is {status or "missing"})')
                 entries.append(budget_clip(prefix, share) + budget_clip(summary, share - len(prefix), tail=True))
         return budget_clip(header + '\n\n'.join(entries), budget)
