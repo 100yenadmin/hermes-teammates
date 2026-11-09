@@ -23,7 +23,7 @@ Do not open a public issue for them.
 
 ## Model
 
-Hermes Teammates is an in-agent plugin. It adds seven tools, one slash command and one read-only skill, and it runs
+Hermes Teammates is an in-agent plugin. It adds eight tools, one slash command and one read-only skill, and it runs
 subagents only through Hermes's public plugin lifecycle API (`ctx.subagent_lifecycle`). The skill
 (`teammates-report-problem`) has no code of its own: it guides the agent to draft a bug report, and the agent files it
 with `gh` only after the user approves that draft.
@@ -53,6 +53,7 @@ with `gh` only after the user approves that draft.
   - It holds no transcripts, hidden reasoning or credentials.
   - Remove the file to erase the history.
 - **Kanban.**
+  - `teammate_chain` writes cards only through Hermes' `kanban_create` in the configured lane and never completes a card.
   - The plugin claims a card only if it is assigned to the configured lane, the lane is not a Hermes profile name,
     and the card is `ready`.
   - On success it moves the card to `review` without naming a reviewer, so no profile is spawned automatically.

@@ -297,6 +297,109 @@ class TeammatesService:
             return len(store.list(session_id, status='running')) >= config['max_live_runs']
 
     @safe
+    def chain(self, session_id, steps, start=False, wait_seconds=0, parent_agent=None):
+        if self.host.isolated:
+            return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if not session_id:
+            return error('no_session')
+        start = False if start is None else start
+        wait_seconds = 0 if wait_seconds is None else wait_seconds
+        if not isinstance(steps, list) or not 1 <= len(steps) <= 8:
+            return error('invalid_chain', 'steps must be an array of 1 to 8 objects')
+        for index, step in enumerate(steps):
+            if not isinstance(step, dict):
+                return error('invalid_chain', f'steps[{index}] must be an object')
+            for field in ('title', 'teammate', 'body'):
+                value = step.get(field, '' if field == 'body' else None)
+                if (not isinstance(value, str) or (field != 'body' and not value.strip())
+                        or (field == 'title' and len(value.strip()) > 200)
+                        or (field == 'body' and len(value) > 4000)):
+                    return error('invalid_chain', f'steps[{index}].{field} is invalid')
+        if type(start) is not bool:
+            return error('invalid_chain', 'start must be a boolean')
+        if type(wait_seconds) is not int or not 0 <= wait_seconds <= 300:
+            return error('invalid_chain', 'wait_seconds must be an integer from 0 to 300')
+        config = parse(self.config_reader())
+        for step in steps:
+            refusal = self._teammate_error(config, step['teammate'])
+            if refusal:
+                return dict(refusal, message=f"{step['teammate']}: {refusal['message']}")
+        if not self.host.kanban_available:
+            return error('kanban_unavailable')
+        lane = config['lane']
+        if self.host.lane_is_profile(lane) is True:
+            return error('lane_is_profile')
+        dispatch = getattr(self.host.ctx, 'dispatch_tool', None)
+        if not callable(dispatch):
+            return error('unsupported', 'This Hermes build has no dispatch_tool support for kanban_create.')
+        parent_agent = parent_agent if parent_agent is not None else self.host.active_parent()
+        digest = hashlib.sha256((session_id + json.dumps(
+            steps, sort_keys=True, separators=(',', ':'), ensure_ascii=False)).encode()).hexdigest()[:16]
+        cards, created, attempted, existing = [], [], set(), None
+        try:
+            with self.host.connection() as conn:
+                existing = {task.id for task in self.host.kanban.list_tasks(conn)}
+            for index, step in enumerate(steps):
+                args = dict(title=step['title'].strip(), assignee=lane,
+                            body=(step.get('body', '') + '\n' if step.get('body') else '') +
+                                 f"Teammate: {step['teammate']}",
+                            idempotency_key=f'hermes-teammates:chain:{digest}:{index}')
+                if cards:
+                    args['parents'] = [cards[-1]['kanban_task']]
+                attempted.add(args['idempotency_key'])
+                reply = json.loads(dispatch('kanban_create', args, parent_agent=parent_agent))
+                if not isinstance(reply, dict) or reply.get('error') or not reply.get('task_id') or reply.get('ok') is False:
+                    raise RuntimeError(reply.get('error') or reply.get('message') or str(reply)
+                                       if isinstance(reply, dict) else str(reply))
+                task_id = reply['task_id']
+                if task_id not in existing:
+                    created.append(task_id)
+                with self.host.connection() as conn:
+                    task = self.host.get_task(conn, task_id)
+                cards.append(dict(kanban_task=task_id, title=step['title'].strip(),
+                                  teammate=step['teammate'], status=task.status))
+        except Exception as exc:
+            # Core may have committed before a malformed reply reached us. Recover those ids too,
+            # while preserving every card that existed before this call (including idempotent retries).
+            if existing is not None:
+                with suppress(Exception), self.host.connection() as conn:
+                    created = list(dict.fromkeys(created + [task.id for task in self.host.kanban.list_tasks(conn)
+                                   if task.id not in existing and task.idempotency_key in attempted]))
+            archived = []
+            for task_id in created:
+                with suppress(Exception), self.host.connection() as conn:
+                    if self.host.kanban.archive_task(conn, task_id):
+                        archived.append(task_id)
+            return dict(error('kanban_chain_failed', clip(exc, 500)), archived=archived)
+        result = dict(ok=True, lane=lane, cards=cards, note=(
+            'Give each card to its teammate with teammate_assign(kanban_task=…, teammate=…) when it is ready; '
+            'approve each card in Review with kanban_complete. '
+            "A card's teammate receives its parent cards' results automatically."))
+        if start:
+            result['started'] = self.assign(session_id, steps[0]['teammate'], steps[0]['title'],
+                                            kanban_task=cards[0]['kanban_task'], parent_agent=parent_agent,
+                                            wait_seconds=wait_seconds)
+        return result
+
+    def _parent_results(self, task_id, budget):
+        if not all(callable(getattr(self.host.kanban, name, None)) for name in ('parent_ids', 'latest_summaries')):
+            return ''
+        with self.host.connection() as conn:
+            parents = self.host.kanban.parent_ids(conn, task_id)
+            if not parents:
+                return ''
+            summaries = self.host.kanban.latest_summaries(conn, parents)
+            header = 'Results from the cards this one depends on (quoted verbatim):\n\n'
+            share = max(0, (budget - len(header) - 2 * (len(parents) - 1)) // len(parents))
+            entries = []
+            for parent in parents:
+                task = self.host.get_task(conn, parent)
+                prefix = f'From card {parent} ({clip(task.title if task else "", 200)}):\n'
+                summary = summaries.get(parent) or '(no result recorded)'
+                entries.append(budget_clip(prefix, share) + budget_clip(summary, share - len(prefix), tail=True))
+        return budget_clip(header + '\n\n'.join(entries), budget)
+
+    @safe
     def request_changes(self, session_id, kanban_task, feedback, teammate=None, parent_agent=None, wait_seconds=0):
         return self._admit_and_wait(session_id, wait_seconds, lambda: self._request_changes(
             session_id, kanban_task, feedback, teammate, parent_agent))
@@ -457,6 +560,12 @@ class TeammatesService:
             if context:
                 # Even an entirely omitted caller context needs its marker and separator.
                 remaining -= len(f'[… {len(str(context))} characters omitted]') + 2
+            if task:
+                with suppress(Exception):  # Optional board-result helpers must never prevent a launch.
+                    parent_results = self._parent_results(task.id, min(12000, remaining - source_reserve))
+                    if parent_results:
+                        parts.append(parent_results)
+                        remaining -= len(parent_results) + 2
             if follow_up and config['followup_context_chars']:
                 with self.store_factory() as store:
                     previous = store.list(session_id, teammate=teammate, terminal=True)

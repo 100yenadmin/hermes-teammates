@@ -27,7 +27,8 @@ input.
 - **A teammates lane on Hermes' Kanban board.** Hermes hands board cards to whole Hermes profiles. This lane is
   worked by your roster, inside one conversation. The plugin claims the card and keeps the claim alive while the
   teammate works. It writes the result onto the card and moves the card to **review**; the plugin never completes
-  a card. An approval (`kanban_complete`) finishes it and unlocks the cards that depend on it.
+  a card. An approval (`kanban_complete`) finishes it and unlocks the cards that depend on it;
+  `teammate_chain` creates a sequence in one call, and parent cards' results travel automatically.
 - **Background runs with a memory.** Teammates are real Hermes subagents started through the public plugin
   subagent lifecycle API (`ctx.subagent_lifecycle`). The agent can wait for them, steer them or stop them. A
   per-profile ledger records every run's goal, status and result across turns. A follow-up in the same conversation
@@ -99,9 +100,10 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
    `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
    Refused cancellations leave completed work intact.
-6. **Kanban teammates lane.** Assign cards to the `teammates` lane, which is not a Hermes profile, so the
+6. **Kanban teammates lane.** Create 1–8 linked cards with `teammate_chain`, or assign cards to the `teammates` lane, which is not a Hermes profile, so the
    dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
-   the teammate works. On success the card moves to **review** with the teammate's summary; on failure it is
+   the teammate works. Parent cards' latest results travel automatically with the card's title and body;
+   the agent no longer needs to pass those results as context. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
    `teammate_request_changes(kanban_task=…, feedback=…)`: it reopens the card, records the feedback as a comment and
    starts a teammate again with the feedback and previous result as context; it never completes a card. It works from any chat: for a card another conversation worked, it takes the teammate and the last result from the card itself. The manual route remains
@@ -165,6 +167,8 @@ Then send one message:
 > makes pop-ups succeed, write a one-page launch plan from the research, and review the plan against the brief.
 > Give the research card to the scout. Each time a card lands in Review, approve it and give the next card to the
 > right teammate, with the previous card's result as context.
+
+The agent may now use `teammate_chain` to create those linked cards in one call; parent results travel automatically.
 
 You should see three linked cards in the `teammates` lane. Each lands in **Review**; the agent approves it and gives
 the next card to the next teammate. The agent's last reply sums up what each teammate did. On a fast model the
@@ -272,6 +276,7 @@ Ask in plain language:
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0) |
 | `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
+| `teammate_chain` | Creates 1–8 linked lane cards from `steps` (`title`, `teammate`, optional `body`); optional `start` (default false) starts the first, with `wait_seconds` (integer 0–300, default 0). Each teammate receives its parent cards' results. Approve each card with `kanban_complete` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60); optional `offset` (integer ≥ 0) pages the result in 8,000-character chunks |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
@@ -294,7 +299,7 @@ and [main revision](https://github.com/NousResearch/hermes-agent/blob/3b63f7b0a4
 limits the catalog listing, not activation. Neither `defer: []` nor a smaller schema keeps teammate tools direct.
 There is no supported selective opt-out at these revisions; [upstream request](https://github.com/NousResearch/hermes-agent/issues/135762).
 
-`teammate_assign`, `teammate_request_changes`, `teammate_wait`, `teammate_check` and `teammates_roster` include short catalog hints and
+`teammate_assign`, `teammate_request_changes`, `teammate_chain`, `teammate_wait`, `teammate_check` and `teammates_roster` include short catalog hints and
 schema examples for the bridge. If the tool is deferred, use `tool_search` to find its name, then
 `tool_describe` for its parameters, then `tool_call` to invoke it. Skip search when the catalog already shows
 the exact name. Describing a tool does not make it directly callable. For example, after describing the roster:
@@ -441,6 +446,7 @@ output, goals or child error text. Runs already read with check/wait or stopped 
 | steering | a lifecycle `steer` (Hermes builds with #137167); older builds fall back to `delegate_task` steer with the live parent | `teammate_message` returns `unsupported` |
 | `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
 | `teammate_request_changes` | Kanban `reopen_review_task` | Returns `unsupported` |
+| `teammate_chain` | Hermes `kanban_create` through `ctx.dispatch_tool` | Returns `unsupported` when dispatch is unavailable |
 | push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 

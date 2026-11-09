@@ -4,7 +4,7 @@ import json
 import pytest
 
 
-PARENT_TOOLS = ('teammate_assign', 'teammate_request_changes', 'teammate_wait', 'teammate_check', 'teammates_roster')
+PARENT_TOOLS = ('teammate_assign', 'teammate_request_changes', 'teammate_chain', 'teammate_wait', 'teammate_check', 'teammates_roster')
 
 
 @pytest.fixture
@@ -52,6 +52,13 @@ def test_described_example_resolves_validates_and_calls_plugin(catalog, rig, nam
     args = envelope['calls'][0]['arguments']
     if name == 'teammate_assign':
         args['teammate'] = 'worker'
+    if name == 'teammate_chain':
+        from tools import kanban_tools
+        # The catalog fixture has a fresh registry; install the real core handler in it.
+        core = next(item for item in kanban_tools._TOOLS if item[0] == 'kanban_create')
+        registry.register(name=core[0], toolset='kanban', schema=core[1], handler=core[2])
+        rig.host.ctx.dispatch_tool = registry.dispatch
+        args['steps'][0]['teammate'] = 'worker'
     if name == 'teammate_request_changes':
         from hermes_cli.kanban_db import create_task
         with rig.host.connection() as conn:

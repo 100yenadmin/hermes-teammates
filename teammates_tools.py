@@ -59,6 +59,17 @@ SPECS = {
          'teammate': _p('string', 'Teammate name; defaults to the one that worked this card last.'),
          'wait_seconds': _p('number', 'Seconds to wait for the new run, 0-300 (0 = return at once).',
                             minimum=0, maximum=300, default=0)}, ['kanban_task', 'feedback']),
+    'teammate_chain': (
+        'Create 1–8 linked cards in the teammates lane in one call; each card waits on the previous one. '
+        "Optionally start the first card. A card's teammate receives its parent cards' results; approve each card with kanban_complete.",
+        {'steps': _p('array', 'Cards in execution order.', minItems=1, maxItems=8,
+                     items={'type': 'object', 'properties': {
+                         'title': _p('string', 'Card title, 1–200 characters after strip.', minLength=1, maxLength=200),
+                         'teammate': _p('string', 'Teammate name from the roster.'),
+                         'body': _p('string', 'Optional card details.', maxLength=4000)}, 'required': ['title', 'teammate']}),
+         'start': _p('boolean', 'Start the first card.', default=False),
+         'wait_seconds': _p('integer', 'Seconds to wait when start is true.', minimum=0, maximum=300, default=0)},
+        ['steps']),
     'teammate_check': (
         "Get a teammate run's status and, once finished, its result. wait_seconds waits up to 60 s for it to finish "
         "first; if it is still running, call again later. Includes summary_clipped, summary_chars, role_hash and "
@@ -96,6 +107,7 @@ _BRIDGE_EXAMPLES = {
     'teammates_roster': ('List roster', {}),
     'teammate_assign': ('Assign a goal', {'teammate': 'reviewer', 'goal': 'Review the requested diff.'}),
     'teammate_request_changes': ('Request changes', {'kanban_task': 'CARD_ID', 'feedback': 'Address the review feedback.'}),
+    'teammate_chain': ('Create chain', {'steps': [{'title': 'Review the diff', 'teammate': 'reviewer'}]}),
     'teammate_check': ('Check a run', {'run_id': 'RUN_ID'}),
     'teammate_wait': ('Wait for runs', {'run_ids': ['RUN_ID']}),
 }
@@ -136,6 +148,9 @@ def handler(name, get_service):
                 value = service.request_changes(session_id, args.get('kanban_task'), args.get('feedback'),
                                                 teammate=args.get('teammate'), parent_agent=kwargs.get('parent_agent'),
                                                 wait_seconds=args.get('wait_seconds', 0))
+            elif name == 'teammate_chain':
+                value = service.chain(session_id, args.get('steps'), start=args.get('start'),
+                                      wait_seconds=args.get('wait_seconds'), parent_agent=kwargs.get('parent_agent'))
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0),
                                       **({'offset': args['offset']} if args.get('offset') is not None else {}))
