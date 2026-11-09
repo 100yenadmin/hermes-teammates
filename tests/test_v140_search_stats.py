@@ -199,11 +199,14 @@ def test_stats_dropped_before_teammates_to_keep_16k_bound(rig):
     assert value['ok'] and len(json.dumps(value, ensure_ascii=False)) <= 16000
     assert len(value['teammates']) == 30
     assert any('stats' not in entry for entry in value['teammates'])
+    assert value['stats_omitted'] == sum('stats' not in entry for entry in value['teammates'])
     rig.raw['teammates'].update({f'overflow{i}': {'description': 'd' * 300} for i in range(70)})
     value = rig.service.roster('s', include_runs=False)
     assert len(json.dumps(value, ensure_ascii=False)) <= 16000
     assert len(value['teammates']) < 100
     assert all('stats' not in entry for entry in value['teammates'])
+    assert value['stats_omitted'] == 30
+    assert 'stats_omitted' not in rig.service.roster('s', teammate='worker0')
 
 
 @pytest.mark.parametrize('offset', [0, 1])
@@ -216,3 +219,20 @@ def test_trimmed_page_counts_include_offset(rig, offset):
     assert value['runs_total'] == 25
     assert value['runs_omitted'] == 25 - offset - len(value['runs'])
     assert len(json.dumps(value, ensure_ascii=False)) <= 16000
+
+
+def test_handler_treats_null_filters_as_not_given(rig):
+    from hermes_teammates.teammates_tools import handler
+    add_run(rig)
+    reply = json.loads(handler('teammates_roster', lambda: rig.service)(
+        dict(status=None, search=None, since=None, limit=None, offset=None), session_id='s'))
+    assert reply['ok'] and len(reply['runs']) == 1 and 'runs_total' not in reply
+
+
+@pytest.mark.parametrize('median,text', [(41.0, 'median 41 s'), (4.25, 'median 4.2 s'), (1234567.0, 'median 1,234,567 s')])
+def test_stats_suffix_never_uses_scientific_notation(median, text):
+    from hermes_teammates.teammates_tools import render_roster
+    stats = dict(runs=1, succeeded=1, failed=0, cancelled=0, median_duration_seconds=median, last_run_at=1)
+    value = dict(ok=True, teammates=[dict(name='worker', description='d', stats=stats)], invalid_teammates=[],
+                 config_errors=[], runs=[], lane={}, features={})
+    assert text in render_roster(value)

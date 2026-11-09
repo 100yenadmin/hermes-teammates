@@ -1052,6 +1052,7 @@ class TeammatesService:
             value['roster_file'] = clip(config['roster_path'], 500)  # only when set, so 1.0 payloads are unchanged
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.
         stats_entries = [entry for entry in teammates if 'stats' in entry]
+        stats_total = len(stats_entries)
         trim_lists = ((invalid, runs, lane['open_tasks'], value['config_errors'], stats_entries) if selected is not None else
                       (runs, lane['open_tasks'], value['config_errors'], stats_entries, teammates, invalid))
         open_cards = sum(lane_counts.get(status, 0) for status in ('ready', 'running', 'review', 'blocked'))
@@ -1064,7 +1065,8 @@ class TeammatesService:
                 value['runs_total'] = total_runs
             for holder, key, count in ((value, 'runs_omitted', omitted),
                                        (lane, 'cards_omitted', open_cards - len(lane['open_tasks'])),
-                                       (lane, 'cards_waiting', lane_counts.get('todo', 0))):
+                                       (lane, 'cards_waiting', lane_counts.get('todo', 0)),
+                                       (value, 'stats_omitted', stats_total - len(stats_entries))):
                 if count > 0:
                     holder[key] = count
                 else:
