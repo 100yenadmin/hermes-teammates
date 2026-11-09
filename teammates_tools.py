@@ -31,7 +31,8 @@ SPECS = {
         'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait. '
         'Pass wait_seconds to get the result in the same call.',
         {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
-         'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs.'),
+         'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs. '
+                         'With kanban_task, may be omitted: the card title is used.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
          'source_run_ids': _p('array', 'Optional: run_ids of finished runs in this conversation, from any teammate, '
                                       'whose results this teammate should get verbatim (for example the scout\'s '
