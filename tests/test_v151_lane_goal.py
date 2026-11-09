@@ -58,3 +58,28 @@ def test_handler_accepts_a_lane_assignment_without_goal(rig):
     reply = json.loads(fn({'teammate': 'worker', 'kanban_task': card}, parent_agent=SimpleNamespace(session_id='owner')))
     assert reply.get('ok') is not False and reply['kanban_task'] == card, reply
     assert rig.lifecycle.requests[-1].goal == 'Write the launch plan'
+
+
+def test_card_read_failure_without_goal_is_invalid_goal_and_launches_nothing(rig, monkeypatch):
+    card = lane_card(rig)
+    def broken(conn, task_id):
+        raise RuntimeError('board unreadable')
+    monkeypatch.setattr(rig.host, 'get_task', broken)
+    assert rig.service.assign('s', 'worker', None, kanban_task=card)['error'] == 'invalid_goal'
+    assert rig.lifecycle.requests == []
+
+
+def test_non_string_goal_is_refused_even_with_a_card(rig):
+    card = lane_card(rig)
+    assert rig.service.assign('s', 'worker', 7, kanban_task=card)['error'] == 'invalid_goal'
+    assert rig.lifecycle.requests == []
+
+
+def test_card_title_over_the_goal_limit_is_still_refused(rig, monkeypatch):
+    from types import SimpleNamespace
+    card = lane_card(rig)
+    real = rig.host.get_task
+    monkeypatch.setattr(rig.host, 'get_task', lambda conn, task_id: SimpleNamespace(
+        **{**vars(real(conn, task_id)), 'title': 'x' * 12001}))
+    assert rig.service.assign('s', 'worker', None, kanban_task=card)['error'] == 'invalid_goal'
+    assert rig.lifecycle.requests == []
