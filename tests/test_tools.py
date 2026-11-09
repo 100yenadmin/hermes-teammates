@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize('name,args', [('teammates_roster',{}), ('teammate_assign',{'teammate':'worker','goal':'goal'}),
-                                      ('teammate_check',{}), ('teammate_message',{}), ('teammate_stop',{})])
+                                      ('teammate_chain',{}), ('teammate_check',{}), ('teammate_message',{}), ('teammate_stop',{})])
 def test_handlers_forward_session_and_never_raise(rig, name, args):
     from hermes_teammates.teammates_tools import handler
     fn = handler(name, lambda: rig.service)
@@ -33,7 +33,7 @@ def test_schemas_and_registration_are_lazy_and_dynamic(plugin):
         def subagent_lifecycle(self):
             raise AssertionError('registration must not create service')
     plugin.register(Context())
-    assert set(tools) == set(SPECS) and set(commands) == {'teammates'}
+    assert set(tools) == set(SPECS) and len(tools) == 8 and set(commands) == {'teammates'}
     assign = tools['teammate_assign']['schema']
     assert 'worker' in assign['description']
     assert 'enum' not in assign['parameters']['properties']['teammate']

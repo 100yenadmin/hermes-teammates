@@ -46,6 +46,7 @@ class FakeLifecycle:
     def __init__(self):
         self.requests = []
         self.state = 'RUNNING'
+        self.summary = 'done'
         self.fail_launch = False
         self.waits = []
         self.steers = []
@@ -68,7 +69,7 @@ class FakeLifecycle:
 
     def result(self, handle):
         return SimpleNamespace(handle=handle, terminal_state=self.state,
-                               ready=self.state in {'SUCCEEDED', 'FAILED', 'INTERRUPTED', 'CANCELLED'}, summary='done',
+                               ready=self.state in {'SUCCEEDED', 'FAILED', 'INTERRUPTED', 'CANCELLED'}, summary=self.summary,
                                error_message='broken' if self.state == 'FAILED' else None,
                                result_hash='hash', completed_at=3.0)
 

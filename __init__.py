@@ -36,12 +36,13 @@ def lane_hint(config):
     a teammate's name and never pass kanban_task. Empty, so Hermes omits it, while the roster has no usable teammate."""
     if not [name for name in config['teammates'] if name not in config['invalid_teammates']]:
         return ''
-    lane = config['lane']
-    return (f'Hermes Teammates: to have a teammate work a Kanban card, create the card with assignee {lane!r} (the '
-            f"teammates lane, never a teammate's name), then call teammate_assign with the card's id as kanban_task. "
-            f"A teammate sees the card's title and body but not the board, so pass anything else it needs, such as "
-            f"an earlier card's result, as context. When the teammate finishes, the card moves to review; "
-            f'kanban_complete approves it and unlocks dependent cards; teammate_request_changes sends it back for changes.')
+    # Lane settings have no length limit; refer to the configured lane when its name would crowd out the guidance.
+    lane = repr(config['lane']) if len(repr(config['lane'])) <= 80 else 'the configured lane (see teammates_roster)'
+    return (f'Hermes Teammates: create a sequence with teammate_chain. Otherwise create the card with assignee {lane}, '
+            f"never a teammate's name, then call teammate_assign with the card's id as kanban_task. "
+            f"A teammate sees the card's title, body and parent cards' results, not the board; pass anything else as context. "
+            f'A finished card moves to review; kanban_complete approves it and unlocks the next card; '
+            f'teammate_request_changes sends it back.')
 
 
 def register_lane_hint(ctx, read_settings):
