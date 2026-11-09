@@ -127,13 +127,14 @@ def test_v4_database_upgrades_and_old_result_still_checks(rig, tmp_path):
     assert 'full_result_chars' not in reply
     page = rig.service.check('owner', 'old', offset=0)
     assert page['result_page'] == 'Old text' and page['full_result_chars'] == 8
-    assert page['next_offset'] is None and page['full_result_truncated'] is False
+    # A row clipped before the upgrade has only its summary: paging must not present that as complete.
+    assert page['next_offset'] is None and page['full_result_truncated'] is True
     with rig.service.store_factory() as store:
         assert store.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0] == '5'
         assert store.result('old') is None
 
 
-@pytest.mark.parametrize('offset', [-1, 1.5, '0', True, None, [], {}])
+@pytest.mark.parametrize('offset', [-1, 1.5, '0', True, [], {}])
 def test_invalid_offsets_return_clear_tool_error(rig, offset):
     from hermes_teammates.teammates_tools import handler
     run_id = start(rig, 'short')
@@ -165,3 +166,22 @@ def test_tail_clip_places_marker_before_retained_suffix():
     marker, suffix = clipped.split(']', 1)
     assert suffix == text[-len(suffix):]
     assert int(marker.split()[1]) + len(suffix) == len(text)
+
+
+def test_null_offset_means_not_given(rig):
+    from hermes_teammates.teammates_tools import handler
+    run_id = start(rig, 'y' * 9000)
+    check = handler('teammate_check', lambda: rig.service)
+    reply = json.loads(check(dict(run_id=run_id, offset=None), session_id='owner'))
+    assert reply['ok'] and 'result_page' not in reply and reply['full_result_chars'] == 9000
+    assert 'result_page' not in rig.service.check('owner', run_id, offset=None)
+
+
+def test_lone_surrogate_in_a_long_result_cannot_break_the_finish(rig):
+    text = 'a' * 9000 + '\ud800' + 'b' * 10
+    run_id = start(rig, text)
+    with rig.store() as store:
+        full = store.result(run_id)
+        assert store.get(run_id, 'owner')['status'] == 'succeeded'
+    assert full['chars'] == len(text) and full['text'].startswith('a' * 9000) and full['text'].endswith('b' * 10)
+    assert '\ud800' not in full['text']

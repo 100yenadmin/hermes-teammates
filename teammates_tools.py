@@ -129,7 +129,7 @@ def handler(name, get_service):
                                                 wait_seconds=args.get('wait_seconds', 0))
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0),
-                                      **({'offset': args['offset']} if 'offset' in args else {}))
+                                      **({'offset': args['offset']} if args.get('offset') is not None else {}))
             elif name == 'teammate_wait':
                 value = service.wait(session_id, args.get('run_ids'), args.get('mode', 'any'),
                                      args.get('wait_seconds', 30))

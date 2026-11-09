@@ -559,6 +559,8 @@ class TeammatesService:
     def check(self, session_id, run_id, wait_seconds=0, *, offset=_NO_OFFSET, _skip_handoff=False):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if offset is None:  # an explicit null means "not given", like wait_seconds
+            offset = _NO_OFFSET
         if offset is not _NO_OFFSET and (type(offset) is not int or offset < 0):
             return error('invalid_offset', 'offset must be an integer greater than or equal to 0')
         row = self._get(session_id, run_id)
@@ -604,7 +606,8 @@ class TeammatesService:
             end = offset + 8000
             value.update(result_page=text[offset:end], result_offset=offset,
                          next_offset=end if end < len(text) else None, full_result_chars=len(text),
-                         full_result_truncated=bool(full['truncated']) if full is not None else False)
+                         full_result_truncated=(bool(full['truncated']) if full is not None
+                                                else bool(value.get('summary_clipped'))))
         return value
 
     def _observe(self, row):
