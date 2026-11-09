@@ -254,6 +254,18 @@ def test_wait_returns_finished_row_and_preserves_reopen_receipt(rig, reviewed):
     assert reply['timed_out'] is False and reply['kanban_outcome'] == 'review'
 
 
+def test_wait_preserves_an_unsaved_comment_receipt(rig, reviewed, monkeypatch):
+    task_id, _ = reviewed
+
+    def busy(*_args, **_kwargs):
+        raise RuntimeError('database is locked')
+
+    monkeypatch.setattr(rig.host, 'add_comment', busy)
+    rig.lifecycle.state = 'SUCCEEDED'
+    reply = rig.service.request_changes('s', task_id, 'Fix it', wait_seconds=1)
+    assert reply['status'] == 'succeeded' and reply['comment_saved'] is False and reply['reopened'] is True
+
+
 @pytest.mark.parametrize('seconds', [-1, 301, True, '1', float('nan')])
 def test_invalid_wait_matches_assign_without_mutation(rig, reviewed, seconds):
     task_id, _ = reviewed

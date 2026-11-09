@@ -269,7 +269,8 @@ class TeammatesService:
             return dict(reply, wait_error=waited['error'])
         if waited['done']:
             row = dict(waited['done'][0], ok=True, timed_out=False)
-            for key in ('teammate', 'provider', 'model', 'unsupported', 'reopened', 'previous_run_id'):
+            for key in ('teammate', 'provider', 'model', 'unsupported', 'reopened', 'previous_run_id', 'from_card',
+                        'comment_saved'):
                 if key not in row and key in reply:
                     row[key] = reply[key]
             if waited.get('interrupted'):
