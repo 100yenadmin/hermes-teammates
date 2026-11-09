@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.1 (2026-11-09)
+
+Fixes only. Tool names, arguments and error codes are unchanged from 1.5.0.
+
+- **A lane card no longer needs a separate goal (#125).**
+  - `teammate_assign(kanban_task=…, teammate=…)` without a `goal` now uses the card's title, as `teammate_chain(start=true)` already did. An explicit goal still wins. `goal` is no longer schema-required, so this also works through tool search.
+  - For an unknown card, the reply is now `kanban_task_not_found`.
+  - Outside the lane, a missing goal still returns `invalid_goal`, now with a message that says what is needed.
+  - In every 1.5.0 live run, the agent made this call once and had to retry it.
+- **Approve with a summary.** Hermes refuses `kanban_complete` without a summary. The lane prompt paragraph and `teammate_chain`'s reply now say to approve with one, so the agent no longer wastes a turn on a refused approval and an early `kanban_task_not_ready`.
+
 ## 1.5.0 (2026-11-09)
 
 One call creates a linked chain of lane cards, and a lane card's teammate now receives its parent cards' results automatically.
