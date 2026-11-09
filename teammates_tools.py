@@ -32,7 +32,7 @@ SPECS = {
         'Pass wait_seconds to get the result in the same call.',
         {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
          'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs. '
-                         'With kanban_task, may be omitted: the card title is used.'),
+                         'Required, except with kanban_task: then it may be omitted and the card title is used.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
          'source_run_ids': _p('array', 'Optional: run_ids of finished runs in this conversation, from any teammate, '
                                       'whose results this teammate should get verbatim (for example the scout\'s '
@@ -49,7 +49,8 @@ SPECS = {
                                      'teammates_roster), never a teammate name. Pass the id '
                                      'HERE, not only in the goal: the card is claimed while the teammate works and '
                                      'moved to review (or blocked) when the run ends.')},
-        ['teammate', 'goal']),
+        # goal is checked by the handler, so a lane card's title can stand in for it (tool-search validates required).
+        ['teammate']),
     'teammate_request_changes': (
         'Send a Kanban teammates-lane card that is in Review back for changes. Reopens it with your feedback as a '
         'card comment and starts a teammate on it again (by default the one that worked it last), with the feedback '
