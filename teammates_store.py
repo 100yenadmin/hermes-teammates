@@ -6,6 +6,10 @@ from uuid import uuid4
 
 INSTANCE_ID = sys.__dict__.setdefault('_hermes_teammates_instance_id', uuid4().hex)
 RESULT_CAP = 262144
+
+
+def _utf8(text):
+    return text.encode('utf-8', 'replace').decode('utf-8')
 _schema_paths, _schema_lock = set(), threading.Lock()
 MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
               'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
@@ -180,13 +184,15 @@ class Store:
     def finish(self, run_id, status, *, full_result=None, **values):
         if status not in {'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}:
             raise ValueError('not a terminal status')
-        values = dict(values, status=status)
+        # sqlite3 rejects lone surrogates; replace them so a finish can never fail on result text.
+        values = {k: _utf8(v) if isinstance(v, str) else v for k, v in dict(values, status=status).items()}
         self._validate(values)
         with self.conn:
             cursor = self.conn.execute(
                 f"UPDATE runs SET {','.join(k+'=?' for k in values)} WHERE run_id=? AND status='running'",
                 (*values.values(), run_id))
             if cursor.rowcount == 1 and full_result is not None:
+                full_result = _utf8(full_result)
                 text = full_result[:RESULT_CAP]
                 self.conn.execute('INSERT INTO run_results (run_id, text, chars, truncated) VALUES (?, ?, ?, ?)',
                                   (run_id, text, len(text), int(len(full_result) > RESULT_CAP)))
