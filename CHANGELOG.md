@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.0 (2026-11-09)
+
+One call creates a linked chain of lane cards, and a lane card's teammate now receives its parent cards' results automatically.
+
+- **`teammate_chain` (new tool, #104).**
+  - Creates 1–8 linked cards in the teammates lane from `steps` (`title`, `teammate`, optional `body`). Each card waits on the previous one.
+  - `start: true` also assigns the first card to its teammate, with an optional `wait_seconds`.
+  - The cards are created through Hermes' own `kanban_create`, so Hermes wakes the creating chat when a card reaches Review, exactly as if the agent had made the cards itself.
+  - A retried identical call returns the same cards. If a card can't be created, the cards this call made are archived and the reply says so.
+  - Like the rest of the plugin, it never completes a card: approve each one with `kanban_complete`.
+- **Parent results travel with the card.**
+  - A lane card's teammate now sees the finished results of the cards it depends on, quoted after the card text, up to 12,000 characters. The agent no longer needs to copy them into `context`.
+  - A parent that isn't finished is listed with its status instead of a result.
+- **The lane prompt paragraph** mentions `teammate_chain` and still stays under 600 characters.
+
 ## 1.4.2 (2026-11-09)
 
 Fixes only. Tool names, arguments and error codes are unchanged from 1.4.1.
