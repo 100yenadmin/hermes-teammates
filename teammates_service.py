@@ -162,19 +162,19 @@ ISOLATION_MESSAGE = ('hermes-teammates needs plugins.isolation: in_process. Unde
                      'plugin cannot see the delegation depth or spawn pause it enforces.')
 
 
-def _retry_note(task_id, status):
+def _retry_note(task_id, status, commented=True):
     """What a reopened card needs after its new run could not start, from the card's actual status."""
+    saved = ('your feedback is a comment on it' if commented else
+             'your feedback could not be saved on the card, so include it again when you retry')
     if status == 'ready':
-        return ('The card is back in ready with your feedback as a comment; '
-                'call teammate_assign with kanban_task to retry.')
+        return f'The card is back in ready; {saved}. Call teammate_assign with kanban_task to retry.'
     if status == 'blocked':
-        return ('The new run could not start, so the card is blocked with the reason; your feedback is a comment '
-                f'on it. Fix the cause, unblock it (hermes kanban unblock {task_id}), then call teammate_assign '
-                'with kanban_task.')
+        return (f'The new run could not start, so the card is blocked with the reason; {saved}. Fix the cause, '
+                f'unblock it (hermes kanban unblock {task_id}), then call teammate_assign with kanban_task.')
     if status == 'todo':
-        return ('The card is back in todo until its parent cards are done; your feedback is a comment on it. '
+        return (f'The card is back in todo until its parent cards are done; {saved}. '
                 'Call teammate_assign with kanban_task once it is ready.')
-    return f'The card is {status or "in an unknown state"}; your feedback is a comment on it.'
+    return f'The card is {status or "in an unknown state"}; {saved}.'
 
 
 class TeammatesService:
@@ -337,8 +337,9 @@ class TeammatesService:
                              f'{kanban_task} is {task.status}; only a card in review can be sent back')
             if not self.host.reopen_review(conn, kanban_task):
                 return error('kanban_reopen_failed')
+            commented = False
             with suppress(Exception):  # best-effort, like a build without add_comment
-                self.host.add_comment(conn, kanban_task, config['lane'], f'CHANGES REQUESTED: {feedback}')
+                commented = bool(self.host.add_comment(conn, kanban_task, config['lane'], f'CHANGES REQUESTED: {feedback}'))
         result = budget_clip(previous['summary'] or previous['error'] or previous['status'], 8000, tail=True)
         context = (f'Changes requested on this card:\n{feedback}\n\n'
                    f"The last result on this card from this conversation (run {previous['run_id']}):\n{result}")
@@ -348,7 +349,7 @@ class TeammatesService:
             with suppress(Exception), self.host.connection() as conn:
                 card = self.host.get_task(conn, kanban_task)
                 status = card.status if card is not None else None
-            return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status))
+            return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status, commented))
         return dict(reply, reopened=True, previous_run_id=previous['run_id'])
 
     def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent):

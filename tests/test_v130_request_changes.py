@@ -177,8 +177,8 @@ def test_refusal_before_claim_after_reopen_says_ready(rig, reviewed, monkeypatch
     reply = rig.service.request_changes('s', task_id, 'Fix it')
     assert reply['error'] == 'nested_teammate' and reply['reopened'] is True
     assert reply['card_status'] == 'ready'
-    assert reply['note'] == ('The card is back in ready with your feedback as a comment; '
-                             'call teammate_assign with kanban_task to retry.')
+    assert reply['note'] == ('The card is back in ready; your feedback is a comment on it. '
+                             'Call teammate_assign with kanban_task to retry.')
     assert snapshot(rig, task_id)[0].status == 'ready'
     with rig.host.connection() as conn:
         assert rig.host.kanban.list_comments(conn, task_id)[-1].body == 'CHANGES REQUESTED: Fix it'
@@ -210,6 +210,19 @@ def test_comment_failure_keeps_the_reopen_receipt(rig, reviewed, monkeypatch):
     reply = rig.service.request_changes('s', task_id, 'Fix it')
     assert reply['ok'] and reply['reopened'] is True and reply['previous_run_id'] == previous_id
     assert 'Changes requested on this card:\nFix it' in rig.lifecycle.requests[-1].context
+
+
+def test_retry_note_does_not_claim_an_unsaved_comment(rig, reviewed, monkeypatch):
+    task_id, _ = reviewed
+
+    def busy(*_args, **_kwargs):
+        raise RuntimeError('database is locked')
+
+    monkeypatch.setattr(rig.host, 'add_comment', busy)
+    monkeypatch.setattr(rig.host, 'active_parent', lambda: SimpleNamespace(_delegate_depth=1))
+    reply = rig.service.request_changes('s', task_id, 'Fix it')
+    assert reply['reopened'] is True and reply['card_status'] == 'ready'
+    assert 'could not be saved on the card' in reply['note'] and 'is a comment on it' not in reply['note']
 
 
 def test_wait_returns_finished_row_and_preserves_reopen_receipt(rig, reviewed):
