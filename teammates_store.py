@@ -29,6 +29,7 @@ class Store:
     def __init__(self, conn):
         self.conn = conn
         conn.row_factory = sqlite3.Row
+        conn.create_function('teammates_casefold', 1, lambda text: text.casefold() if text else '', deterministic=True)
         self.path = next(r['file'] for r in conn.execute('PRAGMA database_list') if r['name'] == 'main')
         with _schema_lock:
             exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='runs'").fetchone()
@@ -89,28 +90,59 @@ class Store:
             'ORDER BY created_at DESC, rowid DESC LIMIT 1', (owner_session_id, task_id)).fetchone()
         return dict(row) if row else None
 
-    def count(self, session_id, teammate=None):
-        sql, params = 'SELECT COUNT(*) FROM runs WHERE owner_session_id=?', [session_id]
-        if teammate:
-            sql += ' AND teammate=?'
-            params.append(teammate)
-        return self.conn.execute(sql, params).fetchone()[0]
-
-    def list(self, owner_session_id, *, status=None, teammate=None, terminal=False, limit=None):
-        sql, params = 'SELECT * FROM runs WHERE owner_session_id=?', [owner_session_id]
+    @staticmethod
+    def _filters(owner_session_id, *, status=None, teammate=None, search=None, since=None, terminal=False):
+        sql, params = ' WHERE owner_session_id=?', [owner_session_id]
         if status:
             sql += ' AND status=?'
             params.append(status)
         if teammate:
             sql += ' AND teammate=?'
             params.append(teammate)
+        if search is not None:
+            pattern = search.casefold().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+            sql += " AND (teammates_casefold(goal) LIKE ? ESCAPE '\\' OR " \
+                   "teammates_casefold(summary) LIKE ? ESCAPE '\\' OR teammates_casefold(error) LIKE ? ESCAPE '\\')"
+            params.extend(['%' + pattern + '%'] * 3)
+        if since is not None:
+            sql += ' AND created_at>=?'
+            params.append(since)
         if terminal:
             sql += " AND status != 'running'"
-        sql += ' ORDER BY created_at DESC, rowid DESC'
-        if limit is not None:
-            sql += ' LIMIT ?'
-            params.append(limit)
+        return sql, params
+
+    def count(self, session_id, teammate=None, *, status=None, search=None, since=None):
+        where, params = self._filters(session_id, teammate=teammate, status=status, search=search, since=since)
+        return self.conn.execute('SELECT COUNT(*) FROM runs' + where, params).fetchone()[0]
+
+    def list(self, owner_session_id, *, status=None, teammate=None, terminal=False, limit=None,
+             search=None, since=None, offset=0):
+        where, params = self._filters(owner_session_id, status=status, teammate=teammate, terminal=terminal,
+                                      search=search, since=since)
+        sql = 'SELECT * FROM runs' + where + ' ORDER BY created_at DESC, rowid DESC'
+        if limit is not None or offset:
+            sql += ' LIMIT ? OFFSET ?'
+            params.extend([limit if limit is not None else -1, offset])
         return [dict(row) for row in self.conn.execute(sql, params)]
+
+    def stats(self, owner_session_id):
+        """One grouped query, scoped before ranking durations for each teammate's median."""
+        rows = self.conn.execute('''
+            WITH ranked AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY teammate ORDER BY duration_seconds IS NULL, duration_seconds) AS duration_rank,
+                    COUNT(duration_seconds) OVER (PARTITION BY teammate) AS duration_count
+                FROM runs WHERE owner_session_id=?
+            )
+            SELECT teammate, COUNT(*) AS runs, SUM(status='succeeded') AS succeeded,
+                SUM(status IN ('failed', 'interrupted', 'unknown')) AS failed,
+                SUM(status='cancelled') AS cancelled, MAX(created_at) AS last_run_at,
+                AVG(CASE WHEN duration_seconds IS NOT NULL AND duration_rank IN (
+                    (duration_count + 1) / 2, (duration_count + 2) / 2)
+                    THEN duration_seconds END) AS median_duration_seconds
+            FROM ranked GROUP BY teammate
+        ''', (owner_session_id,))
+        return {row['teammate']: {key: row[key] for key in row.keys() if key != 'teammate'} for row in rows}
 
     def update(self, run_id, **values):
         self._validate(values)
