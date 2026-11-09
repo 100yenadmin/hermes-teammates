@@ -388,7 +388,7 @@ class TeammatesService:
                 return value
         result = dict(ok=True, lane=lane, cards=cards, note=(
             'Give each card to its teammate with teammate_assign(kanban_task=…, teammate=…) when it is ready; '
-            'approve each card in Review with kanban_complete. '
+            'approve each card in Review with kanban_complete(task_id=…, summary=…). '
             "A card's teammate receives its parent cards' results automatically."))
         if start:
             result['started'] = self.assign(session_id, steps[0]['teammate'], steps[0]['title'],

@@ -62,7 +62,7 @@ SPECS = {
                             minimum=0, maximum=300, default=0)}, ['kanban_task', 'feedback']),
     'teammate_chain': (
         'Create 1–8 linked cards in the teammates lane in one call; each card waits on the previous one. '
-        "Optionally start the first card. A card's teammate receives its parent cards' results; approve each card with kanban_complete.",
+        "Optionally start the first card. A card's teammate receives its parent cards' results; approve each card with kanban_complete and a summary.",
         {'steps': _p('array', 'Cards in execution order.', minItems=1, maxItems=8,
                      items={'type': 'object', 'properties': {
                          'title': _p('string', 'Card title, 1–200 characters after strip.', minLength=1, maxLength=200),
