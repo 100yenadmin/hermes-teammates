@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.4.0 (2026-11-09)
+
+Searchable run history, per-teammate stats, and complete results the agent can page through. No new tools.
+
+- **Search and page past runs (#100).**
+  - `teammates_roster` takes `status`, `search`, `since`, `limit` and `offset`, alone or with `teammate`. For example: `teammates_roster(teammate="reviewer", status="failed", limit=5)`.
+  - `search` is a case-insensitive literal substring over goal, summary and error.
+  - `runs_total` and `runs_omitted` say how many runs matched and how many were left out.
+  - Only this conversation's runs are ever searched or counted.
+- **Per-teammate stats (#102).** Each teammate with runs in this conversation shows:
+  - runs, successes, failures and cancellations;
+  - median duration;
+  - when it last ran.
+
+  `/teammates` adds a short suffix such as `· 5 runs: 4 ok, 1 failed, median 41 s`. If the reply's size limit drops any stats, `stats_omitted` says how many.
+- **Complete results, paged (#101).**
+  - The ledger now keeps a run's complete final result up to 262,144 characters (256 KB of text), not only the 8,000-character summary.
+  - `teammate_check(run_id, offset=0)` returns it in 8,000-character pages; follow `next_offset` until it is `null`.
+  - When a summary is clipped, the agent is told to page the rest instead of guessing.
+  - Results from before this upgrade keep only their summary.
+- **Handoff fixes (#114):**
+  - A source run that has finished but isn't recorded yet is finalized before it is refused.
+  - A clipped tail now shows its omission marker at the start, where the text was cut.
+  - The README notes that a follow-up's own earlier run doesn't need to be passed again in `source_run_ids`.
+
 ## 1.3.0 (2026-11-09)
 
 Two new agent abilities for the review loop, and rosters that say when they leave something out.
