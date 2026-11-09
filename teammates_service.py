@@ -23,6 +23,7 @@ TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
 RESTART_ERROR = 'Hermes restarted before this run finished; the result was not recovered'
 UNKNOWN_ERROR = "parent session changed or the result expired; the teammate's result is unavailable"
 HANDOFF_LOCK_TIMEOUT = 10
+_NO_OFFSET = object()
 _swept_paths = sys.__dict__.setdefault('_hermes_teammates_swept_paths', set())
 # Shared across plugin reloads in one process, so an old monitor and a new service never hand off the same card twice.
 _handoff_lock = sys.__dict__.setdefault('_hermes_teammates_handoff_lock', threading.Lock())
@@ -93,7 +94,7 @@ def budget_clip(value, budget, *, tail=False):
         keep = available
     if len(marker) > budget:
         return ''
-    return (value[-keep:] if tail and keep else value[:keep]) + marker
+    return marker + (value[-keep:] if keep else '') if tail else value[:keep] + marker
 
 
 def state_name(state):
@@ -128,7 +129,7 @@ def public_row(row, summary_budget=8000):
         result['relay_instruction'] = RELAY_INSTRUCTION
         if result['summary_clipped']:
             result['relay_instruction'] += (' This summary is clipped and incomplete; say so and do not infer '
-                                            'missing text.')
+                                            'missing text; page the rest with teammate_check offset.')
     if result['error'] is None:
         del result['error']
     else:
@@ -397,7 +398,10 @@ class TeammatesService:
                     if row is None:
                         return error('source_run_not_found', f'{source_id} is not a run in this conversation')
                     if row['status'] == 'running':  # Same terminal predicate as Store.list(terminal=True).
-                        return error('source_run_not_finished', f'{source_id} is still {row["status"]}; wait for it first')
+                        self.check(session_id, source_id)
+                        row = store.get(source_id, session_id)
+                        if row['status'] == 'running':
+                            return error('source_run_not_finished', f'{source_id} is still {row["status"]}; wait for it first')
                     sources.append(row)
         if self.host.spawn_paused():
             return error('spawn_paused')
@@ -553,9 +557,11 @@ class TeammatesService:
         return value
 
     @safe
-    def check(self, session_id, run_id, wait_seconds=0, *, _skip_handoff=False):
+    def check(self, session_id, run_id, wait_seconds=0, *, offset=_NO_OFFSET, _skip_handoff=False):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
+        if offset is not _NO_OFFSET and (type(offset) is not int or offset < 0):
+            return error('invalid_offset', 'offset must be an integer greater than or equal to 0')
         row = self._get(session_id, run_id)
         if row is None:
             return error('unknown_run')
@@ -563,15 +569,15 @@ class TeammatesService:
             self._observe(row)
             if not _skip_handoff:
                 self._handoff(row)
-            return self._observe(self._get(session_id, run_id))
+            return self._check_reply(self._get(session_id, run_id), offset)
         self._owners[run_id] = session_id
         if row['instance_id'] != INSTANCE_ID:
             if row['pid'] != os.getpid() and pid_alive(row['pid']):
-                return dict(self._observe(row), note='owned_by_other_process')
+                return dict(self._check_reply(row, offset), note='owned_by_other_process')
             if self._dead_owner(row):
                 with self.store_factory() as store:
                     store.finish(run_id, 'interrupted', completed_at=self.clock(), error=RESTART_ERROR)
-                return self._observe(self._get(session_id, run_id))
+                return self._check_reply(self._get(session_id, run_id), offset)
         if row['status'] == 'running':
             handle = self.host.handle_from_dict(json.loads(row['handle_json']))
             wait_seconds = max(0, min(60, float(wait_seconds)))
@@ -586,7 +592,21 @@ class TeammatesService:
                 self.finalize(run_id, result, _skip_handoff=_skip_handoff)
             elif state == 'UNKNOWN':
                 self._unknown(row, _skip_handoff=_skip_handoff)
-        return self._observe(self._get(session_id, run_id))
+        return self._check_reply(self._get(session_id, run_id), offset)
+
+    def _check_reply(self, row, offset):
+        value = self._observe(row)
+        with self.store_factory() as store:
+            full = store.result(row['run_id'])
+        if full is not None:
+            value['full_result_chars'] = full['chars']
+        if offset is not _NO_OFFSET:
+            text = full['text'] if full is not None else row['summary'] or ''
+            end = offset + 8000
+            value.update(result_page=text[offset:end], result_offset=offset,
+                         next_offset=end if end < len(text) else None, full_result_chars=len(text),
+                         full_result_truncated=bool(full['truncated']) if full is not None else False)
+        return value
 
     def _observe(self, row):
         with self._condition:
@@ -691,6 +711,7 @@ class TeammatesService:
                                       if subid == row['subagent_id']), None)
                 tokens = self._token_usage.get(child_session, {})
                 won = store.finish(run_id, status, summary=summary, error=failure,
+                                   full_result=result.summary if summary_clipped else None,
                                    result_hash=result.result_hash, provider=result.handle.provider,
                                    model=result.handle.model, completed_at=result.completed_at or self.clock(),
                                    api_calls=api_calls, duration_seconds=duration,
@@ -1047,7 +1068,8 @@ class TeammatesService:
         value = dict(ok=True, teammates=teammates, invalid_teammates=invalid, features=features,
                      config_errors=config['config_errors'], runs=runs, lane=lane,
                      relay_instruction=RELAY_INSTRUCTION + ' Roster previews are clipped; teammate_check returns '
-                     'the full retained text. If summary_clipped is true, report it as incomplete.')
+                     'the full retained text. If summary_clipped is true, report it as incomplete; '
+                     'page the rest with teammate_check offset.')
         if config['roster_path']:
             value['roster_file'] = clip(config['roster_path'], 500)  # only when set, so 1.0 payloads are unchanged
         # Bound valid JSON by removing oldest/list-tail entries, never slicing serialized JSON.

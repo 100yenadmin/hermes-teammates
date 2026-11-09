@@ -45,7 +45,7 @@ that and changes who decides what a subagent is.
 | The brief | The model writes the whole brief, goal and context, on every call | Each teammate's standing instructions live in settings; the model picks a name and gives the task's goal |
 | Tools | Every child inherits the parent's toolsets, minus a block list | Each teammate has its own toolsets, narrowed from the parent's: a reviewer on `todo` gets no web, file or terminal tools (Hermes adds inherited MCP toolsets back unless `delegation.inherit_mcp_toolsets` is false) |
 | Model | The same delegation model for every child | Optionally one per teammate |
-| Record | `action='list'` shows live children; a result arrives once | A SQLite ledger per profile keeps every run's goal, status and result summary (up to 8,000 characters) across turns and restarts; follow-ups carry a digest |
+| Record | `action='list'` shows live children; a result arrives once | A SQLite ledger per profile keeps every run's goal, status and complete result (up to 262,144 characters, a 256 KB text cap) across turns and restarts; follow-ups carry a digest |
 | Kanban | Board cards go to whole Hermes profiles | A `teammates` lane worked by your roster inside the chat; a finished card goes to review and a failed run blocks its card; the plugin never marks a card done |
 
 Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are spawned with `toolsets=None`,
@@ -84,6 +84,7 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    saved when the child finishes, even if you never call `teammate_check`.
 4. `follow_up: true` gives the teammate a bounded digest of its earlier assignments in this conversation, so it
    picks up where it left off. `source_run_ids` hands over finished results from any teammate in this conversation verbatim.
+   With `follow_up=True`, a source that is the same teammate's own earlier run also appears in the follow-up digest and uses budget twice; leave it out of `source_run_ids` in that case.
 5. `teammate_message` steers a running teammate. The text lands at its next step, without stopping it.
    `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
    Refused cancellations leave completed work intact.
@@ -260,7 +261,7 @@ Ask in plain language:
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
 | `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0) |
 | `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
-| `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60) |
+| `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60); optional `offset` (integer ≥ 0) pages the result in 8,000-character chunks |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
 | `teammate_stop` | Cancels a run |
@@ -330,12 +331,19 @@ Finished runs report these fields through `teammate_assign(wait_seconds=...)`, `
 | `tokens_input`, `tokens_output` | Accumulated input and output token buckets from the child's API hooks |
 | `tokens_cache_read`, `tokens_cache_write`, `tokens_reasoning` | Accumulated cache and reasoning token buckets, when supplied |
 
-Summaries retain at most 8,000 characters in the ledger; the roster returns at most 300 per run. For old rows,
+Summaries retain at most 8,000 characters in the ledger; the roster returns at most 300 per run.
+When a summary is clipped, the ledger also keeps the complete original result up to 262,144 characters
+(256 KB of text; Unicode can take more bytes). `teammate_check` adds `full_result_chars` when this text exists.
+Pass `offset=0`, then each returned `next_offset`, to read `result_page` in 8,000-character chunks.
+Pages include `result_offset`, `full_result_chars` (retained length), and `full_result_truncated` (true if the cap cut text);
+`next_offset` is `null` at the end, including offsets past the end. Without a full result, paging reads the stored summary.
+For old rows,
 `summary_clipped` only detects clipping of the stored text because the original length is unknown.
 The roster's current `role_hash` can differ from a run's hash after you edit the definition.
 Run rows omit `error` when it is null; actual tool errors retain `error` and `ok: false`.
 Replies remain valid JSON with additive guidance; they do not append a second, unescaped copy of the summary.
-If `summary_clipped` is true, describe the result as incomplete and do not infer missing findings or a verdict.
+If `summary_clipped` is true, describe the summary as incomplete and page the rest with `teammate_check offset`;
+do not infer missing findings or a verdict. Results beyond the cap and text clipped before this upgrade cannot be recovered.
 The roster's short previews follow the same rule; one top-level instruction points to `teammate_check` for the full retained text.
 Follow-up digests preserve result text within their configured budget, tell the teammate to continue from prior results and label results
 already clipped in the ledger as incomplete. Further digest clipping keeps its characters-omitted marker.
@@ -542,7 +550,7 @@ See [SECURITY.md](SECURITY.md). In short:
 - Credentials come from Hermes: the parent's, or the operator-configured provider's when route is supported.
   The model cannot choose credentials; teammates can only narrow toolsets.
 - The model picks names, never providers or models.
-- The ledger stays local and per profile.
+- The ledger stays local and per profile, retaining complete results up to 262,144 characters (256 KB of text) per run.
 - The plugin makes no network calls of its own.
 - It only claims Kanban cards assigned to its lane.
 - It adds one short paragraph about the Kanban lane to new session prompts, rendered from its settings; no
