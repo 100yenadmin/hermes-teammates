@@ -2,11 +2,50 @@
 
 ![Hermes Teammates](docs/media/banner.png)
 
-**Give your [Hermes Agent](https://github.com/NousResearch/hermes-agent) a team.** You define a small roster of
-named teammates, such as a scout, a writer and a reviewer. Each has its own instructions, tools and, optionally, its
-own model. Your agent hands them work, checks on them, steers them mid-task and follows up with what they did before.
-On Hermes' own Kanban board, they work linked cards one after another, and each card a teammate finishes waits in
-Review for approval before the next one starts.
+**Give your Hermes agent a fixed team: named teammates with roles, follow-ups that keep context, and a Kanban review lane.**
+
+▶ **[Watch the 86-second demo](https://x.com/ElectricSheepIO/status/2119799763600306451)**
+
+[![Latest release](https://img.shields.io/github/v/release/100yenadmin/hermes-teammates?label=release)](https://github.com/100yenadmin/hermes-teammates/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/100yenadmin/hermes-teammates)](LICENSE)
+[![Hermes 0.21.4 or newer](https://img.shields.io/badge/Hermes-%E2%89%A5%200.21.4-blue)](#compatibility)
+[![CI](https://github.com/100yenadmin/hermes-teammates/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/100yenadmin/hermes-teammates/actions/workflows/ci.yml)
+
+## Install
+
+```bash
+hermes plugins install 100yenadmin/hermes-teammates --enable
+```
+
+It needs [Hermes Agent](https://github.com/NousResearch/hermes-agent) 0.21.4 or newer (tested on 0.23.0), with
+plugins running in process, which is the default. There are no extra packages and no API keys to add: teammates use
+your agent's own provider and credentials. Add a roster, then restart the gateway (or the CLI session) so the tools
+register, and start a new chat.
+
+## Try it
+
+1. Add the three-teammate roster from the [Quick start](#quick-start-the-team-from-the-screenshots) (a scout, a
+   writer and a reviewer) to your profile's `config.yaml`, under the `plugins:` key the install created (keep its
+   `enabled` list). Restart, then start a new chat. The chat needs Hermes' `kanban` toolset, and `web` for the
+   scout's research (Hermes' web search works without a key on a fresh install).
+2. Send one message: *"We're launching a weekend coffee pop-up. Put three linked cards on the Kanban board for the
+   team…"* (the full message is in the [Quick start](#quick-start-the-team-from-the-screenshots)).
+3. Watch the `teammates` lane on Hermes Desktop's Kanban page, or with `hermes kanban watch`. Three linked cards
+   appear. Each one lands in **Review**, and the agent approves it and hands its result to the next teammate. The
+   agent's last reply says what each teammate did. On a fast model this takes about two minutes.
+
+**Contents:** [What it does](#what-it-does) · [Compared with `delegate_task`](#teammates-and-hermes-built-in-delegate_task) ·
+[Screenshots](#screenshots) · [How it works](#how-it-works) · [Quick start](#quick-start-the-team-from-the-screenshots) ·
+[Configure](#configure) · [Use](#use) · [Compatibility](#compatibility) · [Benchmarks](#benchmarks) ·
+[Limits](#limits-honest-list) · [How to test](#how-to-test) · [Security](#security) ·
+[Troubleshooting and bugs](#troubleshooting-and-reporting-a-bug) · [Releases and license](#releases-and-license)
+
+## What it does
+
+You define a small roster of named teammates, such as a scout, a writer and a reviewer. Each has its own
+instructions, tools and, optionally, its own model. Your agent hands them work, checks on them, steers them mid-task
+and follows up with what they did before. On Hermes' own Kanban board, they work linked cards one after another, and
+each card a teammate finishes waits in Review for approval before the next one starts.
 
 ![One message, three linked cards: the scout's research is approved and the writer's card is running](docs/media/screenshot-chain.png)
 
@@ -124,18 +163,12 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    stops new automatic subscriptions: cards made from a subscribed card still inherit its subscription, and existing
    ones stay until `hermes kanban notify-unsubscribe` removes them.
 
-## Install
-
-```bash
-hermes plugins install 100yenadmin/hermes-teammates --enable
-```
-
-Then restart the gateway (or the CLI session) so the tools register.
-
 ## Quick start: the team from the screenshots
 
-This is the roster behind the screenshots above. Paste it into the profile's `config.yaml`; in Hermes Desktop, the
-same three entries go in the **Teammates** setting as JSON (see [Configure](#configure)).
+This is the roster behind the screenshots above. Merge it into the profile's `config.yaml`: the install already
+added a `plugins:` key with an `enabled` list, so put `entries:` under that key rather than adding a second
+`plugins:`. In Hermes Desktop, the same three entries go in the **Teammates** setting as JSON (see
+[Configure](#configure)).
 
 ```yaml
 plugins:
@@ -159,7 +192,9 @@ plugins:
 
 The writer and the reviewer get only `todo`, so they have no web, file or terminal tools. If the profile has MCP
 servers, also set `delegation.inherit_mcp_toolsets: false`, or Hermes adds their tools back. The chat needs
-Hermes' `kanban` toolset so the agent can create and approve cards.
+Hermes' `kanban` toolset so the agent can create and approve cards, and `web` so the scout can search. Restart and
+start a new chat after adding the roster: the lane paragraph goes into new session prompts only while the roster has
+a usable teammate.
 
 Then send one message:
 
@@ -329,7 +364,7 @@ In the exploratory Slice 3 comparison, C-eager (global deferral off) used **0.70
 parent calls per request** than C (deferral on), across 60 requests per arm. This compared configuration packages,
 including `process_manage` visibility; it did not isolate teammate deferral or these new hints.
 Quality/success non-inferiority remains **UNRESOLVED**. See [#56](https://github.com/100yenadmin/hermes-teammates/issues/56)
-and the [existing private result card and audit](https://github.com/electricsheephq/bench-evidence/releases/tag/hermes-teammates/slice3-live-run004).
+and the [slice 3 report](bench/results/slice3/REPORT.md) (the C-eager vs C contrast in its notes).
 No new model run or cost claim is made by this change.
 
 ### Results and receipts
@@ -584,6 +619,8 @@ Or ask your Hermes agent to report a problem with Hermes Teammates (the bundled 
 Use the [bug report form](https://github.com/100yenadmin/hermes-teammates/issues/new?template=bug_report.yml) for reproducible problems.
 Report toolset escapes, cross-profile access or leaked credentials through a [private advisory](https://github.com/100yenadmin/hermes-teammates/security/advisories/new).
 
-## License
+## Releases and license
 
-MIT. Maintained by [@100yenadmin](https://github.com/100yenadmin) (Electric Sheep).
+- [Releases](https://github.com/100yenadmin/hermes-teammates/releases) and the [CHANGELOG](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md) and the [security policy](SECURITY.md)
+- [MIT license](LICENSE). Maintained by [@100yenadmin](https://github.com/100yenadmin) (Electric Sheep).
