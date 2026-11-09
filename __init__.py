@@ -41,7 +41,7 @@ def lane_hint(config):
     return (f'Hermes Teammates: create a sequence with teammate_chain. Otherwise create the card with assignee {lane}, '
             f"never a teammate's name, then call teammate_assign with the card's id as kanban_task. "
             f"A teammate sees the card's title, body and parent cards' results, not the board; pass anything else as context. "
-            f'A finished card moves to review; kanban_complete approves it and unlocks the next card; '
+            f'A finished card moves to review; kanban_complete with a summary approves it and unlocks the next card; '
             f'teammate_request_changes sends it back.')
 
 

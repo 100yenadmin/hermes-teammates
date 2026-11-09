@@ -51,7 +51,7 @@ def test_three_linked_cards_retry_and_no_ledger_writes(board):
             assert task.idempotency_key == f'hermes-teammates:chain:{digest}:{index}'
     assert [call[0] for call in board.calls] == ['kanban_create'] * 3
     assert all(call[2]['parent_agent'] is board.parent for call in board.calls)
-    assert 'kanban_complete' in reply['note'] and 'automatically' in reply['note']
+    assert 'kanban_complete(task_id=…, summary=…)' in reply['note'] and 'automatically' in reply['note']
     retry = board.service.chain('s', STEPS, start=None, wait_seconds=None)
     assert [card['kanban_task'] for card in retry['cards']] == ids
     assert len(cards(board)) == 3

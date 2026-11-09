@@ -12,6 +12,7 @@ def catalog(rig, monkeypatch):
     from hermes_teammates.teammates_tools import SPECS, handler, schema
     from tools import registry as registry_module
     from tools import tool_search
+    from tools import kanban_tools  # noqa: F401  register core tools in the real registry before it is swapped out
 
     registry = registry_module.ToolRegistry()
     monkeypatch.setattr(registry_module, 'registry', registry)
@@ -98,7 +99,9 @@ def test_bridge_rejects_missing_name_and_returns_schema_for_missing_goal(catalog
     _, _, _ = catalog
     _, _, error = resolve_underlying_call({'calls': [{'arguments': {'teammate': 'worker'}}]})
     assert "requires a 'name'" in error
-    error = json.loads(validate_deferred_call_args('teammate_assign', {'teammate': 'worker'}))
+    error = json.loads(validate_deferred_call_args('teammate_assign', {'goal': 'Review it'}))
     assert error['constraint'] == 'required'
-    assert 'goal' in error['parameters']['required']
+    assert error['parameters']['required'] == ['teammate']
     assert 'Retry tool_call' in error['hint']
+    # goal is left to the handler, so a lane card's title can stand in for it through the bridge too (#125).
+    assert validate_deferred_call_args('teammate_assign', {'teammate': 'worker', 'kanban_task': 't_1'}) is None

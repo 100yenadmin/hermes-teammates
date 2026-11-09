@@ -28,6 +28,7 @@ def test_hint_names_the_lane_and_kanban_task_only_with_a_usable_roster(plugin):
     assert content({'session_id': 's', 'platform': 'cli'})
     settings['lane'] = 'x' * 200                        # long lane names still get the complete guidance
     assert 'teammate_chain' in content({'session_id': 's'})
+    assert 'kanban_complete with a summary' in content({'session_id': 's'})  # Hermes refuses a bare approval
 
 
 def test_no_hint_under_isolation_or_when_settings_fail(plugin, monkeypatch):

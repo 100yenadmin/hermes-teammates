@@ -388,7 +388,7 @@ class TeammatesService:
                 return value
         result = dict(ok=True, lane=lane, cards=cards, note=(
             'Give each card to its teammate with teammate_assign(kanban_task=…, teammate=…) when it is ready; '
-            'approve each card in Review with kanban_complete. '
+            'approve each card in Review with kanban_complete(task_id=…, summary=…). '
             "A card's teammate receives its parent cards' results automatically."))
         if start:
             result['started'] = self.assign(session_id, steps[0]['teammate'], steps[0]['title'],
@@ -526,8 +526,18 @@ class TeammatesService:
         refusal = self._teammate_error(config, teammate)
         if refusal:
             return refusal
+        if (goal is None or isinstance(goal, str) and not goal.strip()) and isinstance(kanban_task, str) \
+                and kanban_task.strip() and self.host.kanban_available:
+            # A lane card carries its own task: without a goal, its title is the goal (as teammate_chain's start does).
+            with suppress(Exception), self.host.connection() as conn:
+                task = self.host.get_task(conn, kanban_task)
+                if task is None:
+                    return error('kanban_task_not_found')
+                if isinstance(task.title, str) and task.title.strip():
+                    goal = task.title.strip()
         if not isinstance(goal, str) or not goal.strip() or len(goal) > 12000:
-            return error('invalid_goal')
+            return error('invalid_goal', 'goal must be a non-blank string of at most 12,000 characters; '
+                                         'with kanban_task, the card title is used when goal is omitted')
         sources = []
         if source_run_ids is not None:
             if (not isinstance(source_run_ids, list) or not 1 <= len(source_run_ids) <= 8

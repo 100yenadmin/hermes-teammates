@@ -274,7 +274,7 @@ Ask in plain language:
 | Tool | What it does |
 |---|---|
 | `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
-| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0) |
+| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0). With `kanban_task`, `goal` may be left out: the card's title is used |
 | `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
 | `teammate_chain` | Creates 1–8 linked lane cards from `steps` (`title`, `teammate`, optional `body`); optional `start` (default false) starts the first, with `wait_seconds` (integer 0–300, default 0). Each teammate receives its parent cards' results. Approve each card with `kanban_complete` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60); optional `offset` (integer ≥ 0) pages the result in 8,000-character chunks |
