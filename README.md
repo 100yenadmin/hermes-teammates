@@ -6,6 +6,8 @@
 
 ▶ **[Watch the 86-second demo](https://x.com/ElectricSheepIO/status/2119799763600306451)**
 
+https://github.com/user-attachments/assets/ee5f610f-32f7-47ab-aa53-31094c485cb1
+
 [![Latest release](https://img.shields.io/github/v/release/100yenadmin/hermes-teammates?label=release)](https://github.com/100yenadmin/hermes-teammates/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/100yenadmin/hermes-teammates)](LICENSE)
 [![Hermes 0.21.4 or newer](https://img.shields.io/badge/Hermes-%E2%89%A5%200.21.4-blue)](#compatibility)
