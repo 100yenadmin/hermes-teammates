@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.3 (2026-11-10)
+
+Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.5.2's.
+
+- **The README plays the demo film (#132).** The 86-second film now plays inline on GitHub, under the demo link, so it can be watched without X. The film is posted in #131.
+
 ## 1.5.2 (2026-11-09)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.5.1's.
