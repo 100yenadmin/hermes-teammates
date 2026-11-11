@@ -28,8 +28,9 @@ register, and start a new chat.
 
 1. Add the three-teammate roster from the [Quick start](#quick-start-the-team-from-the-screenshots) (a scout, a
    writer and a reviewer) to your profile's `config.yaml`, under the `plugins:` key the install created (keep its
-   `enabled` list). Restart, then start a new chat. The chat needs Hermes' `kanban` toolset, and `web` for the
-   scout's research (Hermes' web search works without a key on a fresh install).
+   `enabled` list). Turn on Hermes' `kanban` toolset, which is off on a fresh install, with
+   `hermes tools enable kanban`. `web`, for the scout's research, is on by default and works without a key. Restart,
+   then start a new chat.
 2. Send one message: *"We're launching a weekend coffee pop-up. Put three linked cards on the Kanban board for the
    team…"* (the full message is in the [Quick start](#quick-start-the-team-from-the-screenshots)).
 3. Watch the `teammates` lane on Hermes Desktop's Kanban page, or with `hermes kanban watch`. Three linked cards
@@ -200,7 +201,8 @@ plugins:
 
 The writer and the reviewer get only `todo`, so they have no web, file or terminal tools. If the profile has MCP
 servers, also set `delegation.inherit_mcp_toolsets: false`, or Hermes adds their tools back. The chat needs
-Hermes' `kanban` toolset so the agent can create and approve cards, and `web` so the scout can search. Restart and
+Hermes' `kanban` toolset so the agent can create and approve cards (`hermes tools enable kanban`; it is off on a fresh
+install), and `web` so the scout can search (on by default). Restart and
 start a new chat after adding the roster: the lane paragraph goes into new session prompts only while the roster has
 a usable teammate.
 
