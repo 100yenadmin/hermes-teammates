@@ -233,9 +233,22 @@ class HermesHost:
             return None, 'unsupported'
         try:
             board = normalize(board) if callable(normalize) else board.strip()
-            return (board, None) if board and exists(board) else (None, 'unknown_board')
+            return (board, None) if board and self.board_live(board) else (None, 'unknown_board')
         except ValueError:
             return None, 'invalid_board'
+
+    def board_live(self, board):
+        """The board exists and is not archived. Newer Hermes keeps an archived board's board.json as a tombstone
+        (board_exists stays true), so read its metadata too; if that read fails, treat the board as not live."""
+        if not self.kanban.board_exists(board):
+            return False
+        metadata = getattr(self.kanban, 'read_board_metadata', None)
+        if not callable(metadata):
+            return True
+        try:
+            return not (metadata(board) or {}).get('archived')
+        except Exception:
+            return False
 
     def supports_board(self):
         try:
@@ -252,7 +265,7 @@ class HermesHost:
             exists = getattr(self.kanban, 'board_exists', None)
             if not callable(exists):
                 raise NotImplementedError('unsupported: board_exists is unavailable')
-            if not exists(board):
+            if not self.board_live(board):
                 raise BoardMissing('unknown_board')
         conn = self.connect(board=board) if board is not None else self.connect()
         try:

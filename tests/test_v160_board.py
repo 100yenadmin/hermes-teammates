@@ -28,6 +28,12 @@ def boards(rig, monkeypatch, tmp_path):
     return rig
 
 
+def db_file(boards, board):
+    """A removed board must not get a database back. Pinned Hermes moves an archived board away entirely; newer
+    Hermes leaves a tombstone board.json (so board_exists stays true) but no kanban.db."""
+    return boards.host.kanban.kanban_db_path(board=board)
+
+
 def create(rig, board='client-b', **kwargs):
     conn = rig.host.connect(board=board)
     try:
@@ -191,17 +197,17 @@ def test_stored_board_removed_is_not_recreated(boards):
     first = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
     assert first['ok'], first
     boards.host.kanban.remove_board('client-b', archive=True)
-    assert not boards.host.kanban.board_exists('client-b')
+    assert not db_file(boards, 'client-b').exists()
     boards.lifecycle.state = 'SUCCEEDED'
     out = boards.service.check('s', first['run_id'])
-    assert not boards.host.kanban.board_exists('client-b'), 'plugin resurrected archived board client-b'
+    assert not db_file(boards, 'client-b').exists(), 'plugin resurrected archived board client-b'
     assert out['kanban_outcome'] == 'review_refused:board missing'
     # Final: a later check neither retries the handoff nor recreates the board.
     started = time.monotonic()
     again = boards.service.check('s', first['run_id'])
     assert again['kanban_outcome'] == 'review_refused:board missing'
     assert time.monotonic() - started < 1
-    assert not boards.host.kanban.board_exists('client-b')
+    assert not db_file(boards, 'client-b').exists()
 
 
 def test_request_changes_without_board_refuses_removed_ledger_board(boards):
@@ -212,7 +218,7 @@ def test_request_changes_without_board_refuses_removed_ledger_board(boards):
     assert boards.service.check('s', first['run_id'])['kanban_outcome'] == 'review'
     boards.host.kanban.remove_board('client-b', archive=True)
     reply = call(boards, 'teammate_request_changes', kanban_task=task_id, feedback='Fix B')
-    assert not boards.host.kanban.board_exists('client-b'), 'rework recreated archived board'
+    assert not db_file(boards, 'client-b').exists(), 'rework recreated archived board'
     assert reply['error'] == 'unknown_board', reply
     assert len(boards.lifecycle.requests) == 1
     assert tasks(boards, 'client-a') == []
@@ -240,7 +246,7 @@ def test_monitor_removed_board_does_not_heartbeat_or_recreate(boards):
     thread = boards.service.monitors[reply['run_id']]
     thread.join(5)
     assert not thread.is_alive()
-    assert not boards.host.kanban.board_exists('client-b'), 'monitor recreated archived board'
+    assert not db_file(boards, 'client-b').exists(), 'monitor recreated archived board'
     assert beats == []
     with boards.store() as store:
         finished = store.get(reply['run_id'], 's')
@@ -272,7 +278,7 @@ def test_monitor_keeps_watching_after_board_removed(boards):
     assert not thread.is_alive()
     assert len(waits) == 13, 'monitor gave up before the run finished'
     assert outcomes[1] == 'claim_lost'
-    assert not boards.host.kanban.board_exists('client-b')
+    assert not db_file(boards, 'client-b').exists()
     with boards.store() as store:
         finished = store.get(reply['run_id'], 's')
     assert finished['status'] == 'succeeded'
@@ -364,3 +370,12 @@ def test_default_host_connect_call_unchanged(boards, monkeypatch):
     with boards.host.connection():
         pass
     assert calls == [((), {})]
+
+
+def test_archived_board_is_unknown_before_any_write(boards):
+    task_id = create(boards)
+    boards.host.kanban.remove_board('client-b', archive=True)
+    reply = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert reply['error'] == 'unknown_board', reply
+    assert not db_file(boards, 'client-b').exists()
+    assert boards.lifecycle.requests == []
