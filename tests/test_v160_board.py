@@ -379,3 +379,31 @@ def test_archived_board_is_unknown_before_any_write(boards):
     assert reply['error'] == 'unknown_board', reply
     assert not db_file(boards, 'client-b').exists()
     assert boards.lifecycle.requests == []
+
+
+def test_request_changes_with_board_sees_newer_implicit_board_run(boards):
+    # Card on client-b: run1 named the board; run2 was assigned without `board` while client-b was current, so its
+    # ledger row has no board. Naming client-b on rework must continue from run2, not from the older run1.
+    task_id = create(boards)
+    first = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert first['ok'], first
+    boards.lifecycle.state = 'SUCCEEDED'
+    assert boards.service.check('s', first['run_id'])['kanban_outcome'] == 'review'
+    boards.host.kanban.set_current_board('client-b')
+    boards.lifecycle.state = 'RUNNING'
+    second = call(boards, 'teammate_request_changes', kanban_task=task_id, feedback='Second pass')
+    assert second['ok'], second
+    with boards.store() as store:
+        store.conn.execute('UPDATE runs SET kanban_board=NULL WHERE run_id=?', (second['run_id'],))
+        store.conn.commit()
+    boards.lifecycle.state = 'SUCCEEDED'
+    assert boards.service.check('s', second['run_id'])['kanban_outcome'] == 'review'
+    boards.host.kanban.set_current_board('client-a')
+    boards.lifecycle.state = 'RUNNING'
+    third = call(boards, 'teammate_request_changes', kanban_task=task_id, feedback='Third pass', board='client-b')
+    assert third['ok'], third
+    assert third['previous_run_id'] == second['run_id'], third
+    assert tasks(boards, 'client-b')[0].status == 'running'
+    assert tasks(boards, 'client-a') == []
+    with boards.store() as store:
+        assert store.get(third['run_id'], 's')['kanban_board'] == 'client-b'

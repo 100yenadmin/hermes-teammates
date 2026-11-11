@@ -480,12 +480,11 @@ class TeammatesService:
             return error('unsupported', 'This Hermes build has no Kanban reopen_review_task support.')
         with self.store_factory() as store:
             previous = store.latest_for_task(session_id, kanban_task, **({'board': board} if board is not None else {}))
-        if previous is not None:
-            board = previous.get('kanban_board')
-            if board is not None:
-                board, refusal = self._select_board(board)
-                if refusal:
-                    return refusal
+        if previous is not None and previous.get('kanban_board') is not None:
+            # A stored board wins; with none stored, keep the named board (or the current board when none was named).
+            board, refusal = self._select_board(previous['kanban_board'])
+            if refusal:
+                return refusal
         card_summary = None
         with self._connection(board) as conn:
             task = self.host.get_task(conn, kanban_task)

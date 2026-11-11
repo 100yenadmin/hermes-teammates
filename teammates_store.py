@@ -95,7 +95,8 @@ class Store:
     def latest_for_task(self, owner_session_id, task_id, board=None):
         row = self.conn.execute(
             'SELECT * FROM runs WHERE owner_session_id=? AND kanban_task=? '
-            + ('AND kanban_board=? ' if board is not None else '')
+            # A row with no board ran on whatever board was current, so it can be this board's newest run.
+            + ('AND (kanban_board=? OR kanban_board IS NULL) ' if board is not None else '')
             + 'ORDER BY created_at DESC, rowid DESC LIMIT 1',
             (owner_session_id, task_id, board) if board is not None else (owner_session_id, task_id)).fetchone()
         return dict(row) if row else None
