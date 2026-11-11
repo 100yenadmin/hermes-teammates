@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from dataclasses import fields
 import json
+import inspect
 import os
 
 
@@ -214,9 +215,36 @@ class HermesHost:
         except ImportError:
             return None
 
+    def select_board(self, board):
+        """Validate explicit intent without opening (and potentially creating) a DB."""
+        if board is None:
+            return None, None
+        if not isinstance(board, str) or not 1 <= len(board.strip()) <= 64:
+            return None, 'invalid_board'
+        if not self.kanban_available or not self.supports_board():
+            return None, 'unsupported'
+        normalize = getattr(self.kanban, '_normalize_board_slug', None)
+        exists = getattr(self.kanban, 'board_exists', None)
+        if not callable(exists):
+            return None, 'unsupported'
+        try:
+            board = normalize(board) if callable(normalize) else board.strip()
+            return (board, None) if board and exists(board) else (None, 'unknown_board')
+        except ValueError:
+            return None, 'invalid_board'
+
+    def supports_board(self):
+        try:
+            parameter = inspect.signature(self.connect).parameters.get('board')
+            return parameter is not None and parameter.kind != inspect.Parameter.POSITIONAL_ONLY
+        except (TypeError, ValueError):
+            return False
+
     @contextmanager
-    def connection(self):
-        conn = self.connect()
+    def connection(self, board=None):
+        if board is not None and not self.supports_board():
+            raise NotImplementedError('unsupported: connect(board=) is unavailable')
+        conn = self.connect(board=board) if board is not None else self.connect()
         try:
             yield conn
         finally:

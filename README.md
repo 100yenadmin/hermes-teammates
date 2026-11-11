@@ -142,7 +142,12 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    `teammate_stop` records accepted stops; completions after the stop stay cancelled and block their Kanban card.
    Refused cancellations leave completed work intact.
 6. **Kanban teammates lane.** Create 1–8 linked cards with `teammate_chain`, or assign cards to the `teammates` lane, which is not a Hermes profile, so the
-   dispatcher leaves them alone. `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
+   dispatcher leaves them alone. Optional `board` on `teammate_assign` (with `kanban_task`), `teammate_chain`,
+   `teammate_request_changes` and `teammates_roster` selects an existing board. Names are validated and normalized;
+   unknown boards are refused. The selected board stays with the run through heartbeats, Review, failure and rework,
+   even if the current board changes. Omit it to keep using the current board. The plugin never creates boards.
+
+   `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. Each finished parent card's result (what its teammate handed to Review, not the approval note) travels automatically with the card's title and body;
    the agent no longer needs to pass those results as context. On success the card moves to **review** with the teammate's summary; on failure it is
    **blocked** with the reason. To accept a card, approve it (`kanban_complete`). To ask for changes, the agent uses
@@ -310,10 +315,10 @@ Ask in plain language:
 
 | Tool | What it does |
 |---|---|
-| `teammates_roster` | Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
-| `teammate_assign` | Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0). With `kanban_task`, `goal` may be left out: the card's title is used |
-| `teammate_request_changes` | Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
-| `teammate_chain` | Creates 1–8 linked lane cards from `steps` (`title`, `teammate`, optional `body`); optional `start` (default false) starts the first, with `wait_seconds` (integer 0–300, default 0). Each teammate receives its parent cards' results. Approve each card with `kanban_complete` |
+| `teammates_roster` | Optional `board` selects an existing Kanban board. Lists teammates and their current `role_hash`, recent runs, open lane cards and host features; optional `teammate` explains one definition |
+| `teammate_assign` | Optional `board` selects an existing Kanban board. Starts a run: `teammate`, `goal`, optional `context`, `follow_up`, `source_run_ids` (1–8 finished runs in this conversation), `kanban_task`, `wait_seconds` (0–300, default 0). With `kanban_task`, `goal` may be left out: the card's title is used |
+| `teammate_request_changes` | Optional `board` selects an existing Kanban board. Sends a lane card in Review back for changes: `kanban_task`, `feedback` (up to 4,000 characters), optional `teammate` (default: whoever worked it last) and `wait_seconds` (0–300, default 0). Reopens the card, adds the feedback as a comment and starts a new run on it. It never completes a card |
+| `teammate_chain` | Optional `board` selects an existing Kanban board. Creates 1–8 linked lane cards from `steps` (`title`, `teammate`, optional `body`); optional `start` (default false) starts the first, with `wait_seconds` (integer 0–300, default 0). Each teammate receives its parent cards' results. Approve each card with `kanban_complete` |
 | `teammate_check` | Shows status (including `queued`), result, `api_calls` and `duration_seconds`, or waits (`wait_seconds` ≤ 60); optional `offset` (integer ≥ 0) pages the result in 8,000-character chunks |
 | `teammate_wait` | Waits for any or all of 1–16 unique run IDs in this conversation; returns `done`, `pending`, and `timed_out` |
 | `teammate_message` | Steers a running teammate |
@@ -484,6 +489,7 @@ output, goals or child error text. Runs already read with check/wait or stopped 
 | `teammate_wait` | supported lifecycle and in-process plugin | Same isolation restrictions as check |
 | `teammate_request_changes` | Kanban `reopen_review_task` | Returns `unsupported` |
 | `teammate_chain` | Hermes `kanban_create` through `ctx.dispatch_tool` | Returns `unsupported` when dispatch is unavailable |
+| Explicit `board` | Hermes `connect(board=)` and `board_exists` | Returns unsupported when missing |
 | push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 

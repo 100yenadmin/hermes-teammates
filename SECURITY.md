@@ -92,3 +92,5 @@ cannot bind a notice to its owner. Injection requires confirmation of the receiv
 flush time; otherwise the notice is dropped. Both tested hosts lack that public binding API, so
 notices are unsupported on CLI, gateway and TUI. Host refusal or an injection exception never changes
 finalization, and acceptance does not prove delivery of a turn.
+
+- Board choice is operator or agent input, validated and confined to existing boards. The plugin never creates boards.

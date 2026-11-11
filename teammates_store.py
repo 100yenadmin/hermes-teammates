@@ -11,7 +11,7 @@ RESULT_CAP = 262144
 def _utf8(text):
     return text.encode('utf-8', 'replace').decode('utf-8')
 _schema_paths, _schema_lock = set(), threading.Lock()
-MIGRATIONS = {'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
+MIGRATIONS = {'kanban_board': 'TEXT', 'stop_requested_at': 'REAL', 'stop_reason': 'TEXT',
               'api_calls': 'INTEGER', 'duration_seconds': 'REAL',
               'parent_session_key': 'TEXT', 'notified_at': 'REAL', 'summary_chars': 'INTEGER',
               'summary_clipped': 'INTEGER',
@@ -92,10 +92,12 @@ class Store:
     def running(self):
         return [dict(row) for row in self.conn.execute("SELECT * FROM runs WHERE status='running'")]
 
-    def latest_for_task(self, owner_session_id, task_id):
+    def latest_for_task(self, owner_session_id, task_id, board=None):
         row = self.conn.execute(
             'SELECT * FROM runs WHERE owner_session_id=? AND kanban_task=? '
-            'ORDER BY created_at DESC, rowid DESC LIMIT 1', (owner_session_id, task_id)).fetchone()
+            + ('AND kanban_board=? ' if board is not None else '')
+            + 'ORDER BY created_at DESC, rowid DESC LIMIT 1',
+            (owner_session_id, task_id, board) if board is not None else (owner_session_id, task_id)).fetchone()
         return dict(row) if row else None
 
     @staticmethod

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Optional `board` selects an existing Kanban board for lane assignment, chains, rework and roster listings (#106); lane runs keep that board through heartbeats, Review and failure.
+
 ## 1.5.3 (2026-11-10)
 
 Docs only. No code changes; tools, arguments, results and behaviour are exactly 1.5.2's.
