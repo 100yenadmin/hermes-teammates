@@ -1,5 +1,6 @@
 """Explicit boards: real Kanban/dispatch, fake lifecycle, isolated storage."""
 import json
+import time
 import sqlite3
 import threading
 from types import SimpleNamespace
@@ -167,6 +168,115 @@ def test_request_changes_reopens_comments_and_persists_board(boards):
     with boards.store() as store:
         assert store.get(reply['run_id'], 's')['kanban_board'] == 'client-b'
     assert tasks(boards, 'client-a') == []
+
+
+def test_request_changes_without_board_uses_ledger_board(boards):
+    task_id = create(boards)
+    first = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert first['ok'], first
+    boards.lifecycle.state = 'SUCCEEDED'
+    assert boards.service.check('s', first['run_id'])['kanban_outcome'] == 'review'
+    boards.host.kanban.set_current_board('client-a')
+    boards.lifecycle.state = 'RUNNING'
+    reply = call(boards, 'teammate_request_changes', kanban_task=task_id, feedback='Fix B')
+    assert reply['ok'] and reply['previous_run_id'] == first['run_id'], reply
+    assert tasks(boards, 'client-b')[0].status == 'running'
+    assert tasks(boards, 'client-a') == []
+    with boards.store() as store:
+        assert store.get(reply['run_id'], 's')['kanban_board'] == 'client-b'
+
+
+def test_stored_board_removed_is_not_recreated(boards):
+    task_id = create(boards)
+    first = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert first['ok'], first
+    boards.host.kanban.remove_board('client-b', archive=True)
+    assert not boards.host.kanban.board_exists('client-b')
+    boards.lifecycle.state = 'SUCCEEDED'
+    out = boards.service.check('s', first['run_id'])
+    assert not boards.host.kanban.board_exists('client-b'), 'plugin resurrected archived board client-b'
+    assert out['kanban_outcome'] == 'review_refused:board missing'
+    # Final: a later check neither retries the handoff nor recreates the board.
+    started = time.monotonic()
+    again = boards.service.check('s', first['run_id'])
+    assert again['kanban_outcome'] == 'review_refused:board missing'
+    assert time.monotonic() - started < 1
+    assert not boards.host.kanban.board_exists('client-b')
+
+
+def test_request_changes_without_board_refuses_removed_ledger_board(boards):
+    task_id = create(boards)
+    first = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert first['ok'], first
+    boards.lifecycle.state = 'SUCCEEDED'
+    assert boards.service.check('s', first['run_id'])['kanban_outcome'] == 'review'
+    boards.host.kanban.remove_board('client-b', archive=True)
+    reply = call(boards, 'teammate_request_changes', kanban_task=task_id, feedback='Fix B')
+    assert not boards.host.kanban.board_exists('client-b'), 'rework recreated archived board'
+    assert reply['error'] == 'unknown_board', reply
+    assert len(boards.lifecycle.requests) == 1
+    assert tasks(boards, 'client-a') == []
+
+
+def test_monitor_removed_board_does_not_heartbeat_or_recreate(boards):
+    from hermes_teammates.teammates_service import TeammatesService
+    task_id = create(boards)
+    reply = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert reply['ok'], reply
+    boards.host.kanban.remove_board('client-b', archive=True)
+    beats, waits = [], []
+    boards.host.heartbeat_claim = lambda *a, **k: beats.append('claim') or True
+    boards.host.heartbeat_worker = lambda *a, **k: beats.append('worker')
+    def wait(handle, *, timeout_seconds):
+        waits.append(timeout_seconds)
+        if len(waits) == 2:
+            boards.lifecycle.state = 'SUCCEEDED'
+        return SimpleNamespace(state=boards.lifecycle.state, timed_out=len(waits) == 1)
+    boards.lifecycle.wait = wait
+    with boards.store() as store:
+        row = store.get(reply['run_id'], 's')
+    handle = boards.host.handle_from_dict(json.loads(row['handle_json']))
+    TeammatesService.start_monitor(boards.service, row, handle, ttl=60)
+    thread = boards.service.monitors[reply['run_id']]
+    thread.join(5)
+    assert not thread.is_alive()
+    assert not boards.host.kanban.board_exists('client-b'), 'monitor recreated archived board'
+    assert beats == []
+    with boards.store() as store:
+        finished = store.get(reply['run_id'], 's')
+    assert finished['status'] == 'succeeded'
+    assert finished['kanban_outcome'] == 'claim_lost'  # final, like any lost claim: no retry, no recreate
+
+
+def test_monitor_keeps_watching_after_board_removed(boards):
+    from hermes_teammates.teammates_service import TeammatesService
+    task_id = create(boards)
+    reply = boards.service.assign('s', 'worker', 'goal', kanban_task=task_id, board='client-b')
+    assert reply['ok'], reply
+    boards.host.kanban.remove_board('client-b', archive=True)
+    waits, outcomes = [], []
+    def wait(handle, *, timeout_seconds):
+        waits.append(timeout_seconds)
+        with boards.store() as store:
+            outcomes.append(store.get(reply['run_id'], 's')['kanban_outcome'])
+        if len(waits) == 13:
+            boards.lifecycle.state = 'SUCCEEDED'
+        return SimpleNamespace(state=boards.lifecycle.state, timed_out=len(waits) < 13)
+    boards.lifecycle.wait = wait
+    with boards.store() as store:
+        row = store.get(reply['run_id'], 's')
+    handle = boards.host.handle_from_dict(json.loads(row['handle_json']))
+    TeammatesService.start_monitor(boards.service, row, handle, ttl=60)
+    thread = boards.service.monitors[reply['run_id']]
+    thread.join(5)
+    assert not thread.is_alive()
+    assert len(waits) == 13, 'monitor gave up before the run finished'
+    assert outcomes[1] == 'claim_lost'
+    assert not boards.host.kanban.board_exists('client-b')
+    with boards.store() as store:
+        finished = store.get(reply['run_id'], 's')
+    assert finished['status'] == 'succeeded'
+    assert finished['kanban_outcome'] == 'claim_lost'  # final, like any lost claim: no retry, no recreate
 
 
 @pytest.mark.parametrize('name,args', [

@@ -107,10 +107,10 @@ SPECS = {
 # Hermes catalogs only the first sentence (at most 60 characters). Keep the
 # conditional bridge flow there, and a valid single-call envelope in the schema.
 _BRIDGE_EXAMPLES = {
-    'teammates_roster': ('Roster (board)', {}),
-    'teammate_assign': ('Assign (board)', {'teammate': 'reviewer', 'goal': 'Review the requested diff.'}),
-    'teammate_request_changes': ('Rework (board)', {'kanban_task': 'CARD_ID', 'feedback': 'Address the review feedback.'}),
-    'teammate_chain': ('Chain (board)', {'steps': [{'title': 'Review the diff', 'teammate': 'reviewer'}]}),
+    'teammates_roster': ('List roster', {}),
+    'teammate_assign': ('Assign a goal', {'teammate': 'reviewer', 'goal': 'Review the requested diff.'}),
+    'teammate_request_changes': ('Request changes', {'kanban_task': 'CARD_ID', 'feedback': 'Address the review feedback.'}),
+    'teammate_chain': ('Create chain', {'steps': [{'title': 'Review the diff', 'teammate': 'reviewer'}]}),
     'teammate_check': ('Check a run', {'run_id': 'RUN_ID'}),
     'teammate_wait': ('Wait for runs', {'run_ids': ['RUN_ID']}),
 }

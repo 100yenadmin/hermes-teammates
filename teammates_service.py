@@ -16,6 +16,7 @@ import time
 from uuid import uuid4
 
 from .teammates_config import canonical_lane, parse
+from .teammates_host import BoardMissing
 from .teammates_store import INSTANCE_ID
 
 TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
@@ -481,6 +482,10 @@ class TeammatesService:
             previous = store.latest_for_task(session_id, kanban_task, **({'board': board} if board is not None else {}))
         if previous is not None:
             board = previous.get('kanban_board')
+            if board is not None:
+                board, refusal = self._select_board(board)
+                if refusal:
+                    return refusal
         card_summary = None
         with self._connection(board) as conn:
             task = self.host.get_task(conn, kanban_task)
@@ -1062,6 +1067,13 @@ class TeammatesService:
             self._handoff_lock.release()
 
     def _handoff_once(self, row):
+        try:
+            return self._handoff_on_board(row)
+        except BoardMissing:
+            # The run's board was removed: final, so later checks don't retry (and never recreate it).
+            return 'review_refused:board missing' if row['status'] == 'succeeded' else 'block_refused'
+
+    def _handoff_on_board(self, row):
         claim = json.loads(row['kanban_claim'])
         status, run_id = row['status'], row['run_id']
         with self._connection(row.get('kanban_board')) as conn:
@@ -1104,12 +1116,15 @@ class TeammatesService:
                             self.finalize(row['run_id'], result, notify=True)
                             return
                     if terminal.timed_out and heartbeat:
-                        with self._connection(row.get('kanban_board')) as conn:
-                            claim = json.loads(row['kanban_claim'])
-                            heartbeat = self.host.heartbeat_claim(
-                                conn, row['kanban_task'], ttl_seconds=ttl,
-                                claimer=claim['claimer'])
-                            self.host.heartbeat_worker(conn, row['kanban_task'], expected_run_id=claim['kanban_run_id'])
+                        try:
+                            with self._connection(row.get('kanban_board')) as conn:
+                                claim = json.loads(row['kanban_claim'])
+                                heartbeat = self.host.heartbeat_claim(
+                                    conn, row['kanban_task'], ttl_seconds=ttl,
+                                    claimer=claim['claimer'])
+                                self.host.heartbeat_worker(conn, row['kanban_task'], expected_run_id=claim['kanban_run_id'])
+                        except BoardMissing:
+                            heartbeat = False  # board removed: the claim is gone; keep watching the run
                         if not heartbeat:
                             with self.store_factory() as store:
                                 store.update_if(row['run_id'], 'running', kanban_outcome='claim_lost')

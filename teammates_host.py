@@ -6,6 +6,10 @@ import inspect
 import os
 
 
+class BoardMissing(LookupError):
+    """A named Kanban board no longer exists. Connecting would recreate it, so callers get this instead."""
+
+
 def lifecycle(ctx):
     return ctx.subagent_lifecycle
 
@@ -242,8 +246,14 @@ class HermesHost:
 
     @contextmanager
     def connection(self, board=None):
-        if board is not None and not self.supports_board():
-            raise NotImplementedError('unsupported: connect(board=) is unavailable')
+        if board is not None:
+            if not self.supports_board():
+                raise NotImplementedError('unsupported: connect(board=) is unavailable')
+            exists = getattr(self.kanban, 'board_exists', None)
+            if not callable(exists):
+                raise NotImplementedError('unsupported: board_exists is unavailable')
+            if not exists(board):
+                raise BoardMissing('unknown_board')
         conn = self.connect(board=board) if board is not None else self.connect()
         try:
             yield conn

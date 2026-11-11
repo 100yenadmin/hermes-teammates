@@ -145,7 +145,8 @@ Checked against Hermes 0.23.0 and main (`tools/delegate_tool.py`: children are s
    dispatcher leaves them alone. Optional `board` on `teammate_assign` (with `kanban_task`), `teammate_chain`,
    `teammate_request_changes` and `teammates_roster` selects an existing board. Names are validated and normalized;
    unknown boards are refused. The selected board stays with the run through heartbeats, Review, failure and rework,
-   even if the current board changes. Omit it to keep using the current board. The plugin never creates boards.
+   even if the current board changes. Omit it to keep using the current board; for chain retries, naming the current
+   board and leaving `board` out identify separate chains. The plugin never creates boards.
 
    `teammate_assign(kanban_task=…)` claims the card and keeps the claim alive while
    the teammate works. Each finished parent card's result (what its teammate handed to Review, not the approval note) travels automatically with the card's title and body;
