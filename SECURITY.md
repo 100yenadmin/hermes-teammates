@@ -15,7 +15,7 @@ Do not open a public issue for them.
 - Teammates or results from one profile becoming visible to another.
 - Run results or diagnostics exposing credentials.
 - Access to another conversation's runs, steering or follow-up context.
-- Kanban actions outside the configured lane or current board.
+- Kanban actions outside the configured lane, or outside the current board or the existing board chosen with `board`.
 
 ## Out of scope
 
@@ -59,7 +59,8 @@ with `gh` only after the user approves that draft.
   - On success it moves the card to `review` without naming a reviewer, so no profile is spawned automatically.
   - On failure or stop it blocks the card with the reason.
   - It never completes a card; acceptance stays with you.
-  - It writes only to the board the current Hermes process uses.
+  - It writes only to the current board, or to the existing board chosen with `board` and recorded with the run.
+    Board names are validated, an unknown or archived board is refused, and the plugin never creates a board.
   - On Hermes builds with plugin prompt sections, it adds one short paragraph about the lane to new top-level session
     prompts, rendered from its settings: no conversation content, and none for delegated children or under
     `plugins.isolation: host`.
@@ -92,5 +93,3 @@ cannot bind a notice to its owner. Injection requires confirmation of the receiv
 flush time; otherwise the notice is dropped. Both tested hosts lack that public binding API, so
 notices are unsupported on CLI, gateway and TUI. Host refusal or an injection exception never changes
 finalization, and acceptance does not prove delivery of a turn.
-
-- Board choice is operator or agent input, validated and confined to existing boards. The plugin never creates boards.
