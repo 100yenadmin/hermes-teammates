@@ -16,6 +16,7 @@ import time
 from uuid import uuid4
 
 from .teammates_config import canonical_lane, parse
+from .teammates_host import BoardMissing
 from .teammates_store import INSTANCE_ID
 
 TERMINAL = {'SUCCEEDED': 'succeeded', 'FAILED': 'failed',
@@ -249,11 +250,18 @@ class TeammatesService:
         with self.store_factory() as store:
             return store.get(run_id, session_id)
 
+    def _select_board(self, board):
+        selected, code = self.host.select_board(board)
+        return selected, error(code) if code else None
+
+    def _connection(self, board=None):
+        return self.host.connection(board=board) if board is not None else self.host.connection()
+
     @safe
     def assign(self, session_id, teammate, goal, context=None, follow_up=False,
-               kanban_task=None, parent_agent=None, wait_seconds=0, source_run_ids=None):
+               kanban_task=None, parent_agent=None, wait_seconds=0, source_run_ids=None, board=None):
         return self._admit_and_wait(session_id, wait_seconds, lambda: self._assign(
-            session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids))
+            session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids, board))
 
     def _admit_and_wait(self, session_id, wait_seconds, start):
         if wait_seconds is None:  # an explicit null from the model means the default
@@ -298,11 +306,14 @@ class TeammatesService:
             return len(store.list(session_id, status='running')) >= config['max_live_runs']
 
     @safe
-    def chain(self, session_id, steps, start=False, wait_seconds=0, parent_agent=None):
+    def chain(self, session_id, steps, start=False, wait_seconds=0, parent_agent=None, board=None):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
             return error('no_session')
+        board, refusal = self._select_board(board)
+        if refusal:
+            return refusal
         start = False if start is None else start
         wait_seconds = 0 if wait_seconds is None else wait_seconds
         if not isinstance(steps, list) or not 1 <= len(steps) <= 8:
@@ -335,20 +346,23 @@ class TeammatesService:
             return error('unsupported', 'This Hermes build has no dispatch_tool support for kanban_create.')
         parent_agent = parent_agent if parent_agent is not None else self.host.active_parent()
         # The lane is part of the key: after a lane change, an identical call makes a new chain in the new lane.
-        digest = hashlib.sha256((session_id + '\0' + lane + '\0' + json.dumps(
+        digest = hashlib.sha256((session_id + '\0' + lane + '\0' +
+            (board + '\0' if board is not None else '') + json.dumps(
             steps, sort_keys=True, separators=(',', ':'), ensure_ascii=False)).encode()).hexdigest()[:16]
         # Serialized so overlapping identical calls cannot each take the other's cards as their own and
         # archive them on a failure: the board snapshot below decides which cards this call created.
         with _chain_lock:
             cards, created, attempted, existing = [], [], set(), None
             try:
-                with self.host.connection() as conn:
+                with self._connection(board) as conn:
                     existing = {task.id for task in self.host.kanban.list_tasks(conn)}
                 for index, step in enumerate(steps):
                     args = dict(title=step['title'].strip(), assignee=lane,
                                 body=(step.get('body', '') + '\n' if step.get('body') else '') +
                                      f"Teammate: {step['teammate']}",
                                 idempotency_key=f'hermes-teammates:chain:{digest}:{index}')
+                    if board is not None:
+                        args['board'] = board
                     if cards:
                         args['parents'] = [cards[-1]['kanban_task']]
                     attempted.add(args['idempotency_key'])
@@ -359,7 +373,7 @@ class TeammatesService:
                     task_id = reply['task_id']
                     if task_id not in existing:
                         created.append(task_id)
-                    with self.host.connection() as conn:
+                    with self._connection(board) as conn:
                         task = self.host.get_task(conn, task_id)
                         if task_id in existing and cards and callable(getattr(self.host.kanban, 'parent_ids', None)) and \
                                 list(self.host.kanban.parent_ids(conn, task_id)) != [cards[-1]['kanban_task']]:
@@ -372,12 +386,12 @@ class TeammatesService:
                 # Core may have committed before a malformed reply reached us. Recover those ids too,
                 # while preserving every card that existed before this call (including idempotent retries).
                 if existing is not None:
-                    with suppress(Exception), self.host.connection() as conn:
+                    with suppress(Exception), self._connection(board) as conn:
                         created = list(dict.fromkeys(created + [task.id for task in self.host.kanban.list_tasks(conn)
                                        if task.id not in existing and task.idempotency_key in attempted]))
                 archived = []
                 for task_id in reversed(created):  # children first, so no card briefly turns ready
-                    with suppress(Exception), self.host.connection() as conn:
+                    with suppress(Exception), self._connection(board) as conn:
                         if self.host.kanban.archive_task(conn, task_id):
                             archived.append(task_id)
                 left = [task_id for task_id in created if task_id not in archived]
@@ -393,13 +407,13 @@ class TeammatesService:
         if start:
             result['started'] = self.assign(session_id, steps[0]['teammate'], steps[0]['title'],
                                             kanban_task=cards[0]['kanban_task'], parent_agent=parent_agent,
-                                            wait_seconds=wait_seconds)
+                                            wait_seconds=wait_seconds, **({'board': board} if board is not None else {}))
         return result
 
-    def _parent_results(self, task_id, budget):
+    def _parent_results(self, task_id, budget, board=None):
         if not all(callable(getattr(self.host.kanban, name, None)) for name in ('parent_ids', 'latest_summaries')):
             return ''
-        with self.host.connection() as conn:
+        with self._connection(board) as conn:
             parents = self.host.kanban.parent_ids(conn, task_id)
             if not parents:
                 return ''
@@ -437,11 +451,11 @@ class TeammatesService:
         return None
 
     @safe
-    def request_changes(self, session_id, kanban_task, feedback, teammate=None, parent_agent=None, wait_seconds=0):
+    def request_changes(self, session_id, kanban_task, feedback, teammate=None, parent_agent=None, wait_seconds=0, board=None):
         return self._admit_and_wait(session_id, wait_seconds, lambda: self._request_changes(
-            session_id, kanban_task, feedback, teammate, parent_agent))
+            session_id, kanban_task, feedback, teammate, parent_agent, board))
 
-    def _request_changes(self, session_id, kanban_task, feedback, teammate, parent_agent):
+    def _request_changes(self, session_id, kanban_task, feedback, teammate, parent_agent, board=None):
         if not isinstance(feedback, str) or not feedback.strip() or len(feedback) > 4000:
             return error('invalid_feedback')
         if not isinstance(kanban_task, str) or not kanban_task.strip():
@@ -450,6 +464,9 @@ class TeammatesService:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
             return error('no_session')
+        board, refusal = self._select_board(board)
+        if refusal:
+            return refusal
         if not self.host.kanban_available:
             return error('kanban_unavailable')
         config = parse(self.config_reader())
@@ -462,9 +479,14 @@ class TeammatesService:
         if not callable(getattr(self.host.kanban, 'reopen_review_task', None)):
             return error('unsupported', 'This Hermes build has no Kanban reopen_review_task support.')
         with self.store_factory() as store:
-            previous = store.latest_for_task(session_id, kanban_task)
+            previous = store.latest_for_task(session_id, kanban_task, **({'board': board} if board is not None else {}))
+        if previous is not None and previous.get('kanban_board') is not None:
+            # A stored board wins; with none stored, keep the named board (or the current board when none was named).
+            board, refusal = self._select_board(previous['kanban_board'])
+            if refusal:
+                return refusal
         card_summary = None
-        with self.host.connection() as conn:
+        with self._connection(board) as conn:
             task = self.host.get_task(conn, kanban_task)
             if task is None:
                 return error('kanban_task_not_found')
@@ -505,10 +527,10 @@ class TeammatesService:
             label = "The card's last result, as recorded on the board:"
             goal = f'Revise your work on this Kanban card ({clip(task.title, 300)}) as requested.'
         context = f'Changes requested on this card:\n{feedback}\n\n{label}\n{result}'
-        reply = self._assign(session_id, teammate, goal, context, False, kanban_task, parent_agent)
+        reply = self._assign(session_id, teammate, goal, context, False, kanban_task, parent_agent, **({'board': board} if board is not None else {}))
         if not reply['ok']:
             status = None
-            with suppress(Exception), self.host.connection() as conn:
+            with suppress(Exception), self._connection(board) as conn:
                 card = self.host.get_task(conn, kanban_task)
                 status = card.status if card is not None else None
             return dict(reply, reopened=True, card_status=status, note=_retry_note(kanban_task, status, commented))
@@ -517,11 +539,16 @@ class TeammatesService:
             return dict(reply, reopened=True, from_card=True, **extra)
         return dict(reply, reopened=True, previous_run_id=previous['run_id'], **extra)
 
-    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids=None):
+    def _assign(self, session_id, teammate, goal, context, follow_up, kanban_task, parent_agent, source_run_ids=None, board=None):
         if self.host.isolated:
             return error('unsupported_isolation', ISOLATION_MESSAGE)
         if not session_id:
             return error('no_session')
+        if board is not None and not kanban_task:
+            return error('invalid_board', 'board requires kanban_task')
+        board, refusal = self._select_board(board)
+        if refusal:
+            return refusal
         config = parse(self.config_reader())
         refusal = self._teammate_error(config, teammate)
         if refusal:
@@ -529,7 +556,7 @@ class TeammatesService:
         if (goal is None or isinstance(goal, str) and not goal.strip()) and isinstance(kanban_task, str) \
                 and kanban_task.strip() and self.host.kanban_available:
             # A lane card carries its own task: without a goal, its title is the goal (as teammate_chain's start does).
-            with suppress(Exception), self.host.connection() as conn:
+            with suppress(Exception), self._connection(board) as conn:
                 task = self.host.get_task(conn, kanban_task)
                 if task is None:
                     return error('kanban_task_not_found')
@@ -568,7 +595,7 @@ class TeammatesService:
                 return error('kanban_unavailable')
             if self.host.lane_is_profile(config['lane']) is True:
                 return error('lane_is_profile')
-            with self.host.connection() as conn:
+            with self._connection(board) as conn:
                 task = self.host.get_task(conn, kanban_task)
                 if task is None:
                     return error('kanban_task_not_found')
@@ -586,7 +613,7 @@ class TeammatesService:
                     if self.host.latest_run(conn, kanban_task) is None:
                         raise RuntimeError('claimed card has no latest run')
                 except Exception as exc:
-                    return self._launch_failed(run_id, None, claim, kanban_task, exc)
+                    return self._launch_failed(run_id, None, claim, kanban_task, exc, board=board)
         teammate_config = config['teammates'][teammate]
         role_receipt = role_hash(teammate_config)
         try:
@@ -609,7 +636,8 @@ class TeammatesService:
                 remaining -= len(f'[… {len(str(context))} characters omitted]') + 2
             if task:
                 with suppress(Exception):  # Optional board-result helpers must never prevent a launch.
-                    parent_results = self._parent_results(task.id, min(12000, remaining - source_reserve))
+                    parent_results = self._parent_results(task.id, min(12000, remaining - source_reserve),
+                                                          **({'board': board} if board is not None else {}))
                     if parent_results:
                         parts.append(parent_results)
                         remaining -= len(parent_results) + 2
@@ -663,14 +691,14 @@ class TeammatesService:
                         unsupported.append(key)
             handle = self.host.service.launch(self.host.launch_request(**kwargs))
         except Exception as exc:
-            return self._launch_failed(run_id, None, claim, kanban_task, exc)
+            return self._launch_failed(run_id, None, claim, kanban_task, exc, board=board)
         try:
             row = dict(run_id=run_id, teammate=teammate, owner_session_id=session_id,
                        goal=goal, status='running', subagent_id=handle.subagent_id,
                        handle_json=json.dumps(handle_dict(handle)), provider=handle.provider, model=handle.model,
                        requested_route=teammate_config['route'], requested_effort=teammate_config['reasoning_effort'],
                        unsupported=json.dumps(unsupported), instance_id=INSTANCE_ID, pid=os.getpid(),
-                       kanban_task=kanban_task, kanban_claim=json.dumps(claim) if claim else None,
+                       kanban_task=kanban_task, kanban_board=board if kanban_task else None, kanban_claim=json.dumps(claim) if claim else None,
                        parent_session_key=self.host.completion_target()[0],
                        created_at=self.clock(), role_hash=role_receipt)
             # In-process the lock covers launch + insert. Across processes the conditional insert
@@ -678,16 +706,16 @@ class TeammatesService:
             with self.store_factory() as store:
                 admitted = store.admit(row, config['max_live_runs'])
             if not admitted:
-                self._launch_failed(run_id, handle, claim, kanban_task, RuntimeError('capacity exhausted'), row=row)
+                self._launch_failed(run_id, handle, claim, kanban_task, RuntimeError('capacity exhausted'), row=row, board=board)
                 return error('too_many_live_runs')
             self._owners[run_id] = session_id
             self.start_monitor(row, handle, config['claim_ttl_seconds'] if kanban_task else None)
         except Exception as exc:
-            return self._launch_failed(run_id, handle, claim, kanban_task, exc)
+            return self._launch_failed(run_id, handle, claim, kanban_task, exc, board=board)
         return {key: value for key, value in public_row(row).items()
                 if key in {'ok', 'run_id', 'teammate', 'status', 'provider', 'model', 'unsupported', 'kanban_task'}}
 
-    def _launch_failed(self, run_id, handle, claim, task_id, exc, *, row=None):
+    def _launch_failed(self, run_id, handle, claim, task_id, exc, *, row=None, board=None):
         message = f'{type(exc).__name__}: {clip(exc, 1500)}'
         if 'Unknown toolsets' in str(exc):
             message += ('; check the spelling. Hermes builds before NousResearch/hermes-agent#137167 cannot grant '
@@ -696,7 +724,7 @@ class TeammatesService:
             with suppress(Exception):
                 self.host.service.cancel(handle, reason=clip(message, 500))
         if claim:
-            with suppress(Exception), self.host.connection() as conn:
+            with suppress(Exception), self._connection(board) as conn:
                 self.host.block_task(conn, task_id, reason=clip(message, 500), expected_run_id=claim['kanban_run_id'])
         with suppress(Exception), self.store_factory() as store:
             won = store.finish(run_id, 'cancelled', completed_at=self.clock(), error=message)
@@ -1038,9 +1066,16 @@ class TeammatesService:
             self._handoff_lock.release()
 
     def _handoff_once(self, row):
+        try:
+            return self._handoff_on_board(row)
+        except BoardMissing:
+            # The run's board was removed: final, so later checks don't retry (and never recreate it).
+            return 'review_refused:board missing' if row['status'] == 'succeeded' else 'block_refused'
+
+    def _handoff_on_board(self, row):
         claim = json.loads(row['kanban_claim'])
         status, run_id = row['status'], row['run_id']
-        with self.host.connection() as conn:
+        with self._connection(row.get('kanban_board')) as conn:
             task = self.host.get_task(conn, row['kanban_task'])
             if task is None or task.current_run_id != claim['kanban_run_id']:
                 return 'review_refused:ownership lost' if status == 'succeeded' else 'block_refused'
@@ -1080,12 +1115,15 @@ class TeammatesService:
                             self.finalize(row['run_id'], result, notify=True)
                             return
                     if terminal.timed_out and heartbeat:
-                        with self.host.connection() as conn:
-                            claim = json.loads(row['kanban_claim'])
-                            heartbeat = self.host.heartbeat_claim(
-                                conn, row['kanban_task'], ttl_seconds=ttl,
-                                claimer=claim['claimer'])
-                            self.host.heartbeat_worker(conn, row['kanban_task'], expected_run_id=claim['kanban_run_id'])
+                        try:
+                            with self._connection(row.get('kanban_board')) as conn:
+                                claim = json.loads(row['kanban_claim'])
+                                heartbeat = self.host.heartbeat_claim(
+                                    conn, row['kanban_task'], ttl_seconds=ttl,
+                                    claimer=claim['claimer'])
+                                self.host.heartbeat_worker(conn, row['kanban_task'], expected_run_id=claim['kanban_run_id'])
+                        except BoardMissing:
+                            heartbeat = False  # board removed: the claim is gone; keep watching the run
                         if not heartbeat:
                             with self.store_factory() as store:
                                 store.update_if(row['run_id'], 'running', kanban_outcome='claim_lost')
@@ -1164,7 +1202,7 @@ class TeammatesService:
 
     @safe
     def roster(self, session_id, include_runs=True, teammate=None, *, status=_ROSTER_UNSET, search=_ROSTER_UNSET,
-               since=_ROSTER_UNSET, limit=20, offset=_ROSTER_UNSET):
+               since=_ROSTER_UNSET, limit=20, offset=_ROSTER_UNSET, board=None):
         if status is not _ROSTER_UNSET and (not isinstance(status, str) or status not in
                                   {'running', 'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown'}):
             return error('invalid_roster', 'status must be running, succeeded, failed, interrupted, cancelled or unknown')
@@ -1179,6 +1217,9 @@ class TeammatesService:
             return error('invalid_roster', 'offset must be an integer from 0 to 10000')
         if teammate is not None and not isinstance(teammate, str):
             return error('invalid_roster', 'teammate must be a name')
+        board, refusal = self._select_board(board)
+        if refusal:
+            return refusal
         filtered = any(arg is not _ROSTER_UNSET for arg in (status, search, since, offset))
         status = None if status is _ROSTER_UNSET else status
         search = None if search is _ROSTER_UNSET else search
@@ -1222,7 +1263,7 @@ class TeammatesService:
                 'is_profile': self.host.lane_is_profile(config['lane']), 'open_tasks': []}
         lane_counts = {}
         if lane['available']:
-            with self.host.connection() as conn:
+            with self._connection(board) as conn:
                 lane['open_tasks'] = self.host.open_tasks(conn, config['lane'])
                 lane_counts = self.host.lane_counts(conn, config['lane'])
         invalid = [dict(name=clip(name, 300), errors=errors) for name, errors in config['invalid_teammates'].items()]

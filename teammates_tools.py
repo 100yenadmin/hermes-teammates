@@ -9,6 +9,7 @@ def _p(kind, description, **extra):
 
 
 _RUN_ID = _p('string', 'The run_id returned by teammate_assign.')
+_BOARD = _p('string', 'Optional existing Kanban board; omit for the current board.', minLength=1, maxLength=64)
 
 SPECS = {
     'teammates_roster': (
@@ -18,7 +19,7 @@ SPECS = {
         "definition, current role_hash, launch toolsets, delegation settings and ignored fields; "
         "counts of entries not shown are included when a list is cut short. "
         "Filter or page this conversation's runs with status, search, since, limit and offset.",
-        {'include_runs': _p('boolean', "Include this conversation's recent runs (default true)."),
+        {'board': _BOARD, 'include_runs': _p('boolean', "Include this conversation's recent runs (default true)."),
          'teammate': _p('string', 'Explain only this named teammate.'),
          'status': _p('string', 'Filter runs by ledger status.',
                       enum=['running', 'succeeded', 'failed', 'interrupted', 'cancelled', 'unknown']),
@@ -30,7 +31,7 @@ SPECS = {
         'Start a named teammate (a Hermes subagent with operator-set instructions and toolsets) on a goal. Returns a '
         'run_id at once; the teammate works in the background. Get the result with teammate_check or teammate_wait. '
         'Pass wait_seconds to get the result in the same call.',
-        {'teammate': _p('string', 'Teammate name, from teammates_roster.'),
+        {'board': _BOARD, 'teammate': _p('string', 'Teammate name, from teammates_roster.'),
          'goal': _p('string', 'The complete task. The teammate does not see this conversation, so include what it needs. '
                          'Required, except with kanban_task: then it may be omitted and the card title is used.'),
          'context': _p('string', 'Optional extra facts, file paths or constraints.'),
@@ -56,7 +57,7 @@ SPECS = {
         'card comment and starts a teammate on it again (by default the one that worked it last), with the feedback '
         'and its previous result as context. Use this, not kanban_request_changes, for lane cards. '
         'The card returns to Review when the run ends.',
-        {'kanban_task': _p('string', 'Id of a teammates-lane card that is in Review (for example t_1234abcd).', minLength=1),
+        {'board': _BOARD, 'kanban_task': _p('string', 'Id of a teammates-lane card that is in Review (for example t_1234abcd).', minLength=1),
          'feedback': _p('string', 'What to change, at most 4000 characters.', minLength=1, maxLength=4000),
          'teammate': _p('string', 'Teammate name; defaults to the one that worked this card last.'),
          'wait_seconds': _p('number', 'Seconds to wait for the new run, 0-300 (0 = return at once).',
@@ -64,7 +65,7 @@ SPECS = {
     'teammate_chain': (
         'Create 1–8 linked cards in the teammates lane in one call; each card waits on the previous one. '
         "Optionally start the first card. A card's teammate receives its parent cards' results; approve each card with kanban_complete and a summary.",
-        {'steps': _p('array', 'Cards in execution order.', minItems=1, maxItems=8,
+        {'board': _BOARD, 'steps': _p('array', 'Cards in execution order.', minItems=1, maxItems=8,
                      items={'type': 'object', 'properties': {
                          'title': _p('string', 'Card title, 1–200 characters after strip.', minLength=1, maxLength=200),
                          'teammate': _p('string', 'Teammate name from the roster.'),
@@ -126,6 +127,8 @@ def schema(name, names=()):
                        f'If deferred, invoke with tool_call: {envelope}. '
                        'Replace example values; use one entry per call. When directly listed, call normally. '
                        + description)
+    if name in ('teammate_assign', 'teammate_chain', 'teammate_request_changes', 'teammates_roster'):
+        description += ' Pass board to choose an existing Kanban board (assign requires kanban_task).'
     if name == 'teammate_assign':
         description += (' Teammates at startup: ' + ', '.join(names) + '.' if names else '') + \
             ' Call teammates_roster for the current list; teammates added later work by name.'
@@ -137,22 +140,23 @@ def handler(name, get_service):
     def h(args: dict, **kwargs) -> str:
         try:
             service, session_id = get_service(), current_session_id(kwargs)
+            board = {'board': args['board']} if args.get('board') is not None else {}
             if name == 'teammates_roster':
                 value = service.roster(session_id, args.get('include_runs', True), args.get('teammate'),
                                        **{key: args[key] for key in ('status', 'search', 'since', 'limit', 'offset')
-                                          if args.get(key) is not None})
+                                          if args.get(key) is not None}, **board)
             elif name == 'teammate_assign':
                 value = service.assign(session_id, args.get('teammate'), args.get('goal'),
                                        context=args.get('context'), follow_up=args.get('follow_up', False),
                                        kanban_task=args.get('kanban_task'), parent_agent=kwargs.get('parent_agent'),
-                                       wait_seconds=args.get('wait_seconds', 0), source_run_ids=args.get('source_run_ids'))
+                                       wait_seconds=args.get('wait_seconds', 0), source_run_ids=args.get('source_run_ids'), **board)
             elif name == 'teammate_request_changes':
                 value = service.request_changes(session_id, args.get('kanban_task'), args.get('feedback'),
                                                 teammate=args.get('teammate'), parent_agent=kwargs.get('parent_agent'),
-                                                wait_seconds=args.get('wait_seconds', 0))
+                                                wait_seconds=args.get('wait_seconds', 0), **board)
             elif name == 'teammate_chain':
                 value = service.chain(session_id, args.get('steps'), start=args.get('start'),
-                                      wait_seconds=args.get('wait_seconds'), parent_agent=kwargs.get('parent_agent'))
+                                      wait_seconds=args.get('wait_seconds'), parent_agent=kwargs.get('parent_agent'), **board)
             elif name == 'teammate_check':
                 value = service.check(session_id, args.get('run_id'), args.get('wait_seconds', 0),
                                       **({'offset': args['offset']} if args.get('offset') is not None else {}))

@@ -2,7 +2,12 @@
 from contextlib import contextmanager
 from dataclasses import fields
 import json
+import inspect
 import os
+
+
+class BoardMissing(LookupError):
+    """A named Kanban board no longer exists. Connecting would recreate it, so callers get this instead."""
 
 
 def lifecycle(ctx):
@@ -214,9 +219,55 @@ class HermesHost:
         except ImportError:
             return None
 
+    def select_board(self, board):
+        """Validate explicit intent without opening (and potentially creating) a DB."""
+        if board is None:
+            return None, None
+        if not isinstance(board, str) or not 1 <= len(board.strip()) <= 64:
+            return None, 'invalid_board'
+        if not self.kanban_available or not self.supports_board():
+            return None, 'unsupported'
+        normalize = getattr(self.kanban, '_normalize_board_slug', None)
+        exists = getattr(self.kanban, 'board_exists', None)
+        if not callable(exists):
+            return None, 'unsupported'
+        try:
+            board = normalize(board) if callable(normalize) else board.strip()
+            return (board, None) if board and self.board_live(board) else (None, 'unknown_board')
+        except ValueError:
+            return None, 'invalid_board'
+
+    def board_live(self, board):
+        """The board exists and is not archived. Newer Hermes keeps an archived board's board.json as a tombstone
+        (board_exists stays true), so read its metadata too; if that read fails, treat the board as not live."""
+        if not self.kanban.board_exists(board):
+            return False
+        metadata = getattr(self.kanban, 'read_board_metadata', None)
+        if not callable(metadata):
+            return True
+        try:
+            return not (metadata(board) or {}).get('archived')
+        except Exception:
+            return False
+
+    def supports_board(self):
+        try:
+            parameter = inspect.signature(self.connect).parameters.get('board')
+            return parameter is not None and parameter.kind != inspect.Parameter.POSITIONAL_ONLY
+        except (TypeError, ValueError):
+            return False
+
     @contextmanager
-    def connection(self):
-        conn = self.connect()
+    def connection(self, board=None):
+        if board is not None:
+            if not self.supports_board():
+                raise NotImplementedError('unsupported: connect(board=) is unavailable')
+            exists = getattr(self.kanban, 'board_exists', None)
+            if not callable(exists):
+                raise NotImplementedError('unsupported: board_exists is unavailable')
+            if not self.board_live(board):
+                raise BoardMissing('unknown_board')
+        conn = self.connect(board=board) if board is not None else self.connect()
         try:
             yield conn
         finally:
