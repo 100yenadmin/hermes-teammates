@@ -1,8 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 (2026-11-11)
 
-- Optional `board` selects an existing Kanban board for lane assignment, chains, rework and roster listings (#106); lane runs keep that board through heartbeats, Review and failure.
+One new optional argument. Tool names, existing arguments and error codes are unchanged. Without `board`, every call behaves exactly as in 1.5.3.
+
+- **Choose the Kanban board for lane cards (#106).** `teammate_assign` (with `kanban_task`), `teammate_chain`, `teammate_request_changes` and `teammates_roster` take an optional `board`.
+  - The name is normalized the way Hermes normalizes board slugs.
+  - The board must already exist and not be archived; otherwise the call returns `unknown_board` before anything is written.
+  - A Hermes without board support returns `unsupported`.
+  - The plugin never creates a board.
+- **The run keeps its board.** The board is recorded on the run. The claim, heartbeats, the Review handoff, blocking on failure and later rework all stay on it, even if Hermes' current board changes mid-run.
+- **Rework picks the newest run.** `teammate_request_changes` with `board` also considers runs assigned without one, so it continues from the card's newest run.
+- **A board removed mid-run is not recreated.** The run still finishes and its result stays readable. Its card outcome is final: `review_refused: board missing`, or `claim_lost` if a heartbeat finds the board gone first.
+- **Setup line fixed.** On a fresh Hermes install the `kanban` toolset is off, so the chat could not approve cards. The README's first steps now say to run `hermes tools enable kanban`.
 
 ## 1.5.3 (2026-11-10)
 
