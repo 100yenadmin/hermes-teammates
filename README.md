@@ -488,7 +488,9 @@ plugins:
         trust_notice_routing: true
 ```
 
-Without `allow_gateway_injection`, Hermes drops every notice while the roster still says `on`.
+Without `allow_gateway_injection`, Hermes drops every notice while the roster still says `on`. The one exception
+is an older Hermes whose classic CLI still runs plugins in its own process: there a notice queues into that CLI
+without the switch.
 
 The notice still holds only the teammate name, run ID and status. The one risk is a session change while a run
 is pending (`/new`, `/reset`, `/resume`, an automatic reset, or compression with `in_place: false`): the chat

@@ -140,3 +140,17 @@ def test_trust_notice_routing_must_be_boolean(plugin, value):
     from hermes_teammates.teammates_config import parse
     config = parse({'trust_notice_routing': value})
     assert config['trust_notice_routing'] is False and any('trust_notice_routing' in e for e in config['config_errors'])
+
+
+@pytest.mark.parametrize('attached', [False, True])
+def test_keyless_notice_uses_the_real_cli_lookup(rig, monkeypatch, attached):
+    # cli_attached() unstubbed: a classic-CLI process is one whose plugin manager has _cli_ref set
+    # (CI's pinned Hermes); Hermes 0.23.1 never sets it, so a key-less notice is dropped there.
+    from types import SimpleNamespace
+    calls = trusted(rig, monkeypatch)
+    rig.host.ctx._manager = SimpleNamespace(_cli_ref=object() if attached else None)
+    monkeypatch.setattr(rig.host, 'completion_target', lambda: (None, attached))
+    run_id = start(rig)
+    rig.service.finalize(run_id, result(rig, run_id), notify=True)
+    rig.service._flush_notice('owner')
+    assert bool(calls) is attached
