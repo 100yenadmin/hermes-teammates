@@ -18,6 +18,7 @@ def trusted(rig, monkeypatch, *, notify=True):
 def test_trusted_notice_is_delivered_without_session_binding(rig, monkeypatch):
     calls = trusted(rig, monkeypatch)
     assert rig.host.notice_session_id('anything') is None  # stock host: binding unavailable
+    monkeypatch.setattr(rig.host, 'completion_target', lambda: ('chat-key', False))
     run_id = start(rig)
     receipt = result(rig, run_id)
     receipt.summary = 'CHILD OUTPUT must not be in the notice'
@@ -26,7 +27,7 @@ def test_trusted_notice_is_delivered_without_session_binding(rig, monkeypatch):
     assert len(calls) == 1
     text, kwargs = calls[0]
     assert 'worker finished' in text and run_id in text and 'teammate_check' in text
-    assert 'CHILD OUTPUT' not in text and kwargs['role'] == 'user'
+    assert 'CHILD OUTPUT' not in text and kwargs['role'] == 'user' and kwargs['session_key'] == 'chat-key'
     with rig.store() as store:
         assert store.get(run_id, 'owner')['notified_at'] is not None
 
@@ -40,6 +41,40 @@ def test_notice_goes_to_the_chat_recorded_at_assignment(rig, monkeypatch):
     rig.service.finalize(run_id, result(rig, run_id), notify=True)
     rig.service._flush_notice('owner')
     assert calls and calls[0][1]['session_key'] == 'durable-chat-key'
+
+
+@pytest.mark.parametrize('cli', [False, True])
+def test_run_with_no_recorded_chat(rig, monkeypatch, cli):
+    # A cron turn (or any turn without a session key) records no chat. Only a classic-CLI process,
+    # which queues key-less injections into its own REPL, may still get the notice.
+    calls = trusted(rig, monkeypatch)
+    monkeypatch.setattr(rig.host, 'completion_target', lambda: (None, cli))
+    monkeypatch.setattr(rig.host, 'cli_attached', lambda: cli)
+    run_id = start(rig)
+    rig.service.finalize(run_id, result(rig, run_id), notify=True)
+    rig.service._flush_notice('owner')
+    if not cli:
+        assert not calls
+        with rig.store() as store:
+            assert store.get(run_id, 'owner')['notified_at'] is None
+        return
+    assert len(calls) == 1 and calls[0][1]['session_key'] is None and run_id in calls[0][0]
+
+
+def test_runs_from_two_chats_on_one_conversation_notify_each_chat(rig, monkeypatch):
+    # /resume from another chat, /resume --all, --cross-room or /handoff can point two chat keys at one session.
+    calls = trusted(rig, monkeypatch)
+    monkeypatch.setattr(rig.host, 'completion_target', lambda: ('chat-a', False))
+    run_a = start(rig)
+    monkeypatch.setattr(rig.host, 'completion_target', lambda: ('chat-b', False))
+    run_b = start(rig)
+    for run_id in (run_a, run_b):
+        rig.service.finalize(run_id, result(rig, run_id), notify=True)
+    rig.service._flush_notice('owner')
+    sent = {kwargs['session_key']: text for text, kwargs in calls}
+    assert sorted(sent) == ['chat-a', 'chat-b']
+    assert run_a in sent['chat-a'] and run_b not in sent['chat-a']
+    assert run_b in sent['chat-b'] and run_a not in sent['chat-b']
 
 
 @pytest.mark.parametrize('trust', [True, False])

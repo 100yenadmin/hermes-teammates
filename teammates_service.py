@@ -945,21 +945,32 @@ class TeammatesService:
                 config = parse(self.config_reader())
                 if not rows or not config['notify_on_completion']:
                     return
-                if (not config['trust_notice_routing'] and
-                        self.host.notice_session_id(rows[0]['parent_session_key']) != owner):
-                    logger.info('completion notice dropped: host cannot confirm the owning session')
-                    return
-                listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})" for r in rows[:8])
-                if len(rows) > 8:
-                    listed += f'; and {len(rows) - 8} more'
-                content = f'[hermes-teammates] {listed}. Call teammate_check or teammate_wait to read the result.'
-                accepted = self.host.ctx.inject_message(content, role='user', session_key=rows[0]['parent_session_key'])
-            if accepted is True:
+                trusted = config['trust_notice_routing']
+                # Several chat keys can point at one conversation, so each chat gets only its own runs.
+                by_key = {}
+                for row in rows:
+                    by_key.setdefault(row['parent_session_key'], []).append(row)
+                sent = []
+                for key, group in by_key.items():
+                    if not trusted and self.host.notice_session_id(key) != owner:
+                        logger.info('completion notice dropped: host cannot confirm the owning session')
+                        continue
+                    if trusted and key is None and not self.host.cli_attached():
+                        logger.info('completion notice dropped: the run has no recorded chat')
+                        continue
+                    listed = '; '.join(f"{r['teammate']} finished (run {r['run_id']}, {r['status']})"
+                                       for r in group[:8])
+                    if len(group) > 8:
+                        listed += f'; and {len(group) - 8} more'
+                    content = f'[hermes-teammates] {listed}. Call teammate_check or teammate_wait to read the result.'
+                    if self.host.ctx.inject_message(content, role='user', session_key=key) is True:
+                        sent += group
+                    else:
+                        logger.info('completion notice not accepted')
+            if sent:
                 with self.store_factory() as store:
-                    for row in rows:
+                    for row in sent:
                         store.update(row['run_id'], notified_at=self.clock())
-            else:
-                logger.info('completion notice not accepted')
         except Exception:
             logger.info('completion notice failed')
 

@@ -164,6 +164,11 @@ class HermesHost:
         # Copied session ContextVars identify the assigner, not the receiver at flush time.
         return None
 
+    def cli_attached(self):
+        # A classic-CLI process: Hermes queues key-less injections into its own REPL. Hermes 0.23.1 runs
+        # plugins in the gateway and never sets _cli_ref, so a key-less notice there goes nowhere safe.
+        return getattr(getattr(self.ctx, '_manager', None), '_cli_ref', None) is not None
+
     def push_feature(self, enabled, trusted=False):
         key, cli = self.completion_target()
         if not callable(getattr(self.ctx, 'inject_message', None)):

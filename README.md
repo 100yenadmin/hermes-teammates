@@ -482,16 +482,22 @@ your agent gets a new turn to read the result:
 plugins:
   entries:
     hermes-teammates:
-      allow_gateway_injection: true      # Hermes' own consent switch; needed everywhere except the classic CLI
+      allow_gateway_injection: true      # Hermes' own consent switch; on 0.23.1 the classic CLI needs it too
       settings:
         notify_on_completion: true
         trust_notice_routing: true
 ```
 
+Without `allow_gateway_injection`, Hermes drops every notice while the roster still says `on`.
+
 The notice still holds only the teammate name, run ID and status. The one risk is a session change while a run
 is pending (`/new`, `/reset`, `/resume`, an automatic reset, or compression with `in_place: false`): the chat
-keeps its session key, so the notice lands in the chat's current conversation. That conversation can't read
-the run (`teammate_check` answers `unknown_run`); the result stays with the conversation that assigned it.
+keeps its session key, so the notice lands in the chat's current conversation. If that is a different session,
+it can't read the run (`teammate_check` answers `unknown_run`); the result stays with the conversation that
+assigned it, and a `/resume` back to that session can read it. Moving a session between chats (`/resume` from
+another chat, `/resume --all`, Matrix `--cross-room`, Desktop `/handoff`) can misroute a notice the same way.
+Each notice goes only to the chat its runs were assigned from. A run assigned from a turn with no session key,
+such as a cron turn, gets no notice, except in a classic-CLI process that queues it into its own REPL.
 Runs already read with check/wait get no notice. The roster shows `push completion=on (trusted routing ...)`.
 
 ## Compatibility
