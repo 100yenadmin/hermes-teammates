@@ -26,8 +26,8 @@ definition, budgets or permissions yourself.
    `wait_seconds` (up to 300) when you need this one result now.
 2. Several runs, or other work meanwhile: `teammate_wait(run_ids=[...])` returns `done`, `pending` and
    `timed_out`. `teammate_check(run_id)` shows one run; long results page with `offset`.
-3. `follow_up: true` gives a teammate a digest of its earlier runs in this conversation. `source_run_ids` hands
-   it other finished runs' results.
+3. `follow_up: true` gives a teammate a digest of its earlier runs in this conversation. `source_run_ids` (1-8
+   finished runs from this conversation) hands it those runs' results.
 4. When you report a result, keep the teammate's findings, citations and verdict word for word, and put your own
    commentary separately.
 5. `teammate_message` steers a running teammate; `teammate_stop` cancels a run.
@@ -45,15 +45,19 @@ finish instead of retrying.
    card's title, and the results of the card's parents travel with it automatically.
 4. When the teammate finishes, the card moves to **Review**. Review is not done: a dependent card stays not ready
    (`kanban_task_not_ready`) until you approve its parent.
-5. Read the result before you approve it (`teammate_check`, or the card's summary). If it meets the brief, approve
-   it with `kanban_complete(task_id=..., summary=...)`. Then give the next card to its teammate.
+5. Read the result before you approve it (`teammate_check`, or the card's summary), and approve only once the
+   run's `kanban_outcome` is `review`: `null` means the handoff has not landed yet, so check again. Approve with
+   `kanban_complete(task_id=..., summary=...)` when the user asked you to run the chain; otherwise report the
+   result and let the user approve. Then give the next card to its teammate.
 6. If it falls short, `teammate_request_changes(kanban_task=..., feedback=...)` reopens the card, records the
    feedback and starts the teammate again with its previous result. It never completes a card.
-7. A failed or stopped run **blocks** its card with the reason. Tell the user, and fix the cause or send the card
-   back; don't approve blocked work.
+7. A failed or stopped run **blocks** its card with the reason, and the card stays blocked. Tell the user. To
+   retry, fix the cause, unblock the card (`kanban_unblock`, or `hermes kanban unblock <card>`), then
+   `teammate_assign(kanban_task=...)` again. `teammate_request_changes` only works on a card in Review. Never
+   approve blocked work.
 
-The plugin never marks a card done; only your `kanban_complete` does. One request can run a whole chain in one
-turn: assign, wait with `teammate_wait`, verify, approve, assign the next card.
+The plugin never marks a card done; only `kanban_complete` does. When the user asks for a whole chain, one turn
+can run it: assign, wait with `teammate_wait`, verify, approve, assign the next card.
 
 Optional `board` on these tools names another existing board; the run keeps that board through Review and rework.
 
@@ -76,9 +80,11 @@ The README's Compatibility table lists which Hermes builds support each setting.
 
 ## 5. Waiting for results
 
-`teammates_roster` shows `push_completion`. When it is `on`, you may end your turn after assigning: a one-line
-notice (teammate, run ID, status) starts a new turn when a run finishes, and you then read the result with
-`teammate_check`. Otherwise use `teammate_wait`. Hermes can also wake the chat that created a card when the card
+`teammates_roster` shows `push_completion` under the host features. `on` means notices are configured, not that
+delivery is confirmed: without Hermes' `allow_gateway_injection` consent, Hermes drops them while the roster still
+says `on`. If you end your turn after assigning, give the user the run IDs. A one-line notice (teammate, run ID,
+status) should start a new turn when a run finishes; read the result with `teammate_check`. If no notice arrives,
+or the status is not `on`, use `teammate_wait` or `teammate_check`. Hermes can also wake the chat that created a card when the card
 reaches Review; a wake for a card you already approved is only a late notice.
 
 ## Example

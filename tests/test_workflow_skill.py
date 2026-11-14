@@ -37,19 +37,37 @@ def test_frontmatter_matches_the_registration():
     assert text.split('---')[1].strip().splitlines() == ['name: teammates-workflow', f'description: "{DESCRIPTION}"']
 
 
-def test_skill_names_only_real_tools_codes_and_fields():
+def test_skill_names_only_real_tools_codes_and_fields(plugin):
     text = SKILL.read_text()
     manifest = (PLUGIN_ROOT / 'plugin.yaml').read_text()
     tools = set(re.search(r'^provides_tools: \[(.*)\]$', manifest, re.M).group(1).replace(' ', '').split(','))
     named = set(re.findall(r'\b(teammates?_[a-z_]+)\(', text)) | set(re.findall(r'`(teammates?_[a-z_]+)`', text))
     assert named and named <= tools, named - tools
+    # Error codes: every backticked snake_case word that is not a tool, an argument or a Hermes name must be a code
+    # the service returns through error('<code>').
     service = (PLUGIN_ROOT / 'teammates_service.py').read_text()
-    codes = set(re.findall(r'`([a-z]+(?:_[a-z]+)+)`', text)) - tools
-    hermes_or_settings = {'delegate_task', 'kanban_complete', 'run_ids', 'kanban_task', 'source_run_ids',
-                          'wait_seconds', 'follow_up', 'push_completion', 'reasoning_effort', 'timed_out',
-                          'delegation.reasoning_effort', 'delegation.request_overrides'}
-    for code in codes - hermes_or_settings:
-        assert f"'{code}'" in service, f'{code} is not an error code the service returns'
+    returned = set(re.findall(r"error\('([a-z_]+)'", service))
+    specs = plugin.teammates_tools.SPECS
+    arguments = {key for _, properties, _ in specs.values() for key in properties}
+    hermes = {'delegate_task', 'kanban_complete', 'kanban_unblock', 'push_completion', 'kanban_outcome', 'timed_out',
+              'allow_gateway_injection'}
+    words = set(re.findall(r'`([a-z]+(?:_[a-z]+)+)`', text)) - tools - arguments - hermes - {'reasoning_effort'}
+    assert words and words <= returned, words - returned
+    # Arguments the skill passes exist on the tool it passes them to.
+    for tool, args in re.findall(r'`(teammates?_[a-z_]+)\(([^)]*)\)', text):
+        for arg in re.findall(r'([a-z_]+)=', args):
+            assert arg in specs[tool][1], f'{tool} has no argument {arg}'
+
+
+def test_limits_the_skill_states_match_the_schemas():
+    text = SKILL.read_text()
+    from conftest import PLUGIN_ROOT as root
+    tools = (root / 'teammates_tools.py').read_text()
+    assert '`wait_seconds` (up to 300)' in text and tools.count('minimum=0, maximum=300, default=0') >= 3
+    assert 'creates 1-8 linked cards' in text and "'steps': _p('array', 'Cards in execution order.', minItems=1, maxItems=8" in tools
+    assert '(1-8\n   finished runs' in text and 'minItems=1, maxItems=8, uniqueItems=True' in tools
+    assert '(default 4, queued runs included)' in text
+    assert re.search(r'^  max_live_runs: \{type: int, default: 4,', (root / 'plugin.yaml').read_text(), re.M)
 
 
 def test_roster_fields_the_skill_names_exist(plugin):
