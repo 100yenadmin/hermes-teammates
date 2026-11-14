@@ -5,7 +5,7 @@ import threading
 
 DEFAULTS = {'teammates': {}, 'lane': 'teammates', 'claim_ttl_seconds': 900,
             'max_live_runs': 4, 'followup_context_chars': 8000, 'notify_on_completion': False,
-            'roster_file': ''}
+            'roster_file': '', 'trust_notice_routing': False}
 ROSTER_FILE = '_roster_file'  # read() -> parse(): the file the roster came from, and any problem reading it
 FIELDS = {'description', 'instructions', 'toolsets', 'model', 'route', 'reasoning_effort'}
 NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
@@ -38,6 +38,10 @@ def parse(raw):
         result['notify_on_completion'] = raw.get('notify_on_completion', False)
     else:
         errors.append('notify_on_completion: expected boolean; using default')
+    if type(raw.get('trust_notice_routing', False)) is bool:
+        result['trust_notice_routing'] = raw.get('trust_notice_routing', False)
+    else:
+        errors.append('trust_notice_routing: expected boolean; using default')
     for key in raw.keys() - DEFAULTS.keys():
         errors.append(f'unknown setting: {key}')
     for key, low, high in [('claim_ttl_seconds', 60, 86400), ('max_live_runs', 1, 16),
