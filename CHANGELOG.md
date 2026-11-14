@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **A working playbook for the agent (#139).** A second bundled skill, `teammates-workflow`, puts the operating rules where the agent can find them: when to pick a teammate over `delegate_task`, the chain → Review → `kanban_complete` loop (Review is not done; dependent cards stay not ready until their parent is approved), request-changes and stop paths, and how a teammate's model, route and reasoning effort are inherited, including what an `unsupported` entry means (on Hermes 0.23.1 a per-teammate `reasoning_effort` is unsupported and the global `delegation.reasoning_effort` applies). No tools, settings or behaviour change.
+- **Docs:** the Compatibility table's push-completion row now mentions the 1.7.0 opt-in.
+
 ## 1.7.0 (2026-11-14)
 
 One new setting, off by default. Tool names, arguments and error codes are unchanged, and without the setting every call behaves exactly as in 1.6.0. Thanks to @allanbell3d, who asked for this, built it and fixed both review findings within hours.

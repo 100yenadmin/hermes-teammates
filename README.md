@@ -333,6 +333,12 @@ verbatim when reporting them, and keep the parent's commentary separate.
 
 `/teammates` prints the roster in any chat surface.
 
+The bundled `teammates-workflow` skill gives the agent this working playbook in one place: when to use a teammate
+rather than `delegate_task`, the chain → Review → `kanban_complete` loop (Review is not done, and dependent cards
+stay not ready until their parent is approved), request-changes and stop paths, and how routes, models and
+reasoning effort are inherited, including what an `unsupported` entry means. On Hermes versions that do not list
+plugin skills in the system prompt, name it: "load the skill `hermes-teammates:teammates-workflow`".
+
 `queued` means Hermes has accepted the child and is waiting to start it. Queued runs still count toward the
 live-run cap.
 
@@ -523,7 +529,7 @@ Runs already read with check/wait get no notice. The roster shows `push completi
 | `teammate_request_changes` | Kanban `reopen_review_task` | Returns `unsupported` |
 | `teammate_chain` | Hermes `kanban_create` through `ctx.dispatch_tool` | Returns `unsupported` when dispatch is unavailable |
 | Explicit `board` | Hermes `connect(board=)` and `board_exists` | Returns unsupported when missing |
-| push completion | public session-bound injection (unavailable on tested pinned/main); gateway also needs operator consent | Roster reports unsupported; results remain available via check/wait |
+| push completion | public session-bound injection (unavailable on tested pinned/main), or the operator opt-in `trust_notice_routing` (see [Completion notices](#completion-notices-opt-in)); Hermes' `allow_gateway_injection` consent for gateway, TUI and Desktop sessions and the 0.23.1 classic CLI | Roster reports unsupported or off; results remain available via check/wait |
 | follow-up on the same child | a lifecycle `follow_up` (proposed upstream) | Follow-ups carry earlier results as context |
 
 The upstream proposal is tracked in [NousResearch/hermes-agent#133212](https://github.com/NousResearch/hermes-agent/issues/133212).
