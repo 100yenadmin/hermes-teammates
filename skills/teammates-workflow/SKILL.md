@@ -71,7 +71,8 @@ the run still goes ahead without them. Don't retry, and don't ask to edit the ro
 - **`model`:** must be served by the teammate's provider.
 - **`route`** (a configured provider name): needs a Hermes build whose launch request takes a provider. A routed
   teammate skips the `delegation:` provider settings, including `delegation.request_overrides`, and should
-  always set `model` too. Unrouted teammates keep whatever `delegation:` settings Hermes applies to subagents.
+  always set `model` too. Unrouted teammates keep the `delegation:` settings Hermes applies to subagents, including
+  `delegation.request_overrides`.
 - **Reasoning effort:** the global `delegation.reasoning_effort` applies to every teammate on any supported
   build. A per-teammate `reasoning_effort` needs a launch request that takes one; on Hermes 0.23.1 it is listed as
   `unsupported` and the global value applies. You don't need a roster override to get the global effort.

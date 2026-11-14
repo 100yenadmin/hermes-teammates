@@ -59,8 +59,9 @@ def test_skill_names_only_real_tools_codes_and_fields(plugin):
             assert arg in specs[tool][1], f'{tool} has no argument {arg}'
 
 
-def test_limits_the_skill_states_match_the_schemas():
+def test_limits_the_skill_states_match_the_schemas(plugin):
     text = SKILL.read_text()
+    assert plugin.teammates_tools.SPECS['teammate_assign'][1]['wait_seconds']['maximum'] == 300
     from conftest import PLUGIN_ROOT as root
     tools = (root / 'teammates_tools.py').read_text()
     assert '`wait_seconds` (up to 300)' in text and tools.count('minimum=0, maximum=300, default=0') >= 3
