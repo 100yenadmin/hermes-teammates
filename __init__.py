@@ -10,21 +10,33 @@ from .teammates_service import TeammatesService
 logger = logging.getLogger(__name__)
 REPORT_SKILL = 'teammates-report-problem'
 REPORT_DESCRIPTION = 'Hermes Teammates: report a bug or problem'
+WORKFLOW_SKILL = 'teammates-workflow'
+WORKFLOW_DESCRIPTION = 'Hermes Teammates: assign teammates, run Kanban card chains and approve Review'
 
 
-def register_report_skill(ctx, root=Path(__file__).parent):
-    """The report-a-problem skill. Hermes ignores plugin SKILL.md frontmatter, so name and description are passed.
+def _register_skill(ctx, name, description, root):
+    """Hermes ignores plugin SKILL.md frontmatter, so name and description are passed.
     Older hosts without plugin skills, and copies without the skills folder, simply go without it."""
-    path = root / 'skills' / REPORT_SKILL / 'SKILL.md'
+    path = root / 'skills' / name / 'SKILL.md'
     if not callable(getattr(ctx, 'register_skill', None)) or not path.is_file():
         return False
     try:
-        ctx.register_skill(REPORT_SKILL, path, description=REPORT_DESCRIPTION,
-                           frontmatter={'name': REPORT_SKILL, 'description': REPORT_DESCRIPTION})
+        ctx.register_skill(name, path, description=description,
+                           frontmatter={'name': name, 'description': description})
     except Exception:
-        logger.debug('teammates report skill not registered')
+        logger.debug('teammates skill %s not registered', name)
         return False
     return True
+
+
+def register_report_skill(ctx, root=Path(__file__).parent):
+    """The report-a-problem skill."""
+    return _register_skill(ctx, REPORT_SKILL, REPORT_DESCRIPTION, root)
+
+
+def register_workflow_skill(ctx, root=Path(__file__).parent):
+    """The working playbook: one-off runs, card chains, Review approval, routes and reasoning effort."""
+    return _register_skill(ctx, WORKFLOW_SKILL, WORKFLOW_DESCRIPTION, root)
 
 
 LANE_HINT_ID = 'hermes-teammates.kanban-lane'
@@ -96,6 +108,7 @@ def register(ctx):
             return f'hermes-teammates: internal error: {str(exc)[:2000]}'
     ctx.register_command('teammates', handler=command, description='List teammates and lane tasks')
     register_report_skill(ctx)
+    register_workflow_skill(ctx)
     register_lane_hint(ctx, read_settings)
     def callback(method):
         def on_hook(**kwargs):
