@@ -143,6 +143,6 @@ def test_fix1_known_unobserved_summary_passes_reconcile_but_spend_unknown(sid):
 
 def test_fix1_ci_fetches_historical_tags():
     workflow = (protocol.ROOT / '.github/workflows/ci.yml').read_text()
-    checkout = workflow.split('- uses: actions/checkout@v4', 1)[1].split('      - ', 1)[0]
+    checkout = workflow.split('- uses: actions/checkout@', 1)[1].split('      - ', 1)[0]
     assert 'path: plugin' in checkout
     assert 'fetch-depth: 0' in checkout
