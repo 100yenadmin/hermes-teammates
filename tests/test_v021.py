@@ -213,7 +213,10 @@ def test_explain_missing_config_values(rig, monkeypatch):
     def unavailable():
         raise RuntimeError('synthetic config unavailability')
     monkeypatch.setattr(global_config, 'load_config_readonly', unavailable)
-    assert rig.service.roster('owner', teammate='worker')['teammates'][0]['delegation'] == teammate['delegation']
+    # With the loader failing, Hermes's getter may fall back to its legacy CLI config, so expect
+    # whatever the getter itself returns in this state; the other two settings stay at their defaults.
+    expected = dict(teammate['delegation'], worktree_isolation=delegate_tool_config._get_worktree_isolation())
+    assert rig.service.roster('owner', teammate='worker')['teammates'][0]['delegation'] == expected
 
 
 def test_seen_bound_and_evicted_id_can_be_observed(rig):
