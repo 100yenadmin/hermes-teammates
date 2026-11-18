@@ -669,5 +669,6 @@ Report toolset escapes, cross-profile access or leaked credentials through a [pr
 ## Releases and license
 
 - [Releases](https://github.com/100yenadmin/hermes-teammates/releases) and the [CHANGELOG](CHANGELOG.md)
+- [Vision](VISION.md) (goal, users, which Hermes surfaces work) and the [roadmap](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md) and the [security policy](SECURITY.md)
 - [MIT license](LICENSE). Maintained by [@100yenadmin](https://github.com/100yenadmin) (Electric Sheep).
