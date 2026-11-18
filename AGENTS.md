@@ -33,7 +33,9 @@ export HERMES_DISABLE_LAZY_INSTALLS=1   # stops Hermes re-syncing or rebuilding 
 ../hermes/.venv/bin/python -m pytest -q -p no:cacheprovider
 ```
 
-CI runs this against both the pinned Hermes commit and main, and rejects self-updaters and runtime code-fetch patterns. The
+CI runs this against both the pinned Hermes commit and main, and rejects self-updaters and runtime code-fetch patterns.
+The required check for merging to `main` is `Against Hermes (pinned)`. `Against Hermes (main)` runs on every pull request too,
+but it isn't required, because Hermes main moves. The
 `bench` tests accept only the approved Hermes commits named in `tests/conftest.py`, so run them against the pinned checkout.
 
 ## Rules
