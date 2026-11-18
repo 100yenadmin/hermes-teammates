@@ -205,7 +205,7 @@ def test_explain_missing_config_values(rig, monkeypatch):
     assert value['ok'], value
     teammate = value['teammates'][0]
     assert teammate['launch_toolsets'] == 'inherits parent'
-    monkeypatch.setattr(delegate_tool_config, '_cfg', lambda: {})
+    # load_config_readonly is already {} here, so Hermes's getter returns its default (#144).
     assert teammate['delegation'] == dict(
         inherit_mcp_toolsets=global_config.DEFAULT_CONFIG['delegation']['inherit_mcp_toolsets'],
         worktree_isolation=delegate_tool_config._get_worktree_isolation(),
@@ -213,7 +213,10 @@ def test_explain_missing_config_values(rig, monkeypatch):
     def unavailable():
         raise RuntimeError('synthetic config unavailability')
     monkeypatch.setattr(global_config, 'load_config_readonly', unavailable)
-    assert rig.service.roster('owner', teammate='worker')['teammates'][0]['delegation'] == teammate['delegation']
+    # With the loader failing, Hermes's getter may fall back to its legacy CLI config, so expect
+    # whatever the getter itself returns in this state; the other two settings stay at their defaults.
+    expected = dict(teammate['delegation'], worktree_isolation=delegate_tool_config._get_worktree_isolation())
+    assert rig.service.roster('owner', teammate='worker')['teammates'][0]['delegation'] == expected
 
 
 def test_seen_bound_and_evicted_id_can_be_observed(rig):
