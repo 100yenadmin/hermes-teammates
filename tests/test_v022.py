@@ -117,9 +117,11 @@ def test_explain_default_values_and_sources_from_hermes(rig, monkeypatch):
     from tools import delegate_tool_config
     # Exercise the real merged-config read: key presence there alone does not
     # distinguish a default from an explicit setting in config.yaml.
-    monkeypatch.setattr(delegate_tool_config, '_cfg', lambda: {})
     expected = dict(config.DEFAULT_CONFIG['delegation'])
-    expected['worktree_isolation'] = delegate_tool_config._get_worktree_isolation()
+    with monkeypatch.context() as patch:
+        # Hermes's default for a key absent from config, read through the public loader (#144).
+        patch.setattr(config, 'load_config_readonly', lambda: {})
+        expected['worktree_isolation'] = delegate_tool_config._get_worktree_isolation()
     teammate = rig.service.roster('owner', teammate='worker')['teammates'][0]
     keys = ('inherit_mcp_toolsets', 'worktree_isolation', 'child_timeout_seconds')
     assert teammate['delegation'] == {key: expected[key] for key in keys}

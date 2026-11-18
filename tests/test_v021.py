@@ -205,7 +205,7 @@ def test_explain_missing_config_values(rig, monkeypatch):
     assert value['ok'], value
     teammate = value['teammates'][0]
     assert teammate['launch_toolsets'] == 'inherits parent'
-    monkeypatch.setattr(delegate_tool_config, '_cfg', lambda: {})
+    # load_config_readonly is already {} here, so Hermes's getter returns its default (#144).
     assert teammate['delegation'] == dict(
         inherit_mcp_toolsets=global_config.DEFAULT_CONFIG['delegation']['inherit_mcp_toolsets'],
         worktree_isolation=delegate_tool_config._get_worktree_isolation(),
