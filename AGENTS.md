@@ -50,6 +50,14 @@ but it isn't required, because Hermes main moves. The
 - Never commit secrets, tokens, real user data, or machine-specific paths.
 - Tests use a temporary `HERMES_HOME`, never a real one.
 
+## Release and escalation
+Read [the ElectricSheep release and escalation standard](https://github.com/electricsheephq/eng-standards/blob/main/policies/release-and-escalation.md) and record its approved revision; unresolved/unapproved policy does not expand existing grants.
+Ship the smallest proven fix as soon as gates pass; preserve non-author review, final-candidate green CI, regression/smoke proof and Plugin Manager guarded installation.
+Name storage/migration, routing/permission, shared-hook, compatibility and recovery risks; select decisive tests, and escalate holds on the policy's deadlines rather than waiting for GA.
+Require representative authorized canary use, state-safe recovery, an accepted durable watcher and accurate known-issue/update guidance; publication is not user recovery.
+Maintainers decide within grants; Eva decides unresolved risk/user-impact/priority trade-offs; silence authorizes only an already-delegated safe default, never a new action or waiver.
+Andrew owns new access/credential grants, money, public-as-Andrew and destructive actions; record priority overrides in the existing plan without erasing safety gates.
+
 ## Release closeout (required after every release, rc promoted to stable, or GA tag)
 
 After the release is published and its receipt sent:
